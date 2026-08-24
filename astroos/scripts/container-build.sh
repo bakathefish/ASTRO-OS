@@ -92,6 +92,10 @@ if [[ "${ASTROOS_FAST:-0}" == "1" ]]; then
 fi
 
 # --- Their build, unchanged ----------------------------------------------
+# USER: their util-iso.sh ends with `sudo chown $USER $outFolder`; in the
+# container's non-login root shell $USER is unset and the chown (after the
+# ISO is fully written) errors out the whole script.
+export USER=root
 cd "$base"
 ./buildiso.sh -p desktop
 
