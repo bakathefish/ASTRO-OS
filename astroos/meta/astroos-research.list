@@ -1,0 +1,67 @@
+# astroos-research — physics / scicomp / datascience / viz / writing
+# Meta bundle of the §3c buckets. Trim per-machine as needed.
+
+# physics & numerical sim
+root
+geant4
+python-qutip
+python-qiskit
+python-sunpy
+python-healpy
+python-emcee
+
+# scicomp languages & HPC
+julia
+r
+gcc-fortran
+octave
+openmpi
+cuda
+cudnn
+python-numba
+
+# core numeric libs
+gsl
+openblas
+lapack
+fftw
+gmp
+mpfr
+eigen
+suitesparse
+
+# data science / ML
+python-pandas
+python-polars
+python-numpy
+python-scipy
+python-scikit-learn
+python-statsmodels
+python-xarray
+jupyterlab
+python-jupyter-lsp
+python-snakemake
+
+# scientific visualization
+paraview
+labplot
+veusz
+python-matplotlib
+python-plotly
+python-seaborn
+
+# writing / reproducible reports
+texlive-most
+zotero
+pandoc
+quarto
+
+# data infra
+postgresql
+sqlite
+duckdb
+hdf5
+python-h5py
+netcdf
+dvc
+rclone

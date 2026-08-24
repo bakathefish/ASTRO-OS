@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# astroos-doctor — one-shot health check. First-run tool + the thing you ask
+# bug reporters to paste. `--quick` is used by the QEMU boot-smoke gate.
+set -uo pipefail
+
+quick=0; [[ "${1:-}" == "--quick" ]] && quick=1
+ok(){ printf '  \033[32m[ok]\033[0m %s\n' "$1"; }
+warn(){ printf '  \033[33m[warn]\033[0m %s\n' "$1"; }
+bad(){ printf '  \033[31m[FAIL]\033[0m %s\n' "$1"; RC=1; }
+RC=0
+
+echo "AstroOS doctor"
+echo "=============="
+
+# 1. failed systemd units
+if command -v systemctl >/dev/null; then
+  n=$(systemctl --failed --no-legend 2>/dev/null | wc -l)
+  [[ "$n" -eq 0 ]] && ok "no failed systemd units" || bad "$n failed systemd units (systemctl --failed)"
+fi
+
+# 2. pending .pacnew files
+if command -v pacdiff >/dev/null; then
+  n=$(pacdiff -o 2>/dev/null | wc -l)
+  [[ "$n" -eq 0 ]] && ok "no unmerged .pacnew files" || warn "$n .pacnew files pending (run: pacdiff)"
+fi
+
+# 3. orphan packages
+if command -v pacman >/dev/null; then
+  n=$(pacman -Qtdq 2>/dev/null | wc -l)
+  [[ "$n" -eq 0 ]] && ok "no orphan packages" || warn "$n orphan packages (pacman -Qtdq | pacman -Rns -)"
+fi
+
+# 4. btrfs snapshots present
+if command -v snapper >/dev/null; then
+  if snapper -c root list >/dev/null 2>&1; then ok "snapper root config live"; else warn "snapper root config missing"; fi
+fi
+
+[[ $quick -eq 1 ]] && exit $RC
+
+# 5. mirror freshness (full mode only)
+if command -v pacman-conf >/dev/null; then
+  ok "mirrors: $(pacman-conf --repo-list 2>/dev/null | tr '\n' ' ')"
+fi
+
+# 6. network
+if command -v ping >/dev/null; then
+  ping -c1 -W2 archlinux.org >/dev/null 2>&1 && ok "network reachable" || warn "no network"
+fi
+
+echo
+[[ $RC -eq 0 ]] && echo "All critical checks passed." || echo "Some checks FAILED (rc=$RC)."
+exit $RC

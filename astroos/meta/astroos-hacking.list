@@ -1,0 +1,11 @@
+# astroos-hacking — curated security essentials (BlackArch repo added at build)
+# NOT the full ~2800 tools. Heavy tools (metasploit) live in astroos-hacking-heavy.
+
+nmap
+wireshark-qt
+burpsuite
+john
+hashcat
+aircrack-ng
+sqlmap
+opensnitch

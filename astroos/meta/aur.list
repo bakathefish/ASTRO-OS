@@ -1,0 +1,17 @@
+# AUR / non-core-repo packages — installed by a chroot AUR bootstrap during build,
+# NOT by mkarchiso's pacman pass. Kept separate so packages.x86_64 stays clean.
+
+# Continuity — native iPhone/Mac AirDrop receive
+opendrop
+owl-git
+
+# Astro pipeline (AstrOmatic + tools not in Arch/CachyOS repos)
+aladin
+astromatic-source-extractor
+astromatic-scamp
+astromatic-swarp
+astromatic-psfex
+python-astroml
+
+# Convenience
+normcap

@@ -1,0 +1,83 @@
+# astroos-core — the everyday base (installed by default)
+# One package per line. '#' comments and blank lines ignored by gen-packages.sh.
+
+# Base system / boot
+base
+base-devel
+linux-cachyos
+linux-cachyos-lts
+linux-firmware
+btrfs-progs
+snapper
+snap-pac
+grub
+grub-btrfs
+efibootmgr
+plymouth
+
+# Desktop (KDE Plasma / Wayland)
+plasma-meta
+sddm
+konsole
+dolphin
+ark
+gwenview
+okular
+spectacle
+kdeconnect
+
+# Everyday apps
+firefox
+libreoffice-fresh
+mpv
+vlc
+
+# Dev environment
+git
+neovim
+tmux
+ripgrep
+fd
+fzf
+zoxide
+starship
+zsh
+docker
+podman
+gcc
+clang
+llvm
+rust
+go
+zig
+python
+nodejs
+npm
+deno
+qemu-full
+virt-manager
+
+# Convenience layer
+copyq
+atuin
+topgrade
+informant
+tesseract
+tesseract-data-eng
+
+# Performance / reliability daemons
+reflector
+earlyoom
+ananicy-cpp
+irqbalance
+zram-generator
+
+# Dev-loop accelerators
+distrobox
+uv
+direnv
+ccache
+sccache
+
+# Flatpak escape hatch
+flatpak

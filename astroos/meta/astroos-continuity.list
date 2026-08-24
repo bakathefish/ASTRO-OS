@@ -1,0 +1,21 @@
+# astroos-continuity — AirDrop-style sharing, phone mirroring, machine-to-machine
+
+# AirDrop-equivalents (default)
+localsend
+kdeconnect
+
+# Machine-to-machine (beat macOS: Universal Control / Sidecar / content sync)
+input-leap
+syncthing
+# krfb-virtualmonitor ships with krfb / plasma; listed for clarity
+krfb
+
+# Phone mirroring
+scrcpy
+uxplay
+
+# QR utility
+qrencode
+
+# Native iPhone/Mac AirDrop receive (OpenDrop + OWL) — AUR, see aur.list
+# opendrop, owl (owlink) installed via AUR bootstrap

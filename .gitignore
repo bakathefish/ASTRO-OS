@@ -2,3 +2,5 @@ node_modules/
 out/
 work/
 *.iso
+codex_r*.txt
+/tmp/
