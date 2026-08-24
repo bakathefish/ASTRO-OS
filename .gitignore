@@ -5,3 +5,5 @@ work/
 codex_r*.txt
 /tmp/
 .planning/HANDOFF.json
+out/
+work/

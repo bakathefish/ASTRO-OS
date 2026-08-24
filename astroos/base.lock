@@ -1,0 +1,5 @@
+# AstroOS base image pin. The ISO is CachyOS-Live-ISO plus the AstroOS delta
+# (astroos-additions.x86_64 + overlay/airootfs + identity seds). Owner directive
+# 7a / R1.2: lift, don't rebuild. Bump BASE_COMMIT deliberately, via council.
+BASE_REPO="https://github.com/CachyOS/CachyOS-Live-ISO.git"
+BASE_COMMIT="4937780541814b4b0ec7c212c00fe06299f799b6"
