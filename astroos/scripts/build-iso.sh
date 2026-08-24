@@ -43,6 +43,7 @@ $runtime run --rm --privileged -t \
   --pids-limit=-1 \
   --ulimit nofile=1048576:1048576 \
   -e BASE_REPO="$BASE_REPO" -e BASE_COMMIT="$BASE_COMMIT" \
+  -e ASTROOS_FAST="${ASTROOS_FAST:-0}" \
   -v "$repo":/build -w /build \
   -v astroos-pacman-cache:/var/cache/pacman/pkg \
   "$BUILDER_IMAGE" bash /build/astroos/scripts/container-build.sh

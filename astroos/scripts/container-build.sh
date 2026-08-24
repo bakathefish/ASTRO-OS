@@ -94,11 +94,15 @@ if [[ "${ASTROOS_FAST:-0}" == "1" ]]; then
     "$prof/profiledef.sh"
 fi
 
-# --- Their build, unchanged ----------------------------------------------
+# --- Their build (two one-line patches) ----------------------------------
 # USER: their util-iso.sh ends with `sudo chown $USER $outFolder`; in the
 # container's non-login root shell $USER is unset and the chown (after the
 # ISO is fully written) errors out the whole script.
 export USER=root
+# Their post-build rename hardcodes the "cachyos" filename prefix in two
+# places; with our iso_name=astroos the mv can't find its source.
+sed -i 's|/cachyos-$(date|/astroos-$(date|' "$base/util-iso.sh"
+sed -i 's|vars+=("cachyos")|vars+=("astroos")|' "$base/util-iso.sh"
 cd "$base"
 ./buildiso.sh -p desktop
 
