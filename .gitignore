@@ -4,3 +4,4 @@ work/
 *.iso
 codex_r*.txt
 /tmp/
+.planning/HANDOFF.json

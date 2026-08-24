@@ -3,12 +3,6 @@
 
 # physics & numerical sim
 root
-geant4
-python-qutip
-python-qiskit
-python-sunpy
-python-healpy
-python-emcee
 
 # scicomp languages & HPC
 julia
@@ -39,22 +33,22 @@ python-scikit-learn
 python-statsmodels
 python-xarray
 jupyterlab
-python-jupyter-lsp
-python-snakemake
 
 # scientific visualization
 paraview
 labplot
-veusz
 python-matplotlib
 python-plotly
 python-seaborn
 
 # writing / reproducible reports
-texlive-most
+texlive-basic
+texlive-latexextra
+texlive-mathscience
+texlive-publishers
+texlive-bibtexextra
 zotero
-pandoc
-quarto
+pandoc-cli
 
 # data infra
 postgresql
@@ -63,5 +57,4 @@ duckdb
 hdf5
 python-h5py
 netcdf
-dvc
 rclone

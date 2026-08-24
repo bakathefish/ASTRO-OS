@@ -3,19 +3,14 @@
 # Sky + planetarium
 stellarium
 kstars
-celestia
 
 # Data / analysis + FITS
-saoimage-ds9
-topcat
 # aladin           # AUR — pulled by AUR bootstrap, not pacman
-gnuastro
 
 # Pro pipeline (AstrOmatic)
 # source-extractor scamp swarp psfex — AUR/astro repo, see aur.list
 
 # Astrophoto processing
-siril
 gimp
 
 # Presentation / dark adaptation

@@ -27,10 +27,28 @@ bash "$here/scripts/gen-packages.sh"
 mkdir -p "$outdir" "$workdir"
 
 echo ">> Building ISO with $runtime using $BUILDER_IMAGE ..."
+# Named volume for the pacman package cache: pacstrap runs with -c (host
+# cache), so a failed attempt never re-downloads what already landed.
+$runtime volume create astroos-pacman-cache >/dev/null 2>&1 || true
+
 $runtime run --rm --privileged \
   -v "$repo":/build -w /build \
+  -v astroos-pacman-cache:/var/cache/pacman/pkg \
   "$BUILDER_IMAGE" bash -euo pipefail -c '
+    # The image default mirror (fastly) throttles big transactions; pin a
+    # geo mirror with fallbacks. pacman skips a mirror after repeated errors.
+    printf "%s\n" \
+      "Server = https://geo.mirror.pkgbuild.com/\$repo/os/\$arch" \
+      "Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch" \
+      "Server = https://mirror.rackspace.com/archlinux/\$repo/os/\$arch" \
+      > /etc/pacman.d/mirrorlist
     pacman -Sy --noconfirm --needed archiso git
+    # CachyOS signing key: the profile pacman.conf enables [cachyos] with
+    # SigLevel Required, so the builder keyring must trust it before mkarchiso
+    # resolves linux-cachyos / linux-cachyos-lts.
+    pacman-key --init
+    pacman-key --recv-keys F3B607488DB35A47 --keyserver hkps://keyserver.ubuntu.com
+    pacman-key --lsign-key F3B607488DB35A47
     # (AUR bootstrap + BlackArch strap hooks run from airootfs customize script)
     mkarchiso -v -w /build/work -o /build/out /build/astroos
   '

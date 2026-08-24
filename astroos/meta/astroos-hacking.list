@@ -3,7 +3,6 @@
 
 nmap
 wireshark-qt
-burpsuite
 john
 hashcat
 aircrack-ng

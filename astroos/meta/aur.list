@@ -15,3 +15,27 @@ python-astroml
 
 # Convenience
 normcap
+
+# Moved out of repo lists 2026-08-24: not in Arch/CachyOS repos (AUR-only),
+# confirmed by containerized pacman -Si sweep. Council ledger R1.1.
+informant
+celestia
+saoimage-ds9
+topcat
+gnuastro
+siril
+uxplay
+geant4
+python-qutip
+python-qiskit
+python-sunpy
+python-healpy
+python-emcee
+python-jupyter-lsp
+snakemake
+veusz
+quarto-cli
+dvc
+
+# BlackArch repo (arrives in Phase 2), not day-1 ISO
+burpsuite
