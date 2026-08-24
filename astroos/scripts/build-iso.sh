@@ -32,9 +32,15 @@ $runtime volume create astroos-pacman-cache >/dev/null 2>&1 || true
 
 # --ulimit: pacstrap verifies ~2000 signatures in one transaction; low fd
 # limits break gpgme mid-run.
-# -t: gpg inside wants a tty for some verifications; without one, mass
-# signature checks fail mid-run with "GPGME error: Inappropriate ioctl".
+# --pids-limit=-1: podman caps a container at 2048 pids by default (docker
+# doesn't). pacstrap's signature pass forks ~2 short-lived gpg processes per
+# package; at ~990 of ~1900 packages the cgroup cap is hit, forks fail, and
+# libalpm misreports every remaining package as "invalid or corrupted (PGP
+# signature)". Survivor count was exactly 990 on every failed run.
+# -t: gpg also wants a tty for some verifications ("GPGME error:
+# Inappropriate ioctl for device").
 $runtime run --rm --privileged -t \
+  --pids-limit=-1 \
   --ulimit nofile=1048576:1048576 \
   -e BASE_REPO="$BASE_REPO" -e BASE_COMMIT="$BASE_COMMIT" \
   -v "$repo":/build -w /build \
