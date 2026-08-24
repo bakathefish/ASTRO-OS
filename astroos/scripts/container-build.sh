@@ -24,7 +24,27 @@ pacman -Syu --noconfirm --needed base-devel archiso mkinitcpio-archiso git \
 # pacman.conf enables [cachyos] with SigLevel Required).
 pacman-key --init
 pacman-key --populate archlinux
-pacman-key --recv-keys F3B607488DB35A47 --keyserver hkps://keyserver.ubuntu.com
+# Keyservers flake ("keyserver receive failed: No data"), so: retry across
+# transports, then fall back to extracting the key from the cachyos-keyring
+# package over https from their mirror.
+import_cachyos_key() {
+  local ks try
+  for ks in hkps://keyserver.ubuntu.com hkp://keyserver.ubuntu.com:80; do
+    for try in 1 2 3; do
+      pacman-key --recv-keys F3B607488DB35A47 --keyserver "$ks" && return 0
+      sleep 5
+    done
+  done
+  echo ">> Keyservers unreachable; extracting key from cachyos-keyring package"
+  local idx pkg
+  idx=$(curl -sL https://mirror.cachyos.org/repo/x86_64/cachyos/)
+  pkg=$(printf '%s' "$idx" | grep -oE 'cachyos-keyring-[0-9][^"<>]*\.pkg\.tar\.zst' | head -1)
+  [[ -n "$pkg" ]] || { echo "!! cachyos-keyring package not found in mirror index" >&2; return 1; }
+  curl -sLo /tmp/cachyos-keyring.zst "https://mirror.cachyos.org/repo/x86_64/cachyos/$pkg"
+  bsdtar -xf /tmp/cachyos-keyring.zst -C /tmp 'usr/share/pacman/keyrings/*'
+  pacman-key --add /tmp/usr/share/pacman/keyrings/cachyos.gpg
+}
+import_cachyos_key
 pacman-key --lsign-key F3B607488DB35A47
 # Mass verification in a container dies mid-transaction with
 # "GPGME error: Inappropriate ioctl for device" when gpg decides it wants a
