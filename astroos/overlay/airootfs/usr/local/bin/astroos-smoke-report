@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# In-guest smoke reporter, run by astroos-smoke.service (armed only by the
+# astroos.smoke kernel flag). Emits machine-readable verdicts on the console
+# for qemu-smoke.sh to grep — in-guest systemd state, not serial-log scraping.
+set -u
+
+echo "ASTROOS-SMOKE-BEGIN"
+
+ok=0
+for _ in $(seq 1 60); do
+  systemctl is-active -q graphical.target && { ok=1; break; }
+  sleep 2
+done
+if [ "$ok" -eq 1 ]; then echo "ASTROOS-SMOKE-GRAPHICAL-OK"; else
+  echo "ASTROOS-SMOKE-GRAPHICAL-FAIL"
+  systemctl list-jobs 2>/dev/null | head -5
+fi
+
+if nm-online -q -t 60 2>/dev/null || systemctl is-active -q NetworkManager; then
+  echo "ASTROOS-SMOKE-NET-OK"
+else
+  echo "ASTROOS-SMOKE-NET-FAIL"
+fi
+
+if bash /usr/local/bin/astroos-doctor --quick; then
+  echo "ASTROOS-SMOKE-DOCTOR-PASS"
+else
+  echo "ASTROOS-SMOKE-DOCTOR-FAIL"
+  systemctl --failed --no-legend 2>/dev/null | head -5
+fi

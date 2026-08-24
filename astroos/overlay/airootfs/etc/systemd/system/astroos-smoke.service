@@ -12,7 +12,7 @@ Type=oneshot
 StandardOutput=tty
 StandardError=tty
 TTYPath=/dev/console
-ExecStart=/bin/sh -c 'echo ASTROOS-SMOKE-BEGIN; if /usr/local/bin/astroos-doctor --quick; then echo ASTROOS-SMOKE-DOCTOR-PASS; else echo ASTROOS-SMOKE-DOCTOR-FAIL; fi'
+ExecStart=/usr/bin/bash /usr/local/bin/astroos-smoke-report
 
 [Install]
 WantedBy=multi-user.target

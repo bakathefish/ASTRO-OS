@@ -80,6 +80,9 @@ cp -a /build/astroos/overlay/airootfs/. "$prof/airootfs/"
 sed -i 's/^iso_name=.*/iso_name="astroos"/' "$prof/profiledef.sh"
 sed -i 's/^iso_label=.*/iso_label="ASTROOS$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%y%m)"/' "$prof/profiledef.sh"
 sed -i 's|^iso_publisher=.*|iso_publisher="AstroOS <https://github.com/bakathefish>"|' "$prof/profiledef.sh"
+# Exec bits inside the image are governed by profiledef file_permissions;
+# register our overlay executables there (build 8 shipped doctor 0644).
+sed -i 's|^file_permissions=(|file_permissions=(\n  ["/usr/local/bin/astroos-doctor"]="0:0:755"\n  ["/usr/local/bin/astroos-smoke-report"]="0:0:755"|' "$prof/profiledef.sh"
 
 # --- Iteration mode -------------------------------------------------------
 # ASTROOS_FAST=1 swaps squashfs xz (slow, small; the release setting) for

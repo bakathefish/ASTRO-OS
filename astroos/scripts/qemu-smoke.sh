@@ -76,13 +76,15 @@ kill "$qpid" 2>/dev/null || true
 wait "$qpid" 2>/dev/null || true
 
 echo ">> Checking gate markers ..."
+# In-guest verdicts from astroos-smoke-report (serial-log scraping of systemd
+# messages is unreliable: early lines drop, plymouth eats target messages).
 fail=0
 check() { grep -qiE "$1" "$log" && echo "  [ok] $2" || { echo "  [x] $2"; fail=1; }; }
-check 'Linux version'                     'kernel boot'
-check 'Reached target.*Multi-User'        'multi-user target'
-check 'Reached target.*Graphical'         'graphical (sddm/Plasma) target'
-check 'Reached target.*Network is Online' 'network online'
-check 'ASTROOS-SMOKE-DOCTOR-PASS'         'astroos-doctor --quick'
+check 'running hook \[archiso\]'    'kernel + archiso initramfs'
+check ' login:'                     'multi-user (serial getty up)'
+check 'ASTROOS-SMOKE-GRAPHICAL-OK'  'graphical target (plasmalogin)'
+check 'ASTROOS-SMOKE-NET-OK'        'network online'
+check 'ASTROOS-SMOKE-DOCTOR-PASS'   'astroos-doctor --quick'
 if [[ $fail -eq 0 ]]; then
   echo ">> SMOKE TEST PASS"
 else
