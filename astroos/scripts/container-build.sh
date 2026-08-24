@@ -81,6 +81,16 @@ sed -i 's/^iso_name=.*/iso_name="astroos"/' "$prof/profiledef.sh"
 sed -i 's/^iso_label=.*/iso_label="ASTROOS$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%y%m)"/' "$prof/profiledef.sh"
 sed -i 's|^iso_publisher=.*|iso_publisher="AstroOS <https://github.com/bakathefish>"|' "$prof/profiledef.sh"
 
+# --- Iteration mode -------------------------------------------------------
+# ASTROOS_FAST=1 swaps squashfs xz (slow, small; the release setting) for
+# zstd (minutes instead of hours). Boot behavior is identical; release
+# builds run without the flag.
+if [[ "${ASTROOS_FAST:-0}" == "1" ]]; then
+  echo ">> FAST build: squashfs zstd instead of xz"
+  sed -i "s/^airootfs_image_tool_options=.*/airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '6' '-b' '1M')/" \
+    "$prof/profiledef.sh"
+fi
+
 # --- Their build, unchanged ----------------------------------------------
 cd "$base"
 ./buildiso.sh -p desktop
