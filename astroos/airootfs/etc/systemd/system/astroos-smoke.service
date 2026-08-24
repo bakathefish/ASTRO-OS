@@ -1,0 +1,18 @@
+[Unit]
+Description=AstroOS boot-smoke hook (inert unless astroos.smoke on kernel cmdline)
+# Armed only by qemu-smoke.sh via -append astroos.smoke; a normal boot never
+# starts this unit. Runs astroos-doctor --quick and prints a machine-readable
+# verdict on the console (ttyS0 during the smoke test) for the harness to grep.
+ConditionKernelCommandLine=astroos.smoke
+After=multi-user.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/console
+ExecStart=/bin/sh -c 'echo ASTROOS-SMOKE-BEGIN; if /usr/local/bin/astroos-doctor --quick; then echo ASTROOS-SMOKE-DOCTOR-PASS; else echo ASTROOS-SMOKE-DOCTOR-FAIL; fi'
+
+[Install]
+WantedBy=multi-user.target

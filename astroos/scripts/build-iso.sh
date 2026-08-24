@@ -47,6 +47,10 @@ $runtime run --rm --privileged \
     # SigLevel Required, so the builder keyring must trust it before mkarchiso
     # resolves linux-cachyos / linux-cachyos-lts.
     pacman-key --init
+    # Arch packager keys: --init alone yields a bare keyring (only a master
+    # key), so every [core]/[extra] package fails "invalid PGP signature".
+    # Populate from the archlinux-keyring shipped in the builder image.
+    pacman-key --populate archlinux
     pacman-key --recv-keys F3B607488DB35A47 --keyserver hkps://keyserver.ubuntu.com
     pacman-key --lsign-key F3B607488DB35A47
     # (AUR bootstrap + BlackArch strap hooks run from airootfs customize script)

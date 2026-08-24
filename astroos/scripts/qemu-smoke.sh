@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# Boot the freshly built ISO in QEMU and assert it reaches a usable state.
-# Council R1 gate: kernel boot + Plasma target + network + `astroos-doctor --quick`.
+# Boot the freshly built ISO in QEMU and assert the Phase 0.5 gate:
+#   kernel boot + multi-user + graphical (sddm/Plasma) target
+#   + network-online + astroos-doctor --quick (via astroos-smoke.service).
 #
-# This is the "test before shipping" gate. It boots headless with a serial
-# console and scans the log for success markers. For a full graphical check,
-# run with ASTROOS_GRAPHICAL=1 to get a QEMU window instead.
+# The shipped ISO boots with no serial console on its cmdline, so grepping a
+# serial log through the ISO's own bootloader can never see boot markers.
+# Instead we direct-kernel-boot (-kernel/-initrd extracted from the ISO) and
+# append console=ttyS0 plus the astroos.smoke flag that arms the in-image
+# astroos-smoke.service (inert on normal boots). The ISO itself is untouched.
+# ASTROOS_GRAPHICAL=1 opens a QEMU window using the ISO's own bootloader.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,13 +17,19 @@ iso="${1:-$(ls -1t "$repo"/out/*.iso 2>/dev/null | head -1 || true)}"
 [[ -f "${iso:-}" ]] || { echo "No ISO found. Pass a path or build first." >&2; exit 1; }
 
 command -v qemu-system-x86_64 >/dev/null 2>&1 || {
-  echo "qemu-system-x86_64 not found. Install qemu-full." >&2; exit 1; }
+  echo "qemu-system-x86_64 not found. Install qemu." >&2; exit 1; }
+command -v bsdtar >/dev/null 2>&1 || {
+  echo "bsdtar not found. Install libarchive." >&2; exit 1; }
 
-log="$repo/out/qemu-smoke.log"
-: > "$log"
+accel=(); timeout=600
+if [[ -r /dev/kvm && -w /dev/kvm ]]; then
+  accel=(-enable-kvm -cpu host)
+else
+  echo ">> /dev/kvm unavailable — TCG fallback (slow, extended timeout)."
+  timeout=2400
+fi
 
-common=(-enable-kvm -m 4096 -smp 4
-        -cdrom "$iso"
+common=("${accel[@]}" -m 4096 -smp 4 -cdrom "$iso"
         -netdev user,id=n0 -device virtio-net,netdev=n0)
 
 if [[ "${ASTROOS_GRAPHICAL:-0}" == "1" ]]; then
@@ -28,14 +38,49 @@ if [[ "${ASTROOS_GRAPHICAL:-0}" == "1" ]]; then
   exit 0
 fi
 
-echo ">> Headless boot, capturing serial to $log (timeout 300s) ..."
-timeout 300 qemu-system-x86_64 "${common[@]}" \
-  -nographic -serial "file:$log" -display none || true
+# ISO 9660 volume label from the primary volume descriptor (offset 0x8028).
+label="$(dd if="$iso" bs=1 skip=32808 count=32 2>/dev/null | tr -d ' \0')"
+[[ -n "$label" ]] || { echo "Could not read ISO volume label." >&2; exit 1; }
 
-echo ">> Checking success markers ..."
+# Extract the stock-linux kernel and its matching initramfs (+ ucode).
+x="$(mktemp -d)"; trap 'rm -rf "$x"' EXIT
+bsdtar -C "$x" -xf "$iso" 'arch/boot/*' 2>/dev/null || true
+kernel="$(ls "$x"/arch/boot/x86_64/vmlinuz-* 2>/dev/null | sort | head -1)"
+[[ -n "${kernel:-}" ]] || { echo "No kernel found in ISO." >&2; exit 1; }
+kname="${kernel##*/vmlinuz-}"
+initramfs="$x/arch/boot/x86_64/initramfs-$kname.img"
+[[ -f "$initramfs" ]] || { echo "No initramfs for $kname in ISO." >&2; exit 1; }
+initrd="$x/smoke-initrd.img"
+cat "$x"/arch/boot/*ucode.img "$initramfs" 2>/dev/null > "$initrd" \
+  || cat "$initramfs" > "$initrd"
+
+mkdir -p "$repo/out"
+log="$repo/out/qemu-smoke.log"; : > "$log"
+echo ">> Headless boot: label=$label kernel=vmlinuz-$kname timeout=${timeout}s"
+qemu-system-x86_64 "${common[@]}" \
+  -kernel "$kernel" -initrd "$initrd" \
+  -append "archisobasedir=arch archisolabel=$label console=ttyS0,115200 astroos.smoke" \
+  -display none -serial "file:$log" &
+qpid=$!
+
+# Early exit once the doctor verdict lands (or qemu dies), else hard timeout.
+waited=0
+while kill -0 "$qpid" 2>/dev/null && (( waited < timeout )); do
+  grep -qE 'ASTROOS-SMOKE-DOCTOR-(PASS|FAIL)' "$log" && break
+  sleep 5; waited=$((waited+5))
+done
+sleep 3  # let trailing serial output flush
+kill "$qpid" 2>/dev/null || true
+wait "$qpid" 2>/dev/null || true
+
+echo ">> Checking gate markers ..."
 fail=0
-grep -qiE 'reached target .*(Graphical|Multi-User)' "$log" || { echo "  [x] no systemd graphical/multi-user target"; fail=1; }
-grep -qiE 'kernel: Linux version'                 "$log" || { echo "  [x] no kernel boot line"; fail=1; }
+check() { grep -qiE "$1" "$log" && echo "  [ok] $2" || { echo "  [x] $2"; fail=1; }; }
+check 'Linux version'                     'kernel boot'
+check 'Reached target.*Multi-User'        'multi-user target'
+check 'Reached target.*Graphical'         'graphical (sddm/Plasma) target'
+check 'Reached target.*Network is Online' 'network online'
+check 'ASTROOS-SMOKE-DOCTOR-PASS'         'astroos-doctor --quick'
 if [[ $fail -eq 0 ]]; then
   echo ">> SMOKE TEST PASS"
 else
