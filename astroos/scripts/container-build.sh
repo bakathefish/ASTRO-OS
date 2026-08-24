@@ -26,6 +26,10 @@ pacman-key --init
 pacman-key --populate archlinux
 pacman-key --recv-keys F3B607488DB35A47 --keyserver hkps://keyserver.ubuntu.com
 pacman-key --lsign-key F3B607488DB35A47
+# Mass verification in a container dies mid-transaction with
+# "GPGME error: Inappropriate ioctl for device" when gpg decides it wants a
+# tty. Belt (no-tty here) and suspenders (-t on the podman run).
+printf 'no-tty\n' >> /etc/pacman.d/gnupg/gpg.conf
 
 # Base: pinned CachyOS-Live-ISO checkout (fresh each build).
 base=/build/work/base

@@ -32,7 +32,9 @@ $runtime volume create astroos-pacman-cache >/dev/null 2>&1 || true
 
 # --ulimit: pacstrap verifies ~2000 signatures in one transaction; low fd
 # limits break gpgme mid-run.
-$runtime run --rm --privileged \
+# -t: gpg inside wants a tty for some verifications; without one, mass
+# signature checks fail mid-run with "GPGME error: Inappropriate ioctl".
+$runtime run --rm --privileged -t \
   --ulimit nofile=1048576:1048576 \
   -e BASE_REPO="$BASE_REPO" -e BASE_COMMIT="$BASE_COMMIT" \
   -v "$repo":/build -w /build \
