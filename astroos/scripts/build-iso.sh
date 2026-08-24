@@ -31,10 +31,16 @@ echo ">> Building ISO with $runtime using $BUILDER_IMAGE ..."
 # cache), so a failed attempt never re-downloads what already landed.
 $runtime volume create astroos-pacman-cache >/dev/null 2>&1 || true
 
+# --ulimit: pacstrap verifies ~1800 signatures in one transaction; at the
+# default container nofile soft limit gpgme exhausts fds after ~990 packages
+# and every later verification fails as "invalid or corrupted (PGP signature)".
 $runtime run --rm --privileged \
+  --ulimit nofile=1048576:1048576 \
   -v "$repo":/build -w /build \
   -v astroos-pacman-cache:/var/cache/pacman/pkg \
   "$BUILDER_IMAGE" bash -euo pipefail -c '
+    ulimit -n 1048576 || true
+    echo ">> nofile limit: $(ulimit -n)"
     # The image default mirror (fastly) throttles big transactions; pin a
     # geo mirror with fallbacks. pacman skips a mirror after repeated errors.
     printf "%s\n" \
