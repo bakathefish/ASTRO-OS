@@ -70,7 +70,7 @@ scope_preflight() {
   # Official-repo migration check (D6): a name that reached the repos must
   # leave the AUR lane (maintenance surface minimization).
   local migrated
-  migrated=$(podman run --rm "$IMG" bash -c \
+  migrated=$(podman run --rm -v astroos-pacman-cache:/var/cache/pacman/pkg "$IMG" bash -c \
     "pacman -Sy >/dev/null 2>&1; for p in ${PKGS[*]}; do pacman -Si \"\$p\" >/dev/null 2>&1 && echo \"\$p\"; done" || true)
   [[ -z "$migrated" ]] || die "migrated to official repos, move out of aur.list (D6): $migrated"
   msg "migration check OK: all $n are AUR-only"
@@ -108,7 +108,7 @@ do_build() {
 
   for p in $order; do
     msg "=== building $p (fresh container) ==="
-    podman run --rm --pids-limit=-1 -v "$out":/repo -v /tmp/aur-build-$p:/work "$IMG" bash -c '
+    podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo -v /tmp/aur-build-$p:/work "$IMG" bash -c '
       set -euo pipefail
       p='"$p"'
       # local repo of already-built packages (SigLevel Never: build-time only,
@@ -148,7 +148,7 @@ do_build() {
                    [python-qiskit]=qiskit [python-sunpy]=sunpy [python-healpy]=healpy )
   for p in $order; do
     [[ -n "${smoke[$p]:-}" ]] || continue
-    podman run --rm --pids-limit=-1 -v "$out":/repo:ro "$IMG" bash -c '
+    podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo:ro "$IMG" bash -c '
       set -e
       printf "[astroos-local]\nSigLevel = Never\nServer = file:///repo\n" >> /etc/pacman.conf
       repo-add -q /tmp/x.db.tar.gz >/dev/null 2>&1 || true
