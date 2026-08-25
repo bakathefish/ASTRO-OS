@@ -133,6 +133,47 @@ install -m644 "$br/splash-640.png"  "$base/archiso/syslinux/splash1.png"
 sed -i 's/CachyOS/AstroOS/g' "$base/archiso/grub/grub.cfg" \
   "$base/archiso/grub/loopback.cfg" "$base"/archiso/syslinux/*.cfg
 
+# --- AstroOS delta 2c: [astroos] prebuilt AUR repo (council R3, ratified) --
+# Gated: flips on once the repo is published + verified. Adds the signed
+# Azure-hosted repo to the build AND the shipped system, trusts the key, and
+# installs the 26 aur.list packages from prebuilt binaries.
+if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
+  akr=/build/astroos/overlay/airootfs/usr/share/pacman/keyrings
+  fpr_expect=$(tr -d ' \r\n' < /build/astroos/branding/REPO_FINGERPRINT)
+  # Q2 fingerprint assertion: shipped keyring must be the key the repo db is
+  # signed with.
+  fpr_ship=$(gpg --show-keys --with-colons "$akr/astroos.gpg" | awk -F: '/^fpr/{print $10; exit}')
+  [[ "$fpr_ship" == "$fpr_expect" ]] \
+    || { echo "!! astroos keyring fingerprint mismatch: shipped=$fpr_ship expected=$fpr_expect" >&2; exit 1; }
+  pacman-key --add "$akr/astroos.gpg"
+  pacman-key --lsign-key "$fpr_expect"
+  repo_url='https://astroosrepo.blob.core.windows.net/repo/astroos/$arch'
+  # D4 client-side machine check: repo db name set == aur.list scope, BEFORE
+  # pacstrap. A missing/extra name means repo and tree diverged — hard fail.
+  mapfile -t aur_scope < <(tr -d '\r' < /build/astroos/meta/aur.list | grep -vE '^\s*(#|$)' | awk '{print $1}' | sort)
+  curl -sfL "https://astroosrepo.blob.core.windows.net/repo/astroos/x86_64/astroos.db.tar.zst" -o /tmp/astroos.db.tar.zst \
+    || { echo "!! [astroos] repo db unreachable" >&2; exit 1; }
+  mapfile -t db_names < <(bsdtar -tf /tmp/astroos.db.tar.zst | awk -F/ 'NF>1 && $2==""{print $1}' | sed 's/-[^-]*-[^-]*$//' | sort -u)
+  if [[ "$(printf '%s\n' "${aur_scope[@]}")" != "$(printf '%s\n' "${db_names[@]}")" ]]; then
+    echo "!! [astroos] repo/tree scope mismatch (D4):" >&2
+    diff <(printf '%s\n' "${aur_scope[@]}") <(printf '%s\n' "${db_names[@]}") >&2 || true
+    exit 1
+  fi
+  echo ">> [astroos] repo check OK: ${#db_names[@]} packages match aur.list scope"
+  # Repo section for the BUILD (pacstrap pulls prebuilt binaries) and for the
+  # SHIPPED system (live ISO + what the installer copies). SigLevel staging
+  # per R3 D2/Q4: Required DatabaseOptional for publish cycle 1 only.
+  repo_section=$(printf '\n[astroos]\nSigLevel = Required DatabaseOptional\nServer = %s\n' "$repo_url")
+  awk -v s="$repo_section" '/^\[cachyos\]/ && !done {print s; done=1} {print}' \
+    "$prof/pacman.conf" > /tmp/pconf && mv /tmp/pconf "$prof/pacman.conf"
+  awk -v s="$repo_section" '/^\[cachyos\]/ && !done {print s; done=1} {print}' \
+    "$prof/airootfs/etc/pacman.conf" > /tmp/pconf2 && mv /tmp/pconf2 "$prof/airootfs/etc/pacman.conf"
+  grep -q '^\[astroos\]' "$prof/pacman.conf" || { echo "!! [astroos] section not inserted (no [cachyos] anchor?)" >&2; exit 1; }
+  # The 26 AUR-lane packages ride the normal additions path now.
+  printf '%s\n' "${aur_scope[@]}" >> "$prof/packages_desktop.x86_64"
+  echo ">> [astroos] enabled: +${#aur_scope[@]} prebuilt AUR packages"
+fi
+
 # Overlay integrity preflight (council R2, D4). The mask units live in git as
 # symlink blobs that a Windows worktree cannot materialize — a checkout that
 # silently loses them still builds and boots, so assert them here.

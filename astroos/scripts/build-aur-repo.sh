@@ -111,8 +111,10 @@ do_build() {
 
   for p in $order; do
     msg "=== building $p (fresh container) ==="
-    # podman does not auto-create bind-mount sources (docker does)
-    rm -rf "/tmp/aur-build-$p"; mkdir -p "/tmp/aur-build-$p"
+    # podman does not auto-create bind-mount sources (docker does); leftovers
+    # hold subuid-owned files (rootless builder user), so remove them inside
+    # the user namespace
+    podman unshare rm -rf "/tmp/aur-build-$p"; mkdir -p "/tmp/aur-build-$p"
     podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo -v /tmp/aur-build-$p:/work "$IMG" bash -c '
       set -euo pipefail
       p='"$p"'
@@ -146,7 +148,7 @@ do_build() {
           --arg epoch "$(date +%s)" \
           --rawfile src /tmp/aur-build-$p/SRCINFO_SOURCES \
           '{name:$name, aur_commit:$commit, pkgver:$pkgver, build_epoch:($epoch|tonumber), sources:($src|split("\n")|map(select(length>0))), patches:[]}' >> "$lock"
-    rm -rf /tmp/aur-build-$p
+    podman unshare rm -rf /tmp/aur-build-$p
   done
 
   # python import smoke in a fresh container (D6 gate, all python packages)
