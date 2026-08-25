@@ -36,5 +36,8 @@ veusz
 quarto-cli
 dvc
 
-# BlackArch repo (arrives in Phase 2), not day-1 ISO
-burpsuite
+# PARKED (not in v1 [astroos] repo scope — council R3, D4/Q5):
+# burpsuite — BlackArch repo arrives in Phase 2, not day-1 ISO.
+# Parked entries stay as comments so the naive non-comment count IS the v1
+# scope; the repo build preflight machine-checks count == 26 and absence of
+# parked names (R3 D4 counter, ratified).
