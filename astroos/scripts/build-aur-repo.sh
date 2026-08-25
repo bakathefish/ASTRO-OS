@@ -39,7 +39,10 @@ do_keygen() {
   podman run --rm -v "$keys":/keys "$IMG" bash -c '
     set -e
     export GNUPGHOME=/keys
-    gpg --batch --quick-generate-key "AstroOS Repository <repo@astroos.local>" ed25519 sign 0
+    # loopback + empty passphrase: no tty in the container for pinentry; the
+    # key is protected by fs perms + the owner offline backup (KEYS.md)
+    gpg --batch --pinentry-mode loopback --passphrase "" \
+        --quick-generate-key "AstroOS Repository <repo@astroos.local>" ed25519 sign 0
     fpr=$(gpg --list-keys --with-colons | awk -F: "/^fpr/{print \$10; exit}")
     echo "$fpr" > /keys/FINGERPRINT
     gpg --export "$fpr" > /keys/astroos.gpg
@@ -166,7 +169,7 @@ do_build() {
     export GNUPGHOME=/keys
     fpr=$(cat /keys/FINGERPRINT)
     cd /repo
-    for f in *.pkg.tar.zst; do gpg --batch --yes --detach-sign -u "$fpr" "$f"; done
+    for f in *.pkg.tar.zst; do gpg --batch --yes --pinentry-mode loopback --passphrase "" --detach-sign -u "$fpr" "$f"; done
     repo-add --sign --key "$fpr" astroos.db.tar.zst *.pkg.tar.zst
     # blob storage serves real files, not symlinks
     cp astroos.db.tar.zst astroos.db; cp astroos.db.tar.zst.sig astroos.db.sig
@@ -174,7 +177,7 @@ do_build() {
   jq -s --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{published:$date, packages:.}' "$lock" > "$out/aur-map.lock"
   sha256sum "$out/aur-map.lock" | awk '{print $1}' > "$out/aur-map.lock.sha256"
   podman run --rm -v "$out":/repo -v "$keys":/keys "$IMG" bash -c \
-    'export GNUPGHOME=/keys; gpg --batch --yes --detach-sign -u "$(cat /keys/FINGERPRINT)" /repo/aur-map.lock'
+    'export GNUPGHOME=/keys; gpg --batch --yes --pinentry-mode loopback --passphrase "" --detach-sign -u "$(cat /keys/FINGERPRINT)" /repo/aur-map.lock'
   msg "build complete: $(ls "$out"/*.pkg.tar.zst | wc -l) packages in $out"
 }
 
