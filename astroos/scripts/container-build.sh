@@ -71,10 +71,37 @@ grep -vE '^\s*(#|$)' "$prof/packages_desktop.x86_64" | sort -u > /tmp/astro.base
   echo '# --- AstroOS additions (astroos/astroos-additions.x86_64) ---'
   comm -23 /tmp/astro.add /tmp/astro.base
 } >> "$prof/packages_desktop.x86_64"
-echo ">> package list: $(grep -cvE '^\s*(#|$)' "$prof/packages_desktop.x86_64") total ($(comm -23 /tmp/astro.add /tmp/astro.base | wc -l) AstroOS additions)"
+net_adds=$(comm -23 /tmp/astro.add /tmp/astro.base | wc -l)
+echo ">> package list: $(grep -cvE '^\s*(#|$)' "$prof/packages_desktop.x86_64") total ($net_adds AstroOS additions)"
+# Council R2 (B2): a suspiciously small additions count means the generated
+# list is broken (e.g. gen-packages emitting garbage) — a base-only ISO would
+# still pass the boot gate, so fail here instead of shipping a no-op AstroOS.
+min_adds="${ASTROOS_MIN_ADDITIONS:-80}"
+if (( net_adds < min_adds )); then
+  echo "!! Only $net_adds net additions (< $min_adds floor) — additions list looks broken. Aborting." >&2
+  exit 1
+fi
 
 # --- AstroOS delta 2: airootfs overlay -----------------------------------
 cp -a /build/astroos/overlay/airootfs/. "$prof/airootfs/"
+# Overlay integrity preflight (council R2, D4). The mask units live in git as
+# symlink blobs that a Windows worktree cannot materialize — a checkout that
+# silently loses them still builds and boots, so assert them here.
+preflight_fail=0
+for u in systemd-networkd-wait-online.service systemd-time-wait-sync.service; do
+  p="$prof/airootfs/etc/systemd/system/$u"
+  [[ -L "$p" && "$(readlink "$p")" == "/dev/null" ]] \
+    || { echo "!! overlay preflight: $u is not a /dev/null mask symlink" >&2; preflight_fail=1; }
+done
+for f in usr/local/bin/astroos-doctor usr/local/bin/astroos-smoke-report \
+         usr/local/bin/astroos-cuda-setup etc/systemd/system/astroos-smoke.service; do
+  [[ -e "$prof/airootfs/$f" ]] \
+    || { echo "!! overlay preflight: missing $f" >&2; preflight_fail=1; }
+done
+[[ -L "$prof/airootfs/etc/systemd/system/multi-user.target.wants/astroos-smoke.service" ]] \
+  || { echo "!! overlay preflight: smoke unit wants-symlink missing" >&2; preflight_fail=1; }
+(( preflight_fail == 0 )) || exit 1
+echo ">> overlay preflight OK"
 
 # --- AstroOS delta 3: identity -------------------------------------------
 sed -i 's/^iso_name=.*/iso_name="astroos"/' "$prof/profiledef.sh"
@@ -82,7 +109,7 @@ sed -i 's/^iso_label=.*/iso_label="ASTROOS$(date --date="@${SOURCE_DATE_EPOCH:-$
 sed -i 's|^iso_publisher=.*|iso_publisher="AstroOS <https://github.com/bakathefish>"|' "$prof/profiledef.sh"
 # Exec bits inside the image are governed by profiledef file_permissions;
 # register our overlay executables there (build 8 shipped doctor 0644).
-sed -i 's|^file_permissions=(|file_permissions=(\n  ["/usr/local/bin/astroos-doctor"]="0:0:755"\n  ["/usr/local/bin/astroos-smoke-report"]="0:0:755"|' "$prof/profiledef.sh"
+sed -i 's|^file_permissions=(|file_permissions=(\n  ["/usr/local/bin/astroos-doctor"]="0:0:755"\n  ["/usr/local/bin/astroos-smoke-report"]="0:0:755"\n  ["/usr/local/bin/astroos-cuda-setup"]="0:0:755"|' "$prof/profiledef.sh"
 
 # --- Iteration mode -------------------------------------------------------
 # ASTROOS_FAST=1 swaps squashfs xz (slow, small; the release setting) for

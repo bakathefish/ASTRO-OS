@@ -8,6 +8,7 @@ base
 base-devel
 linux-cachyos
 linux-cachyos-lts
+linux
 linux-firmware
 btrfs-progs
 snapper
@@ -99,8 +100,6 @@ r
 gcc-fortran
 octave
 openmpi
-cuda
-cudnn
 python-numba
 gsl
 openblas
@@ -118,6 +117,7 @@ python-scikit-learn
 python-statsmodels
 python-xarray
 jupyterlab
+jupyter-lsp
 paraview
 labplot
 python-matplotlib

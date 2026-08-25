@@ -53,14 +53,23 @@ cd "$outdir"
 iso=$(ls -1t *.iso 2>/dev/null | head -1 || true)
 if [[ -n "${iso:-}" ]]; then
   sha256sum "$iso" > "sha256sums.txt"
+  iso_bytes=$(stat -c%s "$iso" 2>/dev/null || stat -f%z "$iso")
   {
     echo "iso=$iso"
+    echo "iso_bytes=$iso_bytes"
     echo "builder_image=$BUILDER_IMAGE"
     echo "base_repo=$BASE_REPO"
     echo "base_commit=$BASE_COMMIT"
     echo "astroos_commit=$(git -C "$repo" rev-parse HEAD 2>/dev/null || echo unknown)"
   } > "build-metadata.txt"
-  echo ">> Done: $outdir/$iso"
+  # Size-budget gate (council R2, D2): fail the build if the ISO regresses
+  # past the budget. Post-diet expectation is ~6.5 GiB; budget default 7.
+  budget_gib="${ASTROOS_SIZE_BUDGET_GIB:-7}"
+  if (( iso_bytes > budget_gib * 1024 * 1024 * 1024 )); then
+    echo "!! ISO is $((iso_bytes / 1024 / 1024 / 1024)) GiB — over the ${budget_gib} GiB budget (ASTROOS_SIZE_BUDGET_GIB to override)." >&2
+    exit 1
+  fi
+  echo ">> Done: $outdir/$iso ($((iso_bytes / 1024 / 1024)) MiB, budget ${budget_gib} GiB)"
 else
   echo "!! No ISO produced — check build output above." >&2
   exit 1

@@ -1,11 +1,15 @@
 # astroos-core — the everyday base (installed by default)
 # One package per line. '#' comments and blank lines ignored by gen-packages.sh.
+# Some entries duplicate the CachyOS base list ON PURPOSE (council R2, B1):
+# these lists declare AstroOS intent; the build dedupes against the base at
+# build time, and keeping them here protects us if upstream drops one.
 
 # Base system / boot
 base
 base-devel
 linux-cachyos
 linux-cachyos-lts
+linux            # vanilla kernel, rescue fallback (council R2, C4)
 linux-firmware
 btrfs-progs
 snapper

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# astroos-cuda-setup — install the CUDA stack on NVIDIA hardware.
+# Council R2 (C1): cuda + cudnn (5.5 GiB installed) are NVIDIA-only and were
+# cut from the live image; this thin glue script restores them on demand.
+# Directive 7a compliant: pure pacman driver, no custom machinery.
+set -euo pipefail
+
+if [[ $EUID -ne 0 ]]; then
+  echo "Run as root: sudo astroos-cuda-setup" >&2
+  exit 1
+fi
+
+if ! lspci -d ::0300 2>/dev/null | grep -qi nvidia \
+   && ! lspci -d ::0302 2>/dev/null | grep -qi nvidia; then
+  echo "No NVIDIA GPU detected (lspci). Nothing to do."
+  echo "Force anyway with: pacman -S cuda cudnn"
+  exit 0
+fi
+
+echo "NVIDIA GPU detected. Installing cuda + cudnn (~5.5 GiB installed)..."
+pacman -S --needed cuda cudnn
+
+cat <<'MSG'
+Done. Notes:
+  - nvcc lives in /opt/cuda/bin (add to PATH or use the cuda module).
+  - The kernel driver ships separately: linux-cachyos-nvidia-open (or the
+    proprietary nvidia package) if it is not already installed.
+  - Reboot is only needed if the kernel driver was just installed.
+MSG

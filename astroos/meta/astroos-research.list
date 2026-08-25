@@ -10,9 +10,9 @@ r
 gcc-fortran
 octave
 openmpi
-cuda
-cudnn
 python-numba
+# cuda + cudnn removed from the live image (council R2): 5.5 GiB installed,
+# NVIDIA-only. `astroos-cuda-setup` installs them post-boot on NVIDIA hardware.
 
 # core numeric libs
 gsl
@@ -33,6 +33,7 @@ python-scikit-learn
 python-statsmodels
 python-xarray
 jupyterlab
+jupyter-lsp
 
 # scientific visualization
 paraview

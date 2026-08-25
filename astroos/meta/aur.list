@@ -3,11 +3,11 @@
 
 # Continuity — native iPhone/Mac AirDrop receive
 opendrop
-owl-git
+owlink-git
 
 # Astro pipeline (AstrOmatic + tools not in Arch/CachyOS repos)
 aladin
-astromatic-source-extractor
+astromatic-sextractor
 astromatic-scamp
 astromatic-swarp
 astromatic-psfex
@@ -20,7 +20,7 @@ normcap
 # confirmed by containerized pacman -Si sweep. Council ledger R1.1.
 informant
 celestia
-saoimage-ds9
+ds9-bin
 topcat
 gnuastro
 siril
@@ -31,7 +31,6 @@ python-qiskit
 python-sunpy
 python-healpy
 python-emcee
-python-jupyter-lsp
 snakemake
 veusz
 quarto-cli
