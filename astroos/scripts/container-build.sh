@@ -183,7 +183,11 @@ if [[ "${ASTROOS_FAST:-0}" == "1" ]]; then
     "$prof/profiledef.sh"
 fi
 
-# --- Their build (two one-line patches) ----------------------------------
+# --- Their build (three one-line patches) --------------------------------
+# Their buildiso.sh traps EXIT itself with an error message, so EVERY run —
+# success included — ends with "==> ERROR: An unknown error has occurred."
+# (ledger R2-C3). Delete only the EXIT trap; ERR/INT/TERM traps stay intact.
+sed -i "/trap 'trap_exit EXIT/d" "$base/buildiso.sh"
 # USER: their util-iso.sh ends with `sudo chown $USER $outFolder`; in the
 # container's non-login root shell $USER is unset and the chown (after the
 # ISO is fully written) errors out the whole script.
