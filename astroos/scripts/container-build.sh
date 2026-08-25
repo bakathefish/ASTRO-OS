@@ -96,6 +96,12 @@ install -Dm644 "$br/astroos-wallpaper.png" \
 install -Dm644 "$br/astroos-logo.ansi" "$prof/airootfs/etc/fastfetch/astroos-logo.ansi"
 install -Dm644 "$br/watermark.png" \
   "$prof/airootfs/usr/share/plymouth/themes/spinner/watermark.png"
+# plymouth ships its own spinner watermark, and mkarchiso copies the profile
+# airootfs BEFORE pacstrap — the pre-placed branded file is a fatal pacman file
+# conflict (build 11). NoExtract makes pacman skip the package's copy so ours
+# survives. Installed systems get the real fix via the branding package fork.
+sed -i '/^\[options\]/a NoExtract   = usr/share/plymouth/themes/spinner/watermark.png' \
+  "$prof/pacman.conf"
 # Bootloader splashes + menu titles. Only the capitalized brand string is
 # rewritten: lowercase "cachyos" appears in kernel and package file paths
 # (vmlinuz-linux-cachyos) and must never be touched.
