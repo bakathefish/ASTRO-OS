@@ -127,9 +127,11 @@ do_build() {
       echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
       cd /work
       git clone --quiet "https://aur.archlinux.org/$p.git" pkg
+      # capture the commit BEFORE chown: root git on a builder-owned repo
+      # trips safe.directory ("dubious ownership")
+      git -C pkg rev-parse HEAD > /work/COMMIT
       chown -R builder:builder pkg
       cd pkg
-      git rev-parse HEAD > /work/COMMIT
       export MAKEFLAGS="-j$(nproc)"
       su builder -c "makepkg --noconfirm -s"
       cp ./*.pkg.tar.zst /repo/
