@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=AstroOS wallpaper (first login)
+Comment=Applies the AstroOS wallpaper once, then removes itself
+Exec=bash -c 'sleep 5; plasma-apply-wallpaperimage /usr/share/wallpapers/AstroOS/contents/images/3840x2160.png && rm -f "$HOME/.config/autostart/astroos-wallpaper.desktop"'
+X-KDE-autostart-phase=2
+NoDisplay=true

@@ -1,0 +1,27 @@
+{
+    "logo": {
+        "type": "file-raw",
+        "source": "/etc/fastfetch/astroos-logo.ansi",
+        "padding": { "top": 1, "right": 3 }
+    },
+    "modules": [
+        "title",
+        "separator",
+        "os",
+        "host",
+        "kernel",
+        "uptime",
+        "packages",
+        "shell",
+        "display",
+        "de",
+        "wm",
+        "terminal",
+        "cpu",
+        "gpu",
+        "memory",
+        "disk",
+        "break",
+        "colors"
+    ]
+}

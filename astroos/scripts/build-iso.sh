@@ -69,6 +69,11 @@ if [[ -n "${iso:-}" ]]; then
     echo "!! ISO is $((iso_bytes / 1024 / 1024 / 1024)) GiB — over the ${budget_gib} GiB budget (ASTROOS_SIZE_BUDGET_GIB to override)." >&2
     exit 1
   fi
+  # The container writes as root; hand the artifacts back to the invoking
+  # user so the (unprivileged) smoke test can write its log next to them.
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    chown -R "$SUDO_USER" "$outdir" || true
+  fi
   echo ">> Done: $outdir/$iso ($((iso_bytes / 1024 / 1024)) MiB, budget ${budget_gib} GiB)"
 else
   echo "!! No ISO produced — check build output above." >&2

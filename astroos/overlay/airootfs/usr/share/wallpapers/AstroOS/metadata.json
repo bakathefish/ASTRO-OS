@@ -1,0 +1,8 @@
+{
+    "KPlugin": {
+        "Id": "AstroOS",
+        "Name": "AstroOS",
+        "License": "CC-BY-SA-4.0",
+        "Authors": [{ "Name": "AstroOS" }]
+    }
+}

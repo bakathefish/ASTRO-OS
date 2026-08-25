@@ -45,7 +45,8 @@ label="$(dd if="$iso" bs=1 skip=32808 count=32 2>/dev/null | tr -d ' \0')"
 [[ -n "$label" ]] || { echo "Could not read ISO volume label." >&2; exit 1; }
 
 # Extract the stock-linux kernel and its matching initramfs (+ ucode).
-x="$(mktemp -d)"; trap 'rm -rf "$x"' EXIT
+# (chmod first: bsdtar restores read-only modes that make rm noisy.)
+x="$(mktemp -d)"; trap 'chmod -R u+w "$x" 2>/dev/null; rm -rf "$x"' EXIT
 bsdtar -C "$x" -xf "$iso" 'arch/boot/*' 2>/dev/null || true
 kernel="$(ls "$x"/arch/boot/x86_64/vmlinuz-* 2>/dev/null | sort | head -1)"
 [[ -n "${kernel:-}" ]] || { echo "No kernel found in ISO." >&2; exit 1; }
@@ -56,8 +57,9 @@ initrd="$x/smoke-initrd.img"
 cat "$x"/arch/boot/*ucode.img "$initramfs" 2>/dev/null > "$initrd" \
   || cat "$initramfs" > "$initrd"
 
-mkdir -p "$repo/out"
-log="$repo/out/qemu-smoke.log"; : > "$log"
+mkdir -p "$repo/out" 2>/dev/null || true
+log="$repo/out/qemu-smoke.log"
+: > "$log" 2>/dev/null || { log="$(mktemp /tmp/qemu-smoke.XXXX.log)"; echo ">> out/ not writable; logging to $log"; }
 echo ">> Headless boot: label=$label kernel=vmlinuz-$kname timeout=${timeout}s"
 qemu-system-x86_64 "${common[@]}" \
   -kernel "$kernel" -initrd "$initrd" \
