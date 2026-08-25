@@ -120,7 +120,7 @@ do_build() {
     # hold subuid-owned files (rootless builder user), so remove them inside
     # the user namespace
     podman unshare rm -rf "/tmp/aur-build-$p"; mkdir -p "/tmp/aur-build-$p"
-    podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo -v /tmp/aur-build-$p:/work "$IMG" bash -c '
+    podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo -v /tmp/aur-build-$p:/work -v "$here/aur-patches":/patches:ro "$IMG" bash -c '
       set -euo pipefail
       p='"$p"'
       # local repo of already-built packages (SigLevel Never: build-time only,
@@ -139,6 +139,16 @@ do_build() {
       # capture the commit BEFORE chown: root git on a builder-owned repo
       # trips safe.directory ("dubious ownership")
       git -C pkg rev-parse HEAD > /work/COMMIT
+      # aur-patches mechanism (council R3 D6): tracked scripts adjust a stale
+      # PKGBUILD in place; applied patches are recorded in aur-map.lock
+      touch /work/PATCHES
+      if [[ -d /patches/$p ]]; then
+        for f in /patches/$p/*.sh; do
+          [[ -e "$f" ]] || continue
+          (cd pkg && bash "$f")
+          basename "$f" >> /work/PATCHES
+        done
+      fi
       chown -R builder:builder pkg
       cd pkg
       export MAKEFLAGS="-j$(nproc)"
@@ -154,7 +164,8 @@ do_build() {
           --arg pkgver "$(cat /tmp/aur-build-$p/PKGVER)" \
           --arg epoch "$(date +%s)" \
           --rawfile src /tmp/aur-build-$p/SRCINFO_SOURCES \
-          '{name:$name, aur_commit:$commit, pkgver:$pkgver, build_epoch:($epoch|tonumber), sources:($src|split("\n")|map(select(length>0))), patches:[]}' > "$locks/$p.json"
+          --rawfile pat /tmp/aur-build-$p/PATCHES \
+          '{name:$name, aur_commit:$commit, pkgver:$pkgver, build_epoch:($epoch|tonumber), sources:($src|split("\n")|map(select(length>0))), patches:($pat|split("\n")|map(select(length>0)))}' > "$locks/$p.json"
     podman unshare rm -rf /tmp/aur-build-$p
   done
 
