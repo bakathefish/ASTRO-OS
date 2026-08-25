@@ -1,9 +1,7 @@
 node_modules/
-out/
-work/
+/out/
+/work/
 *.iso
 codex_r*.txt
 /tmp/
 .planning/HANDOFF.json
-out/
-work/
