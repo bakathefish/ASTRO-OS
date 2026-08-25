@@ -116,6 +116,14 @@ Description = AstroOS: re-brand plymouth spinner watermark
 When = PostTransaction
 Exec = /usr/bin/cp /usr/share/astroos/branding/watermark.png /usr/share/plymouth/themes/spinner/watermark.png
 HOOK
+# Mask CachyOS's identity-writing hooks (build 13: their cachyos-branding
+# script rewrote os-release/lsb-release to CachyOS after our overlay landed).
+# A same-name file in /etc/pacman.d/hooks overrides /usr/share/libalpm/hooks;
+# a /dev/null symlink disables the hook. The overlay's zz-astroos-identity.hook
+# then asserts AstroOS identity as the last hook in every transaction.
+for h in cachyos-branding.hook lsb-release.hook; do
+  ln -sf /dev/null "$prof/airootfs/etc/pacman.d/hooks/$h"
+done
 # Bootloader splashes + menu titles. Only the capitalized brand string is
 # rewritten: lowercase "cachyos" appears in kernel and package file paths
 # (vmlinuz-linux-cachyos) and must never be touched.
@@ -140,12 +148,20 @@ for f in usr/local/bin/astroos-doctor usr/local/bin/astroos-smoke-report \
          usr/share/wallpapers/AstroOS/contents/images/3840x2160.png \
          usr/share/pixmaps/astroos-logo.png \
          usr/share/astroos/branding/watermark.png \
-         etc/pacman.d/hooks/85-astroos-plymouth-watermark.hook; do
+         usr/share/astroos/branding/os-release \
+         usr/share/astroos/branding/lsb-release \
+         etc/pacman.d/hooks/85-astroos-plymouth-watermark.hook \
+         etc/pacman.d/hooks/zz-astroos-identity.hook; do
   [[ -e "$prof/airootfs/$f" ]] \
     || { echo "!! overlay preflight: missing $f" >&2; preflight_fail=1; }
 done
 [[ -L "$prof/airootfs/etc/systemd/system/multi-user.target.wants/astroos-smoke.service" ]] \
   || { echo "!! overlay preflight: smoke unit wants-symlink missing" >&2; preflight_fail=1; }
+for h in cachyos-branding.hook lsb-release.hook; do
+  p="$prof/airootfs/etc/pacman.d/hooks/$h"
+  [[ -L "$p" && "$(readlink "$p")" == "/dev/null" ]] \
+    || { echo "!! overlay preflight: pacman hook mask $h missing" >&2; preflight_fail=1; }
+done
 (( preflight_fail == 0 )) || exit 1
 echo ">> overlay preflight OK"
 

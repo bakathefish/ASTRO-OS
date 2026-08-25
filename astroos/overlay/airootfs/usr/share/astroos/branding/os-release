@@ -1,0 +1,10 @@
+NAME="AstroOS"
+PRETTY_NAME="AstroOS"
+ID=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;216;160;223"
+HOME_URL="https://github.com/bakathefish"
+DOCUMENTATION_URL="https://github.com/bakathefish"
+SUPPORT_URL="https://github.com/bakathefish"
+BUG_REPORT_URL="https://github.com/bakathefish"
+LOGO=astroos-logo
