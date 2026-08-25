@@ -111,6 +111,8 @@ do_build() {
 
   for p in $order; do
     msg "=== building $p (fresh container) ==="
+    # podman does not auto-create bind-mount sources (docker does)
+    rm -rf "/tmp/aur-build-$p"; mkdir -p "/tmp/aur-build-$p"
     podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo -v /tmp/aur-build-$p:/work "$IMG" bash -c '
       set -euo pipefail
       p='"$p"'
