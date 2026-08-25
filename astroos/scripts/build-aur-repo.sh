@@ -26,7 +26,7 @@ sas_file="${ASTROOS_REPO_SAS:-$HOME/astroos-repo.sas}"
 account="${ASTROOS_REPO_ACCOUNT:-astroosrepo}"
 container="${ASTROOS_REPO_CONTAINER:-repo}"
 IMG="${ASTROOS_BUILDER_IMAGE:-docker.io/archlinux:base-devel}"
-SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-26}"
+SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-36}"
 cmd="${1:-build}"
 
 msg() { echo ">> $*"; }

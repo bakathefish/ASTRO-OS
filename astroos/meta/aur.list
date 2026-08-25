@@ -1,5 +1,6 @@
-# AUR / non-core-repo packages — installed by a chroot AUR bootstrap during build,
-# NOT by mkarchiso's pacman pass. Kept separate so packages.x86_64 stays clean.
+# AUR / non-core-repo packages — the v1 scope of the signed [astroos] repo
+# (council R3/R3.1). The non-comment count IS the scope; the repo build
+# preflight machine-checks count == ASTROOS_AUR_SCOPE and repo db == this set.
 
 # Continuity — native iPhone/Mac AirDrop receive
 opendrop
@@ -19,7 +20,6 @@ normcap
 # Moved out of repo lists 2026-08-24: not in Arch/CachyOS repos (AUR-only),
 # confirmed by containerized pacman -Si sweep. Council ledger R1.1.
 informant
-celestia
 ds9-bin
 topcat
 gnuastro
@@ -31,13 +31,30 @@ python-qiskit
 python-sunpy
 python-healpy
 python-emcee
-snakemake
 veusz
 quarto-cli
-dvc
 
-# PARKED (not in v1 [astroos] repo scope — council R3, D4/Q5):
+# Transitive AUR dependencies of the packages above (council R3.1 P2 —
+# explicit allowlist, measured closure 2026-08-25; consumer in parens)
+cdsclient                # astromatic-scamp
+clhep                    # geant4
+healpix                  # python-healpy
+python-aioftp            # python-sunpy
+python-parfive           # python-sunpy
+python-async-timeout     # python-aioftp
+python-siosocks          # python-aioftp
+python-sphinx-automodapi # python-parfive
+python-sphinx_contributors # python-parfive
+python-fleep             # opendrop
+python-pytest-runner     # opendrop
+python-rustworkx         # python-qiskit
+python-zxing-cpp         # normcap
+
+# PARKED (not in v1 scope):
 # burpsuite — BlackArch repo arrives in Phase 2, not day-1 ISO.
-# Parked entries stay as comments so the naive non-comment count IS the v1
-# scope; the repo build preflight machine-checks count == 26 and absence of
-# parked names (R3 D4 counter, ratified).
+# dvc — cut in R3.1 P1: generic data tool, pip-installable, ~17-pkg AUR tail.
+# snakemake — cut in R3.1 P1: generic workflow tool, ~16-pkg AUR tail.
+# celestia (+gtk2, gtkglext) — parked in R3.1 P3 (Codex counter accepted):
+#   EOL GTK2 runtime is a supportability liability, not just a build risk;
+#   Stellarium (official repos, on the ISO) covers planetarium duty.
+#   Re-introduce only with a maintained dependency path.
