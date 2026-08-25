@@ -23,7 +23,8 @@ order=(astroos-core astroos-astro astroos-continuity astroos-hacking astroos-res
   for name in "${order[@]}"; do
     f="$meta/$name.list"
     [[ -f "$f" ]] || { echo "MISSING meta list: $f" >&2; exit 1; }
-    grep -vE '^\s*(#|$)' "$f" | sed 's/[[:space:]]*#.*$//' | sed 's/[[:space:]]*$//' \
+    tr -d '\r' < "$f" | grep -vE '^\s*(#|$)' \
+      | sed 's/[[:space:]]*#.*$//' | sed 's/[[:space:]]*$//' \
       | sed "s|^|${name}\t|"
   done
 } > /tmp/astroos-pkgs.raw
@@ -33,9 +34,19 @@ order=(astroos-core astroos-astro astroos-continuity astroos-hacking astroos-res
 # strips '#'-comments but not trailing whitespace).
 {
   head -4 /tmp/astroos-pkgs.raw 2>/dev/null || true
-  awk -F'\t' '!seen[$2]++ { if ($1 != cur) { cur = $1; printf "\n# --- %s ---\n", cur } print $2 }' \
-    <(grep -P '\t' /tmp/astroos-pkgs.raw)
+  # NF==2 keeps only bucket<TAB>pkg lines (grep -P is unavailable on some
+  # hosts' grep builds and fails silently — never use it here).
+  awk -F'\t' 'NF==2 && !seen[$2]++ { if ($1 != cur) { cur = $1; printf "\n# --- %s ---\n", cur } print $2 }' \
+    /tmp/astroos-pkgs.raw
 } > "$out"
 
 count=$(grep -cvE '^\s*(#|$)' "$out" || true)
+# A zero-package additions list means the generator broke, not that AstroOS
+# has no additions; shipping it would build a base-only ISO that still passes
+# the boot gate. Fail loudly instead.
+if [[ "${count:-0}" -eq 0 ]]; then
+  echo "!! gen-packages produced 0 packages — refusing to write an empty additions list." >&2
+  rm -f "$out"
+  exit 1
+fi
 echo "Wrote $out ($count unique packages)."
