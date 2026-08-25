@@ -107,9 +107,14 @@ do_build() {
   local fpr; fpr=$(cat "$keys/FINGERPRINT")
   local order; order=$(topo_order "${PKGS[@]}")
   msg "build order: $order"
-  local lock=/tmp/aur-map.entries; : > "$lock"
+  local locks="$repo/out/astroos-repo/locks"; mkdir -p "$locks"
 
   for p in $order; do
+    # resumability: a finished package (artifact + lock entry) is not rebuilt
+    if compgen -G "$out/${p}-[0-9]*.pkg.tar.zst" >/dev/null && [[ -s "$locks/$p.json" ]]; then
+      msg "=== $p already built, skipping ==="
+      continue
+    fi
     msg "=== building $p (fresh container) ==="
     # podman does not auto-create bind-mount sources (docker does); leftovers
     # hold subuid-owned files (rootless builder user), so remove them inside
@@ -121,7 +126,9 @@ do_build() {
       # local repo of already-built packages (SigLevel Never: build-time only,
       # the published repo is signature-verified by clients)
       if ls /repo/*.pkg.tar.zst >/dev/null 2>&1; then
-        [[ -f /repo/astroos-local.db.tar.gz ]] || { repo-add -q /repo/astroos-local.db.tar.gz /repo/*.pkg.tar.zst || true; }
+        # regenerate EVERY container: a db inherited from container N-1 lacks
+        # N-1 own output (run 4: psfex could not resolve sextractor)
+        repo-add -q /repo/astroos-local.db.tar.gz /repo/*.pkg.tar.zst >/dev/null 2>&1 || true
         printf "[astroos-local]\nSigLevel = Never\nServer = file:///repo\n" >> /etc/pacman.conf
       fi
       pacman -Syu --noconfirm --needed git base-devel >/dev/null
@@ -147,7 +154,7 @@ do_build() {
           --arg pkgver "$(cat /tmp/aur-build-$p/PKGVER)" \
           --arg epoch "$(date +%s)" \
           --rawfile src /tmp/aur-build-$p/SRCINFO_SOURCES \
-          '{name:$name, aur_commit:$commit, pkgver:$pkgver, build_epoch:($epoch|tonumber), sources:($src|split("\n")|map(select(length>0))), patches:[]}' >> "$lock"
+          '{name:$name, aur_commit:$commit, pkgver:$pkgver, build_epoch:($epoch|tonumber), sources:($src|split("\n")|map(select(length>0))), patches:[]}' > "$locks/$p.json"
     podman unshare rm -rf /tmp/aur-build-$p
   done
 
@@ -180,7 +187,7 @@ do_build() {
     # blob storage serves real files, not symlinks
     cp astroos.db.tar.zst astroos.db; cp astroos.db.tar.zst.sig astroos.db.sig
     cp astroos.files.tar.zst astroos.files; cp astroos.files.tar.zst.sig astroos.files.sig'
-  jq -s --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{published:$date, packages:.}' "$lock" > "$out/aur-map.lock"
+  jq -s --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{published:$date, packages:.}' "$locks"/*.json > "$out/aur-map.lock"
   sha256sum "$out/aur-map.lock" | awk '{print $1}' > "$out/aur-map.lock.sha256"
   podman run --rm -v "$out":/repo -v "$keys":/keys "$IMG" bash -c \
     'export GNUPGHOME=/keys; gpg --batch --yes --pinentry-mode loopback --passphrase "" --detach-sign -u "$(cat /keys/FINGERPRINT)" /repo/aur-map.lock'
