@@ -94,14 +94,28 @@ install -Dm644 "$br/astroos-logo.png" "$prof/airootfs/usr/share/pixmaps/astroos-
 install -Dm644 "$br/astroos-wallpaper.png" \
   "$prof/airootfs/usr/share/wallpapers/AstroOS/contents/images/3840x2160.png"
 install -Dm644 "$br/astroos-logo.ansi" "$prof/airootfs/etc/fastfetch/astroos-logo.ansi"
+# plymouth owns usr/share/plymouth/themes/spinner/watermark.png, and mkarchiso
+# copies the profile airootfs BEFORE pacstrap — pre-placing the branded file is
+# a fatal pacman file conflict (builds 11-12; NoExtract does NOT exempt a path
+# from the conflict check). Stage it at an AstroOS-owned path and let an alpm
+# PostTransaction hook copy it over plymouth's. The hook also re-brands after
+# every future plymouth upgrade on installed systems. Numbered 85 so it runs
+# before 90-mkinitcpio-install and the branded file lands in the initramfs.
 install -Dm644 "$br/watermark.png" \
-  "$prof/airootfs/usr/share/plymouth/themes/spinner/watermark.png"
-# plymouth ships its own spinner watermark, and mkarchiso copies the profile
-# airootfs BEFORE pacstrap — the pre-placed branded file is a fatal pacman file
-# conflict (build 11). NoExtract makes pacman skip the package's copy so ours
-# survives. Installed systems get the real fix via the branding package fork.
-sed -i '/^\[options\]/a NoExtract   = usr/share/plymouth/themes/spinner/watermark.png' \
-  "$prof/pacman.conf"
+  "$prof/airootfs/usr/share/astroos/branding/watermark.png"
+mkdir -p "$prof/airootfs/etc/pacman.d/hooks"
+cat > "$prof/airootfs/etc/pacman.d/hooks/85-astroos-plymouth-watermark.hook" <<'HOOK'
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Path
+Target = usr/share/plymouth/themes/spinner/watermark.png
+
+[Action]
+Description = AstroOS: re-brand plymouth spinner watermark
+When = PostTransaction
+Exec = /usr/bin/cp /usr/share/astroos/branding/watermark.png /usr/share/plymouth/themes/spinner/watermark.png
+HOOK
 # Bootloader splashes + menu titles. Only the capitalized brand string is
 # rewritten: lowercase "cachyos" appears in kernel and package file paths
 # (vmlinuz-linux-cachyos) and must never be touched.
@@ -124,7 +138,9 @@ for f in usr/local/bin/astroos-doctor usr/local/bin/astroos-smoke-report \
          usr/local/bin/astroos-cuda-setup etc/systemd/system/astroos-smoke.service \
          etc/os-release etc/fastfetch/astroos-logo.ansi \
          usr/share/wallpapers/AstroOS/contents/images/3840x2160.png \
-         usr/share/pixmaps/astroos-logo.png; do
+         usr/share/pixmaps/astroos-logo.png \
+         usr/share/astroos/branding/watermark.png \
+         etc/pacman.d/hooks/85-astroos-plymouth-watermark.hook; do
   [[ -e "$prof/airootfs/$f" ]] \
     || { echo "!! overlay preflight: missing $f" >&2; preflight_fail=1; }
 done
