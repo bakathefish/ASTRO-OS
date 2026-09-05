@@ -199,7 +199,14 @@ stage_audit() {
     etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc etc/skel/.config/alacritty/alacritty.toml \
     etc/skel/.config/plasma-welcomerc etc/skel/.config/zenbook-duo \
     usr/share/applications/astroos-install.desktop usr/share/applications/cachyos-hello.desktop \
-    usr/lib/zenbook-duo usr/lib/systemd/system/zenbook-duo-rust-daemon.service >/dev/null 2>"$a/unsquash.err" || true
+    usr/lib/zenbook-duo usr/lib/systemd/system/zenbook-duo-rust-daemon.service \
+    etc/cachyos-release usr/share/icons/cachyos.svg \
+    usr/share/icons/hicolor/scalable/apps/astroos-logo.svg \
+    usr/share/refind/icons/os_astroos.png \
+    usr/share/sddm/themes/breeze/theme.conf.user \
+    usr/lib/plasmalogin/plasmalogin.conf.d \
+    usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override \
+    >/dev/null 2>"$a/unsquash.err" || true
   local r="$a/root"
   [[ -s "$r/etc/os-release" ]] || die "unsquashfs extraction failed: $(tr '\n' ' ' < "$a/unsquash.err")"
 
@@ -289,9 +296,19 @@ stage_audit() {
     && bad "CachyOS survives in the installer module configs" || ok "no CachyOS string in the installer module configs"
   grep -q '^\s*GRUB_BACKGROUND: "/usr/share/astroos/branding/limine-splash.png"' "$cm/grubcfg.conf" 2>/dev/null \
     && ok "GRUB gets the AstroOS background" || bad "GRUB_BACKGROUND not configured"
+  # every path below has to be in the unsquashfs list above, or an absence check
+  # passes for the wrong reason: astroos-logo.svg is the positive control that
+  # proves usr/share/icons was extracted at all
+  [[ -f "$r/usr/share/icons/hicolor/scalable/apps/astroos-logo.svg" ]] && ok "scalable astroos-logo.svg shipped" || bad "astroos-logo.svg missing"
   [[ -e "$r/etc/cachyos-release" ]] && bad "/etc/cachyos-release survives on the live ISO" || ok "no /etc/cachyos-release"
   [[ -e "$r/usr/share/icons/cachyos.svg" ]] && bad "CachyOS icon file survives" || ok "no CachyOS icon file"
-  [[ -f "$r/usr/share/icons/hicolor/scalable/apps/astroos-logo.svg" ]] && ok "scalable astroos-logo.svg shipped" || bad "astroos-logo.svg missing"
+  [[ -f "$r/usr/share/refind/icons/os_astroos.png" ]] && ok "rEFInd OS icon shipped" || bad "rEFInd OS icon missing"
+  grep -q '^background=/usr/share/wallpapers/AstroOS/' "$r/usr/share/sddm/themes/breeze/theme.conf.user" 2>/dev/null \
+    && ok "SDDM greeter background is the AstroOS wallpaper" || bad "SDDM greeter background not branded"
+  grep -rq 'AstroOS' "$r/usr/lib/plasmalogin/plasmalogin.conf.d" 2>/dev/null \
+    && ok "plasmalogin greeter wallpaper drop-in shipped" || bad "plasmalogin wallpaper drop-in missing"
+  grep -q 'astroos-logo' "$r/usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override" 2>/dev/null \
+    && ok "GNOME login logo override shipped" || bad "GNOME login logo override missing"
 
   # laptop profile
   [[ -x "$r/usr/lib/zenbook-duo/zenbook-duo-daemon" ]] && ok "Zenbook Duo runtime shipped" || bad "Zenbook Duo runtime missing"
