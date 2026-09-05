@@ -51,15 +51,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: client install against the hosted repo, shipped keyring trust path
+      - name: client bootstrap against the hosted repo (hosted key, then the keyring package)
         run: |
           names=$( { tr -d '\r' < astroos/meta/aur.list | grep -vE '^\s*(#|$)' | awk '{print $1}'; ls astroos/pkgs; } | tr '\n' ' ')
-          podman run --rm -v "$PWD/astroos/pkgs/astroos-keyring/files/usr/share/pacman/keyrings":/kr:ro docker.io/archlinux:base-devel bash -ec '
-            install -m644 /kr/astroos.gpg /kr/astroos-trusted /kr/astroos-revoked /usr/share/pacman/keyrings/
+          fpr=$(tr -d ' \r\n' < astroos/branding/REPO_FINGERPRINT)
+          # the path KEYS.md gives an existing Arch system: fetch the hosted
+          # public key, check its fingerprint against the one in the tree,
+          # locally sign it, add the repo, install the keyring package, then
+          # real packages under signature verification
+          podman run --rm docker.io/archlinux:base-devel bash -ec '
+            curl -fsSLo /tmp/astroos.gpg https://astroosrepo.blob.core.windows.net/repo/astroos/astroos.gpg
             pacman-key --init >/dev/null 2>&1
-            pacman-key --populate archlinux astroos >/dev/null 2>&1
+            pacman-key --populate archlinux >/dev/null 2>&1
+            pacman-key --add /tmp/astroos.gpg >/dev/null 2>&1
+            pacman-key --list-keys '"$fpr"' >/dev/null 2>&1 || { echo "hosted key is not '"$fpr"'"; exit 1; }
+            pacman-key --lsign-key '"$fpr"' >/dev/null 2>&1
             printf "\n[astroos]\nSigLevel = Required DatabaseOptional\nServer = https://astroosrepo.blob.core.windows.net/repo/astroos/\$arch\n" >> /etc/pacman.conf
             pacman -Sy >/dev/null
             pacman -Sp --noconfirm '"$names"' >/dev/null
-            pacman -S --noconfirm astroos-branding astroos-tools python-healpy >/dev/null
-            pacman -Q astroos-branding astroos-tools python-healpy'
+            pacman -S --noconfirm astroos-keyring astroos-branding astroos-tools python-healpy >/dev/null
+            pacman -Q astroos-keyring astroos-branding astroos-tools python-healpy'

@@ -518,6 +518,13 @@ do_publish() {
     || die "publish refused: no signed db in $out (run build first)"
   local sas; sas=$(tr -d '\r\n' < "$sas_file")
   local base="https://${account}.blob.core.windows.net/${container}/astroos/x86_64"
+  # stage 0: the public key and its fingerprint at the repo root, for clients
+  # that add [astroos] to an existing system (KEYS.md bootstrap); the copy is
+  # the one the astroos-keyring package ships, so both paths trust one key
+  local root="https://${account}.blob.core.windows.net/${container}/astroos"
+  msg "publish stage 0: public key + fingerprint"
+  azcopy copy "$here/pkgs/astroos-keyring/files/usr/share/pacman/keyrings/astroos.gpg" "${root}/astroos.gpg?${sas}" >/dev/null
+  azcopy copy "$here/branding/REPO_FINGERPRINT" "${root}/FINGERPRINT?${sas}" >/dev/null
   msg "publish stage 1: packages + signatures"
   azcopy copy "$out/*.pkg.tar*" "${base}?${sas}" >/dev/null   # packages + their .sig, any PKGEXT
   # Stage 2: each signature BEFORE its file, so a client syncing mid-upload

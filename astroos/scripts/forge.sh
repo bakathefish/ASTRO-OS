@@ -130,6 +130,10 @@ stage_verify() {
     pacman-key --init >/dev/null 2>&1
     pacman-key --populate archlinux astroos >/dev/null 2>&1
     pacman-key --list-keys '"$fpr"' >/dev/null 2>&1 || { echo "!! key not in the populated keyring" >&2; exit 1; }
+    # trust now lives in the populated keyring; hand the files over to the
+    # astroos-keyring package below (a fresh root, as pacstrap and the
+    # installer produce, never has them pre-placed)
+    rm /usr/share/pacman/keyrings/astroos.gpg /usr/share/pacman/keyrings/astroos-trusted /usr/share/pacman/keyrings/astroos-revoked
     printf "\n[astroos]\nSigLevel = Required DatabaseOptional\nServer = '"$repo_url"'\n" >> /etc/pacman.conf
     pacman -Sy >/dev/null
     pacman -Sp --noconfirm '"$names"' >/dev/null

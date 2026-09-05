@@ -46,6 +46,28 @@ package list), installed systems (the package sits in the installer's
 pacstrap base set), the hosted-repo CI job and `forge.sh verify` (both
 populate from the shipped files before installing under `SigLevel Required`).
 
+## Adding [astroos] to an existing Arch or CachyOS system
+
+Publishing hosts the same public key and its fingerprint at the repo root.
+Fetch the key, compare the fingerprint with the one above, sign it locally,
+add the repo, and let the keyring package take over from there:
+
+```sh
+curl -fsSLO https://astroosrepo.blob.core.windows.net/repo/astroos/astroos.gpg
+sudo pacman-key --add astroos.gpg
+sudo pacman-key --lsign-key DA5C947A5C329E528948830E92304756ECC2F9D8
+sudo tee -a /etc/pacman.conf >/dev/null <<'EOF'
+
+[astroos]
+SigLevel = Required DatabaseOptional
+Server = https://astroosrepo.blob.core.windows.net/repo/astroos/$arch
+EOF
+sudo pacman -Sy astroos-keyring
+```
+
+The weekly `hosted-repo` CI job runs exactly this sequence in a fresh Arch
+container and then installs real packages.
+
 ## Rotation / loss (dual-sign transition, risk #3)
 
 1. Generate a NEW key (`keygen` into a fresh dir; move the old aside).
