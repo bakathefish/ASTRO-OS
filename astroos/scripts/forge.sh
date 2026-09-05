@@ -74,7 +74,9 @@ rm -f "$out/RELEASE" "$out/audit.txt"
 
 cur=""
 # shellcheck disable=SC2154  # rc is assigned inside the trap string
-trap 'rc=$?; if [[ $rc -ne 0 && -n "$cur" ]]; then mark "$cur" FAIL; say "## STAGE $cur FAIL (rc=$rc)"; fi' EXIT
+# the audit mount must not outlive a failing audit (review m4): a set -e exit
+# skips the function's RETURN trap, so the umount lives here as well
+trap 'rc=$?; sudo umount /mnt/astroos-audit 2>/dev/null || true; if [[ $rc -ne 0 && -n "$cur" ]]; then mark "$cur" FAIL; say "## STAGE $cur FAIL (rc=$rc)"; fi' EXIT
 
 # --- repo / publish: the ratified lane script -------------------------------
 # The summary filter keeps only >>/!! lines on the console; the inner `|| true`
@@ -301,7 +303,10 @@ stage_audit() {
     else bad "blackarch.db unreachable for the replaces check"; fi
   fi
   # bootloader menus
-  local cfgs; cfgs=$(find "$m/boot" "$m/syslinux" -name '*.cfg' 2>/dev/null | head -20)
+  # grub and syslinux both live under /boot on this profile; a missing search
+  # root must not abort the audit through pipefail + set -e (it did: the first
+  # two ISO #1 audits died here before their verdict)
+  local cfgs; cfgs=$(find "$m/boot" -name '*.cfg' 2>/dev/null | head -40 || true)
   if [[ -n "$cfgs" ]]; then
     # shellcheck disable=SC2086  # the list is intentionally word-split
     grep -l 'AstroOS' $cfgs >/dev/null 2>&1 && ok "bootloader menus say AstroOS" || bad "no AstroOS in bootloader menus"
