@@ -204,7 +204,7 @@ stage_audit() {
     usr/share/icons/hicolor/scalable/apps/astroos-logo.svg \
     usr/share/refind/icons/os_astroos.png \
     usr/share/sddm/themes/breeze/theme.conf.user \
-    usr/lib/plasmalogin/plasmalogin.conf.d \
+    usr/lib/plasmalogin/plasmalogin.conf.d usr/share/doc/astroos \
     usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override \
     >/dev/null 2>"$a/unsquash.err" || true
   local r="$a/root"
@@ -309,6 +309,13 @@ stage_audit() {
     && ok "plasmalogin greeter wallpaper drop-in shipped" || bad "plasmalogin wallpaper drop-in missing"
   grep -q 'astroos-logo' "$r/usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override" 2>/dev/null \
     && ok "GNOME login logo override shipped" || bad "GNOME login logo override missing"
+  # our own prose, read on the installed system; code under usr/share/astroos is
+  # exempt because apply.sh carries the string as a sed pattern
+  if [[ -d "$r/usr/share/doc/astroos" ]]; then
+    grep -rqi cachyos "$r/usr/share/doc/astroos" && bad "CachyOS survives in the shipped AstroOS docs" || ok "no CachyOS string in the shipped AstroOS docs"
+  else
+    bad "shipped AstroOS docs missing"
+  fi
 
   # laptop profile
   [[ -x "$r/usr/lib/zenbook-duo/zenbook-duo-daemon" ]] && ok "Zenbook Duo runtime shipped" || bad "Zenbook Duo runtime missing"
