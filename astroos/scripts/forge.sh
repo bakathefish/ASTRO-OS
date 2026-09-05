@@ -137,9 +137,15 @@ stage_verify() {
     pacman -Q astroos-keyring astroos-branding astroos-tools astroos-calamares astroos-zenbook-duo siril-git ds9-bin opendrop python-healpy astromatic-swarp
     test -x /usr/bin/astroos-doctor
     test -f /etc/pacman.d/hooks/zz-astroos-identity.hook
-    test -f /usr/share/calamares/branding/astroos/branding.desc' 2>&1 | tee -a "$log" \
+    test -f /usr/share/calamares/branding/astroos/branding.desc
+    # the Zenbook Duo runtime is built from source: every shared library it
+    # links must resolve on a client, and its DMI gate must say no here
+    for b in /usr/lib/zenbook-duo/zenbook-duo-*; do
+      if ldd "$b" | grep -q "not found"; then echo "!! unresolved libraries in $b:" >&2; ldd "$b" | grep "not found" >&2; exit 1; fi
+    done
+    if /usr/lib/zenbook-duo/astroos-is-duo; then echo "!! astroos-is-duo claims this container is a Zenbook Duo" >&2; exit 1; fi' 2>&1 | tee -a "$log" \
     || die "client install test against the hosted repo FAILED"
-  say "verify: fresh client resolved all $(echo "$have" | wc -l) names and installed 9 packages with signature verification"
+  say "verify: fresh client resolved all $(echo "$have" | wc -l) names and installed 10 packages with signature verification"
   rm -rf "$v"
 }
 
