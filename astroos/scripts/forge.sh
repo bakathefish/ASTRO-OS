@@ -299,7 +299,23 @@ stage_audit() {
     if curl -sfL "https://blackarch.org/blackarch/blackarch/os/x86_64/blackarch.db" -o "$a/blackarch.db"; then
       bsdtar -xOf "$a/blackarch.db" '*/desc' 2>/dev/null | awk '/^%REPLACES%/{f=1;next} /^$/{f=0} f' | sed 's/[<>=].*//' | sort -u > "$a/ba.replaces"
       local clash; clash=$(comm -12 "$a/ba.replaces" "$a/installed" | tr '\n' ' ')
-      [[ -z "$clash" ]] && ok "no BlackArch package replaces anything on the ISO" || bad "BlackArch replaces= targets ISO packages: $clash"
+      if [[ -z "$clash" ]]; then ok "no BlackArch package replaces anything on the ISO"
+      else
+        # libalpm performs a replaces= only when the replaced package is not
+        # available from an earlier repo (measured 2026-09-05: android-tools
+        # stayed on extra/ although blackarch/android-sdk-platform-tools
+        # replaces it). The verdict is pacman's own -Syu plan with the shipped
+        # repo order, not the static field.
+        if podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg "$IMG" bash -c '
+            set -e
+            pacman -Sy --noconfirm '"$clash"' >/dev/null 2>&1
+            pacman-key --init >/dev/null 2>&1; pacman-key --populate archlinux >/dev/null 2>&1
+            printf "\n[blackarch]\nSigLevel = Never\nServer = https://blackarch.org/blackarch/\$repo/os/\$arch\n" >> /etc/pacman.conf
+            pacman -Sy >/dev/null 2>&1
+            ! pacman -Syu --print --print-format "%r/%n" 2>/dev/null | grep -q "^blackarch/"' >/dev/null 2>&1; then
+          ok "BlackArch replaces= targets stay with their earlier repo under -Syu ($clash)"
+        else bad "pacman -Syu would pull BlackArch replacements for: $clash"; fi
+      fi
     else bad "blackarch.db unreachable for the replaces check"; fi
   fi
   # bootloader menus
@@ -324,7 +340,10 @@ stage_audit() {
 stage_release() {
   local iso; iso=$(latest_iso); [[ -n "$iso" ]] || die "no ISO in out/"
   local name; name=$(basename "$iso" .iso)
-  local short; short=$(git -C "$repo" rev-parse --short HEAD 2>/dev/null || echo nogit)
+  # the commit the ISO was BUILT from names the release directory (the tree
+  # may have moved on by the time the release stage runs)
+  local short; short=$(grep -E '^astroos_commit=' "$out/build-metadata.txt" 2>/dev/null | cut -d= -f2 | cut -c1-7)
+  [[ -n "$short" && "$short" != unknown ]] || short=$(git -C "$repo" rev-parse --short HEAD 2>/dev/null || echo nogit)
   [[ -s "$iso_sas_file" ]] || die "no SAS token for the iso container at $iso_sas_file (generate on the laptop: az storage container generate-sas --name $iso_container ...)"
   local sas; sas=$(tr -d '\r\n' < "$iso_sas_file")
   say "release: signing $name.iso with the repo key (armored detached signature, .asc)"
