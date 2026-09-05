@@ -133,8 +133,8 @@ stage_verify() {
     printf "\n[astroos]\nSigLevel = Required DatabaseOptional\nServer = '"$repo_url"'\n" >> /etc/pacman.conf
     pacman -Sy >/dev/null
     pacman -Sp --noconfirm '"$names"' >/dev/null
-    pacman -S --noconfirm astroos-keyring astroos-branding astroos-tools astroos-calamares siril-git ds9-bin opendrop python-healpy astromatic-swarp >/dev/null
-    pacman -Q astroos-keyring astroos-branding astroos-tools astroos-calamares siril-git ds9-bin opendrop python-healpy astromatic-swarp
+    pacman -S --noconfirm astroos-keyring astroos-branding astroos-tools astroos-calamares astroos-zenbook-duo siril-git ds9-bin opendrop python-healpy astromatic-swarp >/dev/null
+    pacman -Q astroos-keyring astroos-branding astroos-tools astroos-calamares astroos-zenbook-duo siril-git ds9-bin opendrop python-healpy astromatic-swarp
     test -x /usr/bin/astroos-doctor
     test -f /etc/pacman.d/hooks/zz-astroos-identity.hook
     test -f /usr/share/calamares/branding/astroos/branding.desc' 2>&1 | tee -a "$log" \

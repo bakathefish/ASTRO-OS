@@ -108,6 +108,14 @@ scope_preflight() {
   msg "migration check OK: all $n are AUR-only"
 
   mapfile -t LOCALS < <(local_names)
+  # one owner per name: a pkgs/ package that shares a name with an AUR scope
+  # entry would be built twice and make the D4 set ambiguous
+  local l
+  for l in "${LOCALS[@]}"; do
+    for p in "${PKGS[@]}"; do
+      [[ "$l" == "$p" ]] && die "scope: $l is both a pkgs/ package and an aur.list name (D4: one owner per name)"
+    done
+  done
   msg "local packages: ${#LOCALS[@]} (${LOCALS[*]:-none})"
 }
 
