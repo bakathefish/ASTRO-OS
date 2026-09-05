@@ -31,6 +31,7 @@ else
   timeout=2400
 fi
 
+# shellcheck disable=SC2054  # the commas are inside single qemu arguments
 common=("${accel[@]}" -m 4096 -smp 4 -cdrom "$iso"
         -netdev user,id=n0 -device virtio-net,netdev=n0)
 

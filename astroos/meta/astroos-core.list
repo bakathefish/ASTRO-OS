@@ -66,6 +66,7 @@ copyq
 atuin
 tesseract
 tesseract-data-eng
+informant         # Arch-news gate for pacman; was AUR-only, in [extra] since 2026-09 (R3 D6 migration)
 
 # Performance / reliability daemons
 reflector

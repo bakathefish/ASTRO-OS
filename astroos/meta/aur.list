@@ -19,7 +19,8 @@ normcap
 
 # Moved out of repo lists 2026-08-24: not in Arch/CachyOS repos (AUR-only),
 # confirmed by containerized pacman -Si sweep. Council ledger R1.1.
-informant
+# informant left this lane 2026-09-05: it reached [extra] (D6 migration rule;
+# the liveness + migration preflights both flagged it). Now in astroos-core.
 ds9-bin
 topcat
 gnuastro

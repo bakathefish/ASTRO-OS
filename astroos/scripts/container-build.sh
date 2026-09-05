@@ -28,9 +28,9 @@ pacman-key --populate archlinux
 # transports, then fall back to extracting the key from the cachyos-keyring
 # package over https from their mirror.
 import_cachyos_key() {
-  local ks try
+  local ks _
   for ks in hkps://keyserver.ubuntu.com hkp://keyserver.ubuntu.com:80; do
-    for try in 1 2 3; do
+    for _ in 1 2 3; do
       pacman-key --recv-keys F3B607488DB35A47 --keyserver "$ks" && return 0
       sleep 5
     done
@@ -136,7 +136,8 @@ sed -i 's/CachyOS/AstroOS/g' "$base/archiso/grub/grub.cfg" \
 # --- AstroOS delta 2c: [astroos] prebuilt AUR repo (council R3, ratified) --
 # Gated: flips on once the repo is published + verified. Adds the signed
 # Azure-hosted repo to the build AND the shipped system, trusts the key, and
-# installs the 26 aur.list packages from prebuilt binaries.
+# installs every aur.list package (the v1 scope, 35 at 2026-09-05) from
+# prebuilt binaries.
 if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
   akr=/build/astroos/overlay/airootfs/usr/share/pacman/keyrings
   fpr_expect=$(tr -d ' \r\n' < /build/astroos/branding/REPO_FINGERPRINT)
@@ -153,7 +154,9 @@ if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
   mapfile -t aur_scope < <(tr -d '\r' < /build/astroos/meta/aur.list | grep -vE '^\s*(#|$)' | awk '{print $1}' | sort)
   curl -sfL "https://astroosrepo.blob.core.windows.net/repo/astroos/x86_64/astroos.db.tar.zst" -o /tmp/astroos.db.tar.zst \
     || { echo "!! [astroos] repo db unreachable" >&2; exit 1; }
-  mapfile -t db_names < <(bsdtar -tf /tmp/astroos.db.tar.zst | awk -F/ 'NF>1 && $2==""{print $1}' | sed 's/-[^-]*-[^-]*$//' | sort -u)
+  # every db entry is a <name-ver-rel>/desc member; keying on "desc" does not
+  # depend on the tarball carrying explicit directory entries
+  mapfile -t db_names < <(bsdtar -tf /tmp/astroos.db.tar.zst | awk -F/ '$2=="desc"{print $1}' | sed 's/-[^-]*-[^-]*$//' | sort -u)
   if [[ "$(printf '%s\n' "${aur_scope[@]}")" != "$(printf '%s\n' "${db_names[@]}")" ]]; then
     echo "!! [astroos] repo/tree scope mismatch (D4):" >&2
     diff <(printf '%s\n' "${aur_scope[@]}") <(printf '%s\n' "${db_names[@]}") >&2 || true
@@ -169,7 +172,7 @@ if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
   awk -v s="$repo_section" '/^\[cachyos\]/ && !done {print s; done=1} {print}' \
     "$prof/airootfs/etc/pacman.conf" > /tmp/pconf2 && mv /tmp/pconf2 "$prof/airootfs/etc/pacman.conf"
   grep -q '^\[astroos\]' "$prof/pacman.conf" || { echo "!! [astroos] section not inserted (no [cachyos] anchor?)" >&2; exit 1; }
-  # The 26 AUR-lane packages ride the normal additions path now.
+  # The AUR-lane packages ride the normal additions path now.
   printf '%s\n' "${aur_scope[@]}" >> "$prof/packages_desktop.x86_64"
   echo ">> [astroos] enabled: +${#aur_scope[@]} prebuilt AUR packages"
 fi

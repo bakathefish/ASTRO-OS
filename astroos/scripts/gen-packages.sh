@@ -4,8 +4,9 @@
 # Since R1.2 the base package set comes from CachyOS-Live-ISO's
 # packages_desktop.x86_64 — this file holds ONLY the AstroOS additions, and the
 # build dedupes it against the base list at build time.
-# AUR packages (meta/aur.list) are intentionally EXCLUDED here — they are
-# installed by a separate chroot AUR bootstrap, not by mkarchiso's pacman pass.
+# AUR packages (meta/aur.list) are intentionally EXCLUDED here: they ship as
+# prebuilt signed binaries from the [astroos] repo (council R3) and are
+# appended by container-build.sh when ASTROOS_WITH_AUR_REPO=1.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
