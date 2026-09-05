@@ -155,6 +155,7 @@ do_build() {
   [[ -f "$keys/FINGERPRINT" ]] || die "no signing key — run: $0 keygen"
   local order; order=$(topo_order "${PKGS[@]}")
   msg "build order: $order"
+  rm -f "$locks/BUILD_FAIL"
 
   # Purge anything in out/ whose pkgname is not in scope: -debug and split
   # -doc siblings copied by earlier runs, or packages excluded since. The
@@ -240,7 +241,15 @@ do_build() {
       awk -F" = " "/^\t(source|sha256sums|sha512sums|b2sums)/ {print \$0}" .SRCINFO > /work/SRCINFO_SOURCES || true
       srcinfo_ver=$(awk -F" = " "/^\tpkgver/{v=\$2} /^\tpkgrel/{r=\$2} END{print v\"-\"r}" .SRCINFO)
       echo "$srcinfo_ver" > /work/PKGVER
-    ' || die "build failed: $p (hermetic container — failure is attributable to $p alone)"
+    ' || {
+      # Hermetic container: the failure is attributable to $p alone. Record
+      # it and keep going so one stale package cannot stall the rest of the
+      # scope; the run still ends non-zero and nothing is signed (below).
+      echo "!! build failed: $p (recorded; continuing with the rest of the scope)" >&2
+      echo "$p" >> "$locks/BUILD_FAIL"
+      podman unshare rm -rf "/tmp/aur-build-$p"
+      continue
+    }
     jq -n --arg name "$p" \
           --arg commit "$(cat /tmp/aur-build-$p/COMMIT)" \
           --arg pkgver "$(cat /tmp/aur-build-$p/PKGVER)" \
@@ -256,6 +265,9 @@ do_build() {
   # R3 D6 is exclusion, not a silent ship: drop the name from meta/aur.list
   # (documented pip/uv fallback), delete its .pkg.tar.zst + lock, lower
   # ASTROOS_AUR_SCOPE, rerun — banked packages are skipped, so that is fast.
+  if [[ -s "$locks/BUILD_FAIL" ]]; then
+    die "build FAILED for: $(tr '\n' ' ' < "$locks/BUILD_FAIL"); patch via aur-patches/<pkg>/ (R3 D6) or exclude, then rerun (banked packages are skipped)"
+  fi
   if [[ -s "$locks/SMOKE_FAIL" ]]; then
     die "import smoke FAILED (D6 gate) for: $(tr '\n' ' ' < "$locks/SMOKE_FAIL"); exclude per R3 D6 and rerun"
   fi
