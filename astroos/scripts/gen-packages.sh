@@ -26,6 +26,9 @@ order=(astroos-core astroos-astro astroos-continuity astroos-hacking astroos-res
   for name in "${order[@]}"; do
     f="$meta/$name.list"
     [[ -f "$f" ]] || { echo "MISSING meta list: $f" >&2; exit 1; }
+    # a bucket with no packages is a mistake, and under pipefail the grep
+    # below would otherwise kill the script silently before any guard runs
+    tr -d '\r' < "$f" | grep -qvE '^\s*(#|$)' || { echo "EMPTY meta list: $f" >&2; exit 1; }
     tr -d '\r' < "$f" | grep -vE '^\s*(#|$)' \
       | sed 's/[[:space:]]*#.*$//' | sed 's/[[:space:]]*$//' \
       | sed "s|^|${name}\t|"
