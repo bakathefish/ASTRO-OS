@@ -324,9 +324,10 @@ do_publish() {
 }
 
 case "$cmd" in
-  keygen)  do_keygen ;;
-  build)   do_build ;;
-  publish) do_publish ;;
-  all)     do_build; do_publish ;;
-  *) die "usage: $0 [keygen|build|publish|all]" ;;
+  keygen)    do_keygen ;;
+  preflight) scope_preflight ;;   # scope + AUR liveness + migration only (CI, R3 D7 standing check)
+  build)     do_build ;;
+  publish)   do_publish ;;
+  all)       do_build; do_publish ;;
+  *) die "usage: $0 [keygen|preflight|build|publish|all]" ;;
 esac

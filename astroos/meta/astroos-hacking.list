@@ -1,5 +1,8 @@
-# astroos-hacking — curated security essentials (BlackArch repo added at build)
-# NOT the full ~2800 tools. Heavy tools (metasploit) live in astroos-hacking-heavy.
+# astroos-hacking — curated security essentials from the ARCH repos ([extra]).
+# NOT the full ~2800 BlackArch tools. BlackArch-only additions live in
+# meta/blackarch.list (gated on the repo); the heavy set (burpsuite,
+# metasploit, zaproxy, seclists) is one command away: astroos-hacking-heavy.
+# All names verified in [extra] 2026-09-05 via archlinux.org.
 
 nmap
 wireshark-qt
@@ -8,3 +11,9 @@ hashcat
 aircrack-ng
 sqlmap
 opensnitch
+hydra
+nikto
+gobuster
+masscan
+exploitdb          # searchsploit + the exploit database, 29 MiB
+bettercap

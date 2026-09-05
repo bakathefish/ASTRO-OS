@@ -177,6 +177,38 @@ if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
   echo ">> [astroos] enabled: +${#aur_scope[@]} prebuilt AUR packages"
 fi
 
+# --- AstroOS delta 2d: [blackarch] repo (spec §3a Phase 2, council R4) ------
+# Gated. Trust anchor: the keyring tarball from blackarch.org over TLS, pinned
+# by version + sha256 in astroos/blackarch-keyring.lock (same pattern as
+# base.lock): an upstream change hard-fails the build until the pin is bumped
+# deliberately. The repo is appended AFTER the Arch repos in both the build
+# and the shipped pacman.conf, so BlackArch never shadows an official package.
+if [[ "${ASTROOS_WITH_BLACKARCH:-0}" == "1" ]]; then
+  # shellcheck source=../blackarch-keyring.lock
+  source /build/astroos/blackarch-keyring.lock
+  : "${BA_KEYRING_VERSION:?}" "${BA_KEYRING_SHA256:?}"
+  bak=/tmp/blackarch-keyring; rm -rf "$bak"; mkdir -p "$bak"
+  curl -sfL "https://www.blackarch.org/keyring/blackarch-keyring-${BA_KEYRING_VERSION}.tar.gz" -o "$bak/keyring.tar.gz" \
+    || { echo "!! blackarch keyring tarball ${BA_KEYRING_VERSION} unreachable" >&2; exit 1; }
+  echo "${BA_KEYRING_SHA256}  $bak/keyring.tar.gz" | sha256sum -c --quiet \
+    || { echo "!! blackarch keyring tarball sha256 != astroos/blackarch-keyring.lock (upstream changed; review + bump the pin)" >&2; exit 1; }
+  tar xzf "$bak/keyring.tar.gz" -C "$bak" --strip-components=1
+  install -Dm644 "$bak/blackarch.gpg"     /usr/share/pacman/keyrings/blackarch.gpg
+  install -Dm644 "$bak/blackarch-trusted" /usr/share/pacman/keyrings/blackarch-trusted
+  install -Dm644 "$bak/blackarch-revoked" /usr/share/pacman/keyrings/blackarch-revoked
+  pacman-key --populate blackarch
+  # build-time mirror; the shipped system gets the same path from the
+  # blackarch-mirrorlist package (meta/blackarch.list)
+  echo 'Server = https://blackarch.org/blackarch/$repo/os/$arch' > /etc/pacman.d/blackarch-mirrorlist
+  ba_section=$(printf '\n[blackarch]\nSigLevel = Required DatabaseOptional\nInclude = /etc/pacman.d/blackarch-mirrorlist\n')
+  printf '%s\n' "$ba_section" >> "$prof/pacman.conf"
+  printf '%s\n' "$ba_section" >> "$prof/airootfs/etc/pacman.conf"
+  mapfile -t ba_pkgs < <(tr -d '\r' < /build/astroos/meta/blackarch.list | grep -vE '^\s*(#|$)' | awk '{print $1}')
+  (( ${#ba_pkgs[@]} > 0 )) || { echo "!! meta/blackarch.list is empty" >&2; exit 1; }
+  printf '%s\n' "${ba_pkgs[@]}" >> "$prof/packages_desktop.x86_64"
+  echo ">> [blackarch] enabled: keyring ${BA_KEYRING_VERSION} populated, repo appended after the Arch repos, +${#ba_pkgs[@]} packages (${ba_pkgs[*]})"
+fi
+
 # Overlay integrity preflight (council R2, D4). The mask units live in git as
 # symlink blobs that a Windows worktree cannot materialize — a checkout that
 # silently loses them still builds and boots, so assert them here.
@@ -187,7 +219,8 @@ for u in systemd-networkd-wait-online.service systemd-time-wait-sync.service; do
     || { echo "!! overlay preflight: $u is not a /dev/null mask symlink" >&2; preflight_fail=1; }
 done
 for f in usr/local/bin/astroos-doctor usr/local/bin/astroos-smoke-report \
-         usr/local/bin/astroos-cuda-setup etc/systemd/system/astroos-smoke.service \
+         usr/local/bin/astroos-cuda-setup usr/local/bin/astroos-hacking-heavy \
+         etc/systemd/system/astroos-smoke.service \
          etc/os-release etc/fastfetch/astroos-logo.ansi \
          usr/share/wallpapers/AstroOS/contents/images/3840x2160.png \
          usr/share/pixmaps/astroos-logo.png \
@@ -215,7 +248,7 @@ sed -i 's/^iso_label=.*/iso_label="ASTROOS$(date --date="@${SOURCE_DATE_EPOCH:-$
 sed -i 's|^iso_publisher=.*|iso_publisher="AstroOS <https://github.com/bakathefish>"|' "$prof/profiledef.sh"
 # Exec bits inside the image are governed by profiledef file_permissions;
 # register our overlay executables there (build 8 shipped doctor 0644).
-sed -i 's|^file_permissions=(|file_permissions=(\n  ["/usr/local/bin/astroos-doctor"]="0:0:755"\n  ["/usr/local/bin/astroos-smoke-report"]="0:0:755"\n  ["/usr/local/bin/astroos-cuda-setup"]="0:0:755"|' "$prof/profiledef.sh"
+sed -i 's|^file_permissions=(|file_permissions=(\n  ["/usr/local/bin/astroos-doctor"]="0:0:755"\n  ["/usr/local/bin/astroos-smoke-report"]="0:0:755"\n  ["/usr/local/bin/astroos-cuda-setup"]="0:0:755"\n  ["/usr/local/bin/astroos-hacking-heavy"]="0:0:755"|' "$prof/profiledef.sh"
 
 # --- Iteration mode -------------------------------------------------------
 # ASTROOS_FAST=1 swaps squashfs xz (slow, small; the release setting) for

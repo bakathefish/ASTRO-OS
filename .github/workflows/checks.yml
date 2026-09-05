@@ -1,0 +1,38 @@
+name: checks
+
+# Two jobs, cheap and always-on:
+#   lint       shellcheck + bash -n on every script; the generated additions
+#              list must match its meta sources (council R1: generated, never
+#              hand-edited)
+#   aur-scope  scope count == expected, every aur.list name still resolves in
+#              the AUR (liveness), none has migrated to the official repos.
+#              The weekly schedule is the standing liveness check council R3
+#              D7 deferred "until persistent infra exists": this runner is it.
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck (warning level)
+        run: |
+          sudo apt-get install -y -qq shellcheck >/dev/null
+          shellcheck -S warning astroos/scripts/*.sh astroos/aur-patches/*/*.sh astroos/overlay/airootfs/usr/local/bin/*
+          for f in astroos/scripts/*.sh; do bash -n "$f"; done
+      - name: generated additions list is current
+        run: |
+          bash astroos/scripts/gen-packages.sh
+          git diff --exit-code -- astroos/astroos-additions.x86_64
+
+  aur-scope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: scope + AUR liveness + official-repo migration (build-aur-repo.sh preflight)
+        run: bash astroos/scripts/build-aur-repo.sh preflight

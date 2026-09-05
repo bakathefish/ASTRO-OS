@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# astroos-hacking-heavy — install the heavy pentest set on demand.
+# Spec §3a: heavy tools are not day-1 defaults (burpsuite alone is ~680 MiB
+# installed). Thin glue, directive 7a: pure pacman over repos the image
+# already carries ([extra] + [blackarch]).
+set -euo pipefail
+
+heavy=(burpsuite metasploit zaproxy seclists)
+
+case "${1:-}" in
+  --list) printf '%s\n' "${heavy[@]}"; exit 0 ;;
+  ""|--install) ;;
+  -h|--help|*) echo "usage: sudo astroos-hacking-heavy [--install|--list]"; exit 0 ;;
+esac
+
+if [[ $EUID -ne 0 ]]; then
+  echo "Run as root: sudo astroos-hacking-heavy" >&2
+  exit 1
+fi
+if ! grep -q '^\[blackarch\]' /etc/pacman.conf; then
+  echo "[blackarch] is not configured in /etc/pacman.conf; this image was built without it." >&2
+  exit 1
+fi
+
+echo "Installing the heavy set: ${heavy[*]} (about 1.5 GiB to download)."
+echo "This is a full system update plus install (partial upgrades are unsafe on a rolling base)."
+pacman -Syu --needed "${heavy[@]}"
+
+cat <<'MSG'
+Done.
+  burpsuite    Burp Suite Community (menu entry + `burpsuite`)
+  msfconsole   Metasploit Framework (`sudo msfdb init` once for the database)
+  zaproxy      OWASP ZAP
+  seclists     wordlists under /usr/share/seclists
+MSG

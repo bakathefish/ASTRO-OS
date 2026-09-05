@@ -1,0 +1,22 @@
+# Packages that come from the [blackarch] repo (spec §3a). NOT part of
+# gen-packages.sh: container-build.sh appends this list only when
+# ASTROOS_WITH_BLACKARCH=1, because these names do not resolve without the
+# repo. Everything that Arch itself ships (nmap, john, hydra, ...) lives in
+# astroos-hacking.list instead: [blackarch] is appended AFTER the Arch repos
+# and never shadows an official package.
+# Sizes (compressed, 2026-09-05): netexec 62 MiB, set 30, ffuf 3, dirb <1, responder <1.
+
+# repo plumbing for the shipped system (keyring is populated by pacman-init)
+blackarch-keyring
+blackarch-mirrorlist
+
+# curated day-1 additions not in the Arch repos
+dirb
+ffuf
+responder
+set
+netexec
+
+# Heavy set, one command away, never on the ISO (spec: astroos-hacking-heavy):
+# burpsuite (663 MiB, blackarch), seclists (524 MiB, blackarch),
+# metasploit (139 MiB, extra), zaproxy (208 MiB, extra).

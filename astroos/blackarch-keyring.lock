@@ -1,0 +1,10 @@
+# BlackArch keyring pin (spec §3a Phase 2, council R4). container-build.sh
+# fetches blackarch-keyring-<VERSION>.tar.gz from https://www.blackarch.org/keyring/
+# and hard-fails unless its sha256 equals the pin below, so an upstream tarball
+# change can never enter a build silently. Bump deliberately: fetch the new
+# tarball, verify its .sig against the keys it ships (gpg --verify), review
+# blackarch-trusted, then update both values here in one commit.
+# 20251011 reviewed 2026-09-05: 4 trusted master keys, 1 revoked packager;
+# tarball signed by CBA3C7D4798912702DCF568E67D8BDF42AD93F4E (noptrix, BlackArch Master).
+BA_KEYRING_VERSION="20251011"
+BA_KEYRING_SHA256="e4934a37b018dda1df6403147c11c3e8efdc543419f10be485c7836e19f3cfbe"

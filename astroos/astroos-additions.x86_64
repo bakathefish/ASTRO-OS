@@ -93,6 +93,12 @@ hashcat
 aircrack-ng
 sqlmap
 opensnitch
+hydra
+nikto
+gobuster
+masscan
+exploitdb
+bettercap
 
 # --- astroos-research ---
 root
