@@ -1,6 +1,6 @@
 # AstroOS on the ASUS Zenbook Duo (UX8406MA 2024, UX8406CA 2025)
 
-Everything functional comes from upstream: the CachyOS kernels carry every Duo
+Everything functional comes from upstream: the shipped kernels carry every Duo
 fix for both models, KWin and PowerDevil drive both panels, touch, pen and
 brightness, and the dock/undock, rotation, keyboard-backlight and hotkey
 helper is zakstam/zenbook-duo-linux (GPL-3.0), packaged as astroos-zenbook-duo.
