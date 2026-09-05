@@ -13,13 +13,22 @@
 # alpm PostTransaction hooks re-assert them after every install/upgrade of the
 # owning package. Masks (same-name /dev/null symlinks in /etc/pacman.d/hooks)
 # silence the CachyOS identity hooks; that is the documented libalpm override.
+#
+# Login screen (E2E, 2026-09-05): the installer enables SDDM (astroos-core.list
+# adds sddm and Calamares picks it; plasma-login-manager is installed but
+# disabled). Both greeters get the AstroOS wallpaper, each verified in the KVM
+# guest: SDDM through the breeze theme's override file, plasmalogin through a
+# vendor drop-in that /etc/plasmalogin.conf (System Settings) overrides.
 pkgname=astroos-branding
 pkgver=0
 pkgrel=1
-pkgdesc="AstroOS distro identity: os-release, lsb-release, issue, motd, pacman hooks, icons, wallpaper, terminal greeting"
+pkgdesc="AstroOS distro identity: os-release, lsb-release, issue, motd, pacman hooks, icons, wallpaper (desktop and login screen), terminal greeting"
 arch=(any)
 url="https://github.com/bakathefish/ASTRO-OS"
 license=(GPL-3.0-or-later CC-BY-SA-4.0)
+# sddm-kcm writes the same override file when the user picks another login
+# background; a backup entry keeps that choice across upgrades (.pacnew)
+backup=(usr/share/sddm/themes/breeze/theme.conf.user)
 optdepends=('fastfetch: terminal greeting with the AstroOS logo'
             'plymouth: branded boot splash (spinner theme + AstroOS watermark)')
 

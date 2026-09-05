@@ -32,6 +32,8 @@ chk "fish greeting drop-in present"   test -f "$HOME/.config/fish/conf.d/astroos
 chk "plymouth watermark present"      test -f /usr/share/astroos/branding/watermark.png
 chk "AstroOS wallpaper installed"     test -f /usr/share/wallpapers/AstroOS/contents/images/3840x2160.png
 chk "Kickoff icon is astroos-logo"    grep -q '^icon=astroos-logo' "$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
+chk "SDDM greeter background is AstroOS" grep -q '^background=/usr/share/wallpapers/AstroOS/' /usr/share/sddm/themes/breeze/theme.conf.user
+chk "plasmalogin greeter wallpaper drop-in" grep -q '^Image=/usr/share/wallpapers/AstroOS/' /usr/lib/plasmalogin/plasmalogin.conf.d/10-astroos-wallpaper.conf
 
 echo "== repositories and trust"
 chk "[astroos] in pacman.conf"        grep -q '^\[astroos\]' /etc/pacman.conf
@@ -47,6 +49,7 @@ echo "== packages"
 for p in astroos-keyring astroos-branding astroos-tools astroos-zenbook-duo; do
   chk "installed: $p" pacman -Qq "$p"
 done
+chk "astroos-branding owns the SDDM greeter config" bash -c '[[ $(pacman -Qqo /usr/share/sddm/themes/breeze/theme.conf.user 2>/dev/null) == astroos-branding ]]'
 chk "installer-only shim absent"      bash -c '! pacman -Qq astroos-calamares-boost-compat'
 chk "installer component absent"      bash -c '! pacman -Qq astroos-calamares'
 chk "cachyos-hello absent"            bash -c '! pacman -Qq cachyos-hello'
@@ -65,7 +68,8 @@ done
 
 echo "== services"
 chk "graphical.target active"         systemctl is-active graphical.target
-chk "display manager enabled"         bash -c 'systemctl is-enabled plasmalogin.service || systemctl is-enabled sddm.service'
+chk "display manager enabled"         bash -c 'systemctl is-enabled sddm.service || systemctl is-enabled plasmalogin.service'
+echo "     display manager: $(basename "$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null)")"
 chk "no failed units"                 bash -c '[[ $(systemctl --failed --no-legend | wc -l) -eq 0 ]]'
 chk "network online"                  systemctl is-active network-online.target
 chk "zenbook-duo inert here"          bash -c '! astroos-is-duo'

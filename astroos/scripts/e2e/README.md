@@ -14,8 +14,9 @@ What it proves, in order:
    groups plus BlackArch) onto a blank 40 GB disk;
 4. the installed disk boots to the login screen on its own; and
 5. `verify-installed.sh` passes inside the installed system: identity files,
-   motd, hostname, terminal greetings, `[astroos]` and `[blackarch]` wiring and
-   trust, the AstroOS packages and hooks, masks, services, the Zenbook Duo
+   motd, hostname, terminal greetings, the login-screen wallpaper (SDDM is the
+   enabled greeter; plasmalogin is installed and branded too), `[astroos]` and
+   `[blackarch]` wiring and trust, the AstroOS packages and hooks, masks, services, the Zenbook Duo
    profile inert on non-Duo hardware, `astroos-doctor`.
 
 Every guest boot has a new ssh host key on 127.0.0.1:2222, so use

@@ -22,8 +22,9 @@ astroos/
 │   └── blackarch.list           packages from [blackarch]; appended only with ASTROOS_WITH_BLACKARCH=1
 ├── pkgs/<name>/               AstroOS's OWN packages, built into the [astroos] repo next to the AUR scope
 │   ├── astroos-keyring          pacman keyring trio (astroos.gpg, astroos-trusted, astroos-revoked) + populate on install
-│   ├── astroos-branding         identity files, icons, wallpaper, plymouth watermark, fastfetch/fish drop-ins,
-│   │                            alpm hooks that re-assert identity and mask CachyOS's identity hooks
+│   ├── astroos-branding         identity files, icons, wallpaper (desktop, SDDM and plasmalogin greeters),
+│   │                            plymouth watermark, fastfetch/fish drop-ins, alpm hooks that re-assert
+│   │                            identity and mask CachyOS's identity hooks
 │   ├── astroos-tools            astroos-doctor, astroos-cuda-setup, astroos-hacking-heavy
 │   ├── astroos-calamares        installer branding component + the hook that re-points cachyos-calamares-next
 │   ├── astroos-calamares-boost-compat  the three boost 1.91 runtime libs the installer still links (live ISO only, temporary)
@@ -140,7 +141,7 @@ CI (`.github/workflows/checks.yml`) has three jobs: `lint` (shellcheck and `bash
 2. **Content audit** (`forge.sh audit`): inside the squashfs: identity files and hostname, motd, plymouth watermark hash, hook masks and re-assertion hooks, CachyOS hello removed, the installer launcher, `[astroos]` and its keyring in both pacman configs, the BlackArch wiring when enabled, the installer re-pointing (branding component, package lists, base set), the Zenbook Duo runtime and defaults, every scope package and every addition in the pacman local db, boot menu titles.
 3. **Hosted repo verify** (`forge.sh verify`): db, files and lock signatures against the *shipped* keyring, D4 name set, and a fresh client installing the five astroos packages and a sample of the AUR builds under `SigLevel Required`.
 
-4. **End-to-end install** (`scripts/e2e/`, runbook in its README): the release ISO boots a headless KVM guest through its own GRUB menu into Plasma; `ldd /usr/bin/calamares` must report nothing missing; the Welcome Center's Install icon is clicked over QMP and the real installer is driven page by page (screenshots, clicks, typed text) through an online install of every AstroOS group plus BlackArch onto a blank disk; the installed disk is booted and `verify-installed.sh` asserts identity, motd, hostname, terminal greetings, `[astroos]` and `[blackarch]` wiring and trust, the AstroOS packages, hooks, masks, services and `astroos-doctor`. Calamares has no unattended mode, so this is how the install path gets tested at all; it found the boost mismatch, the Welcome Center button and the locale failure on 2026-09-05, none of which the content audit could see.
+4. **End-to-end install** (`scripts/e2e/`, runbook in its README): the release ISO boots a headless KVM guest through its own GRUB menu into Plasma; `ldd /usr/bin/calamares` must report nothing missing; the Welcome Center's Install icon is clicked over QMP and the real installer is driven page by page (screenshots, clicks, typed text) through an online install of every AstroOS group plus BlackArch onto a blank disk; the installed disk is booted and `verify-installed.sh` asserts identity, motd, hostname, terminal greetings, the login-screen wallpaper, `[astroos]` and `[blackarch]` wiring and trust, the AstroOS packages, hooks, masks, services and `astroos-doctor`. Calamares has no unattended mode, so this is how the install path gets tested at all; it found the boost mismatch, the Welcome Center button and the locale failure on 2026-09-05, none of which the content audit could see.
 
 Owner-side, not automatable: the first boot of an install on the Zenbook Duo (panel layout, keyboard detach, rotation, on-screen keyboard), and visual QA of the branding on real hardware.
 
