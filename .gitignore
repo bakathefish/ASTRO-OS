@@ -5,3 +5,4 @@ node_modules/
 codex_r*.txt
 /tmp/
 .planning/HANDOFF.json
+.claude-crawl/
