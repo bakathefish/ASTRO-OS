@@ -9,9 +9,10 @@ Operation = Upgrade
 Type = Package
 Target = cachyos-kde-settings
 Target = cachyos-alacritty-config
+Target = bash
 Target = astroos-branding
 
 [Action]
-Description = AstroOS: rebrand the KDE and Alacritty skeleton configs
+Description = AstroOS: rebrand the KDE, Alacritty and bash skeleton configs
 When = PostTransaction
 Exec = /usr/share/astroos/bin/astroos-rebrand-skel

@@ -15,4 +15,11 @@ t=/etc/skel/.config/alacritty/alacritty.toml
 if [ -f "$t" ]; then
   sed -i 's|^title = "Alacritty@CachyOS"|title = "Alacritty@AstroOS"|' "$t"
 fi
+# The installer gives users bash (users.conf shell: /bin/bash) and CachyOS
+# greets only in fish, so the AstroOS fastfetch greeting goes into the bash
+# skeleton too: every new interactive terminal shows the logo, like fish.
+b=/etc/skel/.bashrc
+if [ -f "$b" ] && ! grep -q 'AstroOS terminal greeting' "$b"; then
+  printf '\n# AstroOS terminal greeting (fastfetch with the AstroOS logo); delete to disable\n[[ $- == *i* ]] && command -v fastfetch >/dev/null 2>&1 && fastfetch\n' >> "$b"
+fi
 exit 0

@@ -1,0 +1,40 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Local lane package, fixed version (like astroos-zenbook-duo).
+#
+# Why: cachyos-calamares-next 3.4.2-13 (built 2026-08-13 00:24) links
+# libboost_{python314,container,graph}.so.1.91.0, and Arch moved boost-libs
+# to 1.92.0 eleven hours later. On the 2026-09-05 ISO the installer did not
+# start at all ("cannot open shared object file"), found by the end-to-end
+# install test in QEMU. This package ships exactly those three 1.91 runtime
+# libraries from the Arch Linux Archive under their versioned file names,
+# which boost-libs 1.92 does not own, so both coexist and nothing else
+# changes. Live-ISO only: it is in no installer group, so installed systems
+# never get it.
+#
+# Remove when cachyos-calamares-next is rebuilt against the current boost:
+# `ldd /usr/bin/calamares | grep "not found"` in the live ISO must be empty
+# (the end-to-end test asserts it).
+pkgname=astroos-calamares-boost-compat
+pkgver=1.91.0
+pkgrel=1
+pkgdesc="boost 1.91 runtime libraries cachyos-calamares-next still links (live ISO only)"
+arch=(x86_64)
+url="https://archive.archlinux.org/packages/b/boost-libs/"
+license=(BSL-1.0)
+source=("https://archive.archlinux.org/packages/b/boost-libs/boost-libs-${pkgver}-2-x86_64.pkg.tar.zst")
+sha256sums=('62cfd278b0260bd2ce5c93f6ab4669d2eefe840eab19e2c3854762f295924655')
+noextract=("boost-libs-${pkgver}-2-x86_64.pkg.tar.zst")
+
+package() {
+  local lib
+  install -d "$pkgdir/usr/lib"
+  for lib in libboost_python314 libboost_container libboost_graph; do
+    bsdtar -xf "$srcdir/boost-libs-${pkgver}-2-x86_64.pkg.tar.zst" -C "$pkgdir" "usr/lib/${lib}.so.${pkgver}"
+    test -f "$pkgdir/usr/lib/${lib}.so.${pkgver}"
+  done
+  chmod 755 "$pkgdir"/usr/lib/*.so.*
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/licenses/$pkgname/LICENSE" <<'EOF'
+Boost Software License 1.0. Binaries repackaged unmodified from the Arch Linux
+boost-libs 1.91.0-2 package (https://archive.archlinux.org/packages/b/boost-libs/).
+EOF
+}
