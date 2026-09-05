@@ -131,3 +131,22 @@ CI (`.github/workflows/checks.yml`) has three jobs: `lint` (shellcheck and `bash
 3. **Hosted repo verify** (`forge.sh verify`): db, files and lock signatures against the *shipped* keyring, D4 name set, and a fresh client installing the five astroos packages and a sample of the AUR builds under `SigLevel Required`.
 
 Owner-side, not automatable: one Calamares install in a VM (Calamares has no unattended mode), then the first boot of that install on the Zenbook Duo (panel layout, keyboard detach, rotation, on-screen keyboard), and visual QA of the branding on real hardware.
+
+## Install and first boot
+
+**Download.** `https://astroosrepo.blob.core.windows.net/iso/LATEST` is one line: the directory of the newest release. Under `https://astroosrepo.blob.core.windows.net/iso/<that line>/` sit the ISO, its `.sha256`, its `.asc` (armored signature by the repo key), `RELEASE`, `build-metadata.txt`, `manifest.pkglist` and `audit.txt`. Verify before flashing:
+
+```sh
+sha256sum -c astroos-desktop-linux-<date>.iso.sha256
+curl -fsSLO https://astroosrepo.blob.core.windows.net/repo/astroos/astroos.gpg
+gpg --import astroos.gpg      # the fingerprint must read DA5C947A5C329E528948830E92304756ECC2F9D8
+gpg --verify astroos-desktop-linux-<date>.iso.asc astroos-desktop-linux-<date>.iso
+```
+
+**Flash and boot.** Ventoy, Rufus in dd mode, or `dd bs=4M status=progress conv=fsync` on Linux. Boot with Secure Boot disabled, as the CachyOS base requires. The live session comes up as `astroos` with the AstroOS identity everywhere the base showed CachyOS.
+
+**Install.** The installer needs a network connection: it pacstraps the target from the repositories. Start "Install AstroOS" from the application menu or the welcome window. Calamares shows the AstroOS branding and package groups: the identity packages are a hidden mandatory group; core, astro, continuity, hacking, research, laptop and the AUR-built scope are visible groups, all preselected, all critical like CachyOS's own groups (an install does not silently drop packages). The BlackArch group appears only on an ISO built with it. Bootloader, filesystem and kernel choices are CachyOS's; Limine carries the AstroOS splash.
+
+**First boot.** The installed system is branded by the same packages as the live ISO, and stays branded across upgrades because the hooks re-assert it. On a Zenbook Duo the profile activates by itself: the first boot disables Panel Self Refresh and rebuilds the initramfs, so reboot once more; the panel daemon binds to the first regular account (edit `/etc/zenbook-duo/env` to change it). Everything else about the Duo, including the known upstream gaps, is in `/usr/share/doc/astroos/zenbook-duo.md`. On any other machine the Duo services stay inert.
+
+**Every day.** `sudo pacman -Syu` updates Arch, CachyOS and `[astroos]` together (and `[blackarch]` when enabled); the reboot-required notifier says when a kernel or core update wants a restart. `astroos-doctor` prints a health report worth pasting into a bug report. `sudo astroos-hacking-heavy --install` fetches the large security tools (Burp Suite, SecLists, Metasploit, ZAP) on demand; `--list` shows them. `astroos-cuda-setup` sets up CUDA on NVIDIA machines.
