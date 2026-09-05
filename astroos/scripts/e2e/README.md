@@ -88,15 +88,12 @@ bash astroos/scripts/e2e/watch-install.sh 2222        # one line per 2 min
 
 ## 6. Give the installed system a way in, then boot it
 
-Calamares unmounts the target when it finishes. From the live guest, mount the
-btrfs subvolumes, drop the key into the new user's home and enable sshd:
+Calamares unmounts the target when it finishes. From the live guest,
+`guest-postinstall-ssh.sh` mounts the btrfs subvolumes, drops liveuser's key
+into the new user's home and enables sshd:
 
 ```sh
-ssh -p 2222 liveuser@127.0.0.1 'sudo mkdir -p /mnt/t && sudo mount -o subvol=@ /dev/vda2 /mnt/t && sudo mount -o subvol=@home /dev/vda2 /mnt/t/home
-sudo install -d -m700 -o 1000 -g 1000 /mnt/t/home/USER/.ssh
-sudo install -m600 -o 1000 -g 1000 ~/.ssh/authorized_keys /mnt/t/home/USER/.ssh/authorized_keys
-sudo ln -sf /usr/lib/systemd/system/sshd.service /mnt/t/etc/systemd/system/multi-user.target.wants/sshd.service
-sudo umount -R /mnt/t'
+ssh -p 2222 liveuser@127.0.0.1 'bash -s USER' < astroos/scripts/e2e/guest-postinstall-ssh.sh
 python3 astroos/scripts/e2e/e2e.py quit
 bash astroos/scripts/e2e/e2e-start.sh disk
 sleep 60; python3 astroos/scripts/e2e/e2e.py shot /tmp/e2e/d01.png    # login screen

@@ -140,7 +140,9 @@ CI (`.github/workflows/checks.yml`) has three jobs: `lint` (shellcheck and `bash
 2. **Content audit** (`forge.sh audit`): inside the squashfs: identity files and hostname, motd, plymouth watermark hash, hook masks and re-assertion hooks, CachyOS hello removed, the installer launcher, `[astroos]` and its keyring in both pacman configs, the BlackArch wiring when enabled, the installer re-pointing (branding component, package lists, base set), the Zenbook Duo runtime and defaults, every scope package and every addition in the pacman local db, boot menu titles.
 3. **Hosted repo verify** (`forge.sh verify`): db, files and lock signatures against the *shipped* keyring, D4 name set, and a fresh client installing the five astroos packages and a sample of the AUR builds under `SigLevel Required`.
 
-Owner-side, not automatable: one Calamares install in a VM (Calamares has no unattended mode), then the first boot of that install on the Zenbook Duo (panel layout, keyboard detach, rotation, on-screen keyboard), and visual QA of the branding on real hardware.
+4. **End-to-end install** (`scripts/e2e/`, runbook in its README): the release ISO boots a headless KVM guest through its own GRUB menu into Plasma; `ldd /usr/bin/calamares` must report nothing missing; the Welcome Center's Install icon is clicked over QMP and the real installer is driven page by page (screenshots, clicks, typed text) through an online install of every AstroOS group plus BlackArch onto a blank disk; the installed disk is booted and `verify-installed.sh` asserts identity, motd, hostname, terminal greetings, `[astroos]` and `[blackarch]` wiring and trust, the AstroOS packages, hooks, masks, services and `astroos-doctor`. Calamares has no unattended mode, so this is how the install path gets tested at all; it found the boost mismatch, the Welcome Center button and the locale failure on 2026-09-05, none of which the content audit could see.
+
+Owner-side, not automatable: the first boot of an install on the Zenbook Duo (panel layout, keyboard detach, rotation, on-screen keyboard), and visual QA of the branding on real hardware.
 
 ## Install and first boot
 
