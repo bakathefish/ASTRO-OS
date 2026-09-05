@@ -17,7 +17,7 @@ python-numba
 # core numeric libs
 gsl
 openblas
-lapack
+# lapack: provided by blas-openblas from the base; the reference package never installs (ISO #1 audit)
 fftw
 gmp
 mpfr

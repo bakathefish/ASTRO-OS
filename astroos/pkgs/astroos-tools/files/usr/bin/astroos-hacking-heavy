@@ -5,7 +5,9 @@
 # already carries ([extra] + [blackarch]).
 set -euo pipefail
 
-heavy=(burpsuite metasploit zaproxy seclists)
+# responder is small but depends on mingw-w64-gcc (1.6 GiB installed), so it
+# left the day-1 BlackArch set for this one (ISO #1 size map, 2026-09-05)
+heavy=(burpsuite metasploit zaproxy seclists responder)
 
 case "${1:-}" in
   --list) printf '%s\n' "${heavy[@]}"; exit 0 ;;
@@ -23,7 +25,7 @@ if ! grep -q '^\[blackarch\]' /etc/pacman.conf; then
   exit 1
 fi
 
-echo "Installing the heavy set: ${heavy[*]} (about 1.5 GiB to download)."
+echo "Installing the heavy set: ${heavy[*]} (about 2 GiB to download)."
 echo "This is a full system update plus install (partial upgrades are unsafe on a rolling base)."
 pacman -Syu --needed "${heavy[@]}"
 
@@ -33,4 +35,5 @@ Done.
   msfconsole   Metasploit Framework (`sudo msfdb init` once for the database)
   zaproxy      OWASP ZAP
   seclists     wordlists under /usr/share/seclists
+  responder    LLMNR/NBT-NS/mDNS poisoner (`sudo responder -I <interface>`)
 MSG

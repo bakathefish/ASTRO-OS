@@ -207,7 +207,7 @@ stage_audit() {
   grep -q '^DISTRIB_ID=AstroOS' "$r/etc/lsb-release" 2>/dev/null && ok "lsb-release DISTRIB_ID=AstroOS" || bad "lsb-release not AstroOS"
   grep -q AstroOS "$r/etc/issue" 2>/dev/null && ok "/etc/issue branded" || bad "/etc/issue not branded"
   [[ "$(tr -d '\r\n' < "$r/etc/hostname" 2>/dev/null)" == "astroos" ]] && ok "hostname is astroos" || bad "hostname is not astroos"
-  if grep -q AstroOS "$r/etc/motd" 2>/dev/null && ! grep -q CachyOS "$r/etc/motd"; then ok "motd is the AstroOS one"; else bad "motd missing or still CachyOS"; fi
+  if grep -q 'Welcome to AstroOS' "$r/etc/motd" 2>/dev/null && ! grep -qi 'welcome to your.*cachyos' "$r/etc/motd"; then ok "motd is the AstroOS one"; else bad "motd missing or still CachyOS"; fi
   [[ "$(sha256sum "$r/usr/share/plymouth/themes/spinner/watermark.png" 2>/dev/null | cut -d' ' -f1)" == "$(sha256sum "$here/branding/out/watermark.png" | cut -d' ' -f1)" ]] \
     && ok "plymouth watermark is the AstroOS asset" || bad "plymouth watermark is not ours"
   [[ -s "$r/etc/fastfetch/astroos-logo.ansi" ]] && ok "fastfetch ANSI logo shipped" || bad "fastfetch logo missing"
@@ -232,7 +232,7 @@ stage_audit() {
   if [[ "$ASTROOS_WITH_AUR_REPO" == "1" ]]; then
     local c
     for c in etc/pacman.conf etc/pacman-more.conf; do
-      if grep -q '^\[astroos\]' "$r/$c" 2>/dev/null && grep -A3 '^\[astroos\]' "$r/$c" | grep -q "^Server = $repo_url" \
+      if grep -q '^\[astroos\]' "$r/$c" 2>/dev/null && grep -A3 '^\[astroos\]' "$r/$c" | grep -qF "Server = $blob/astroos/\$arch" \
          && grep -A3 '^\[astroos\]' "$r/$c" | grep -q '^SigLevel = Required'; then
         ok "[astroos] section complete in $c"
       else bad "[astroos] section missing/incomplete in $c"; fi
@@ -254,7 +254,7 @@ stage_audit() {
   grep -q '^branding: astroos' "$r/usr/share/calamares/settings_online.conf" 2>/dev/null && ok "installer selects the astroos branding" || bad "installer branding not astroos"
   grep -q '^\s*productName:\s*AstroOS' "$r/usr/share/calamares/branding/astroos/branding.desc" 2>/dev/null && ok "installer branding.desc says AstroOS" || bad "branding.desc missing/wrong"
   local cm="$r/etc/calamares/modules"
-  grep -q 'githubusercontent' "$cm/netinstall.conf" 2>/dev/null && bad "netinstall.conf still pulls groups from GitHub" || ok "netinstall groups are local-only"
+  grep -v '^\s*#' "$cm/netinstall.conf" 2>/dev/null | grep -q 'githubusercontent' && bad "netinstall.conf still pulls groups from GitHub" || ok "netinstall groups are local-only"
   grep -q '^\s*- cachyos-hello\s*$' "$cm/netinstall.yaml" 2>/dev/null && bad "cachyos-hello survives in netinstall.yaml" || ok "cachyos-hello not in the installed set"
   grep -q '^- name: "AstroOS (hidden)"' "$cm/netinstall.yaml" 2>/dev/null && ok "AstroOS package groups present in netinstall.yaml" || bad "AstroOS groups missing from netinstall.yaml"
   if [[ "${ASTROOS_WITH_BLACKARCH:-0}" == "1" ]]; then

@@ -110,7 +110,6 @@ openmpi
 python-numba
 gsl
 openblas
-lapack
 fftw
 gmp
 mpfr
