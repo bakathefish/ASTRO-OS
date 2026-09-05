@@ -9,12 +9,17 @@ fail=0
 pass() { printf 'PASS %s\n' "$1"; }
 bad()  { printf 'FAIL %s\n' "$1"; fail=1; }
 chk()  { local name=$1; shift; if "$@" >/dev/null 2>&1; then pass "$name"; else bad "$name"; fi; }
+# password on stdin every time: without a tty, sudo's cached ticket does not
+# carry into subshells, so a plain `sudo` inside $(...) or `bash -c` prompts
+# and fails silently
 sudo_() { printf '%s\n' "${E2E_PASS:-}" | sudo -S -p '' "$@" 2>/dev/null; }
+export E2E_PASS; export -f sudo_
 want_host="${E2E_HOSTNAME:-astroos-e2e}"
 
 echo "== identity"
 chk "os-release NAME=AstroOS"         grep -qx 'NAME="AstroOS"' /etc/os-release
-chk "os-release ID=astroos"           grep -qx 'ID=astroos' /etc/os-release
+chk "os-release ID=arch (kept on purpose)" grep -qx 'ID=arch' /etc/os-release
+chk "os-release has no CachyOS"        bash -c '! grep -qi cachyos /etc/os-release'
 chk "os-release LOGO=astroos-logo"    grep -qx 'LOGO=astroos-logo' /etc/os-release
 chk "lsb-release names AstroOS"       grep -q 'AstroOS' /etc/lsb-release
 chk "issue names AstroOS"             grep -q 'AstroOS' /etc/issue
@@ -36,6 +41,7 @@ chk "[blackarch] after [astroos]"     bash -c 'a=$(grep -n "^\[astroos\]" /etc/p
 chk "astroos key in the keyring"      bash -c 'sudo_ pacman-key --list-keys 2>/dev/null | grep -q DA5C947A5C329E528948830E92304756ECC2F9D8'
 chk "astroos key locally signed"      bash -c 'sudo_ pacman-key --list-sigs DA5C947A5C329E528948830E92304756ECC2F9D8 2>/dev/null | grep -qi "pacman keyring master key"'
 chk "pacman -Sy works with SigLevel"  sudo_ pacman -Sy
+chk "[astroos] package signature verifies (pacman -Sw)" sudo_ pacman -Sw --noconfirm python-fleep
 
 echo "== packages"
 for p in astroos-keyring astroos-branding astroos-tools astroos-zenbook-duo; do

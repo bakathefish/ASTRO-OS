@@ -104,6 +104,15 @@ E2E_PASS=<password> ssh -p 2222 USER@127.0.0.1 'E2E_PASS='"'"'<password>'"'"' ba
 Then log in on the screenshot (click the password field, type it, Enter) and
 screenshot the desktop: Kickoff icon, wallpaper, Konsole greeting.
 
+Notes from the 2026-09-05 run. The live session's sshd stopped answering
+once the installer had filled the RAM-backed overlay with its package cache;
+if step 6 cannot reach the guest, power it off and use the host-side
+`sudo host-inject-ssh.sh USER` (qemu-nbd) instead. The installed system runs
+ufw with incoming denied, so after the first login open Konsole and run
+`sudo ufw allow 22/tcp` before the ssh step; the user's login shell is fish
+(CachyOS default), so remote commands go through `bash -s` with the script
+on stdin, as `verify-installed.sh` does.
+
 ## 7. Clean up
 
 `e2e.py quit`, then delete `/tmp/e2e` (the 40 GB image lives there).
