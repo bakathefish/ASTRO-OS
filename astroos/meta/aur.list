@@ -24,7 +24,8 @@ normcap
 ds9-bin
 topcat
 gnuastro
-siril
+siril-git         # NOT siril: Arch's opencv is 5.x (opencv5.pc) and siril 1.4.4 hard-requires opencv4;
+                  # master already carries opencv5 support. Revert to `siril` at the first release that does (>1.4.4).
 uxplay
 geant4
 python-qutip
