@@ -93,8 +93,8 @@ stage_verify() {
     printf "\n[astroos]\nSigLevel = Required DatabaseOptional\nServer = '"$repo_url"'\n" >> /etc/pacman.conf
     pacman -Sy >/dev/null
     pacman -Sp --noconfirm '"$names"' >/dev/null
-    pacman -S --noconfirm siril ds9-bin opendrop python-healpy astromatic-swarp >/dev/null
-    pacman -Q siril ds9-bin opendrop python-healpy astromatic-swarp' 2>&1 | tee -a "$log" \
+    pacman -S --noconfirm siril-git ds9-bin opendrop python-healpy astromatic-swarp >/dev/null
+    pacman -Q siril-git ds9-bin opendrop python-healpy astromatic-swarp' 2>&1 | tee -a "$log" \
     || die "client install test against the hosted repo FAILED"
   say "verify: fresh client resolved all $(echo "$have" | wc -l) names and installed 5 packages with signature verification"
   rm -rf "$v"
