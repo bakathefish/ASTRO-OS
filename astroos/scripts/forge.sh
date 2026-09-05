@@ -191,6 +191,7 @@ stage_audit() {
   unsquashfs -n -d "$a/root" "$sfs" \
     etc/os-release usr/lib/os-release etc/lsb-release etc/issue etc/motd etc/hostname \
     etc/pacman.conf etc/pacman-more.conf etc/pacman.d/hooks etc/pacman.d/blackarch-mirrorlist \
+    etc/pacman.d/cachyos-mirrorlist etc/pacman.d/cachyos-v3-mirrorlist etc/pacman.d/cachyos-v4-mirrorlist \
     etc/fastfetch usr/share/astroos usr/share/pacman/keyrings \
     usr/share/plymouth/themes/spinner/watermark.png usr/bin/astroos-doctor \
     usr/share/calamares/settings_online.conf usr/share/calamares/branding/astroos \
@@ -321,6 +322,41 @@ stage_audit() {
         else bad "pacman -Syu would pull BlackArch replacements for: $clash"; fi
       fi
     else bad "blackarch.db unreachable for the replaces check"; fi
+  fi
+
+  # installed-system resolution (E2E 2026-09-05): the live ISO carries the real
+  # zlib, an installed CachyOS system carries zlib-ng-compat, whose provide is
+  # unversioned. geant4's 'zlib>=1.2.3' therefore pulled the real zlib into the
+  # Calamares "packages" job and the install died on the conflict, something
+  # no check on the ISO's own contents can see. So: a container with the ISO's
+  # pacman.conf, mirrorlists and keyrings, zlib-ng-compat installed the way
+  # the installer's base set does it, and pacman's own resolver asked to plan
+  # every package the installer can select (pacstrap base + every netinstall
+  # entry). Any resolver error fails the audit and names the packages.
+  local ni="$r/etc/calamares/modules/netinstall.yaml" ps="$r/etc/calamares/modules/pacstrap.conf"
+  if [[ -f "$ni" && -f "$ps" ]]; then
+    grep -hE '^\s*- [A-Za-z0-9@._+-]+\s*$' "$ni" "$ps" | sed -E 's/^\s*- //; s/\s*$//' | sort -u > "$a/install.names"
+    local nn; nn=$(wc -l < "$a/install.names")
+    if podman run --rm --pids-limit=-1 -v "$r/etc/pacman.conf":/iso-pacman.conf:ro -v "$r/etc/pacman.d":/iso-pacman.d:ro \
+         -v "$r/usr/share/pacman/keyrings":/iso-keyrings:ro -v "$a/install.names":/install.names:ro \
+         -v astroos-pacman-cache:/var/cache/pacman/pkg "$IMG" bash -c '
+        set -e
+        cp /iso-pacman.d/*mirrorlist /etc/pacman.d/ 2>/dev/null || true
+        cp /iso-keyrings/* /usr/share/pacman/keyrings/
+        pacman-key --init >/dev/null 2>&1
+        pacman-key --populate >/dev/null 2>&1
+        cp /iso-pacman.conf /etc/pacman.conf
+        pacman -Sy >/dev/null 2>&1 || { echo "!! pacman -Sy with the ISO pacman.conf failed" >&2; exit 1; }
+        # the installer base set replaces zlib with zlib-ng-compat (--ask=4 answers the conflict removal)
+        pacman -S --noconfirm --ask=4 zlib-ng-compat >/dev/null 2>&1 || { echo "!! could not install zlib-ng-compat" >&2; exit 1; }
+        if ! pacman -S --print --needed --noconfirm $(tr "\n" " " < /install.names) >/dev/null 2>/tmp/resolve.err; then
+          grep -E "error|conflict|not found|unresolvable" /tmp/resolve.err | head -8 >&2; exit 1; fi' > "$a/resolve.out" 2>&1; then
+      ok "installed-system resolver plans all $nn selectable packages on a zlib-ng-compat base"
+    else
+      bad "installed-system resolver fails on a zlib-ng-compat base: $(tr '\n' ' ' < "$a/resolve.out" | cut -c1-300)"
+    fi
+  else
+    bad "netinstall.yaml or pacstrap.conf missing from the ISO (resolver simulation skipped)"
   fi
   # bootloader menus
   # grub and syslinux both live under /boot on this profile; a missing search
