@@ -161,7 +161,7 @@ stage_iso() {
   local commit; commit=$(git -C "$repo" rev-parse HEAD 2>/dev/null || echo unknown)
   # shellcheck disable=SC2024  # the log is meant to be written as the invoking user, not root
   sudo env ASTROOS_WITH_AUR_REPO="$ASTROOS_WITH_AUR_REPO" ASTROOS_WITH_BLACKARCH="${ASTROOS_WITH_BLACKARCH:-0}" \
-           ASTROOS_FAST="${ASTROOS_FAST:-0}" ASTROOS_SIZE_BUDGET_GIB="${ASTROOS_SIZE_BUDGET_GIB:-7}" \
+           ASTROOS_FAST="${ASTROOS_FAST:-0}" ASTROOS_SIZE_BUDGET_MIB="${ASTROOS_SIZE_BUDGET_MIB:-7600}" \
            ASTROOS_ALLOW_UNBRANDED="${ASTROOS_ALLOW_UNBRANDED:-0}" ASTROOS_COMMIT="$commit" \
        bash "$here/scripts/build-iso.sh" >> "$log" 2>&1 || die "iso build failed (tail: $(tail -3 "$log" | tr '\n' ' '))"
   say "iso: $(basename "$(latest_iso)") $(grep -E '^iso_bytes=' "$out/build-metadata.txt" | cut -d= -f2) bytes"

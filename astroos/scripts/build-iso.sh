@@ -70,11 +70,14 @@ if [[ -n "${iso:-}" ]]; then
     echo "with_blackarch=${ASTROOS_WITH_BLACKARCH:-0}"
     echo "fast=${ASTROOS_FAST:-0}"
   } > "build-metadata.txt"
-  # Size-budget gate (council R2, D2): fail the build if the ISO regresses
-  # past the budget. Post-diet expectation is ~6.5 GiB; budget default 7.
-  budget_gib="${ASTROOS_SIZE_BUDGET_GIB:-7}"
-  if (( iso_bytes > budget_gib * 1024 * 1024 * 1024 )); then
-    echo "!! ISO is $((iso_bytes / 1024 / 1024 / 1024)) GiB — over the ${budget_gib} GiB budget (ASTROOS_SIZE_BUDGET_GIB to override)." >&2
+  # Size-budget gate (council R2 D2, re-based in R4.1): the release must fit
+  # an 8 GB USB stick (7629 MiB usable), so the default budget is 7600 MiB.
+  # The round 7 GiB of the diet era rejected the 7428 MiB research ISO for no
+  # physical reason. ASTROOS_SIZE_BUDGET_GIB (integer) still overrides.
+  budget_mib="${ASTROOS_SIZE_BUDGET_MIB:-7600}"
+  [[ -n "${ASTROOS_SIZE_BUDGET_GIB:-}" ]] && budget_mib=$(( ASTROOS_SIZE_BUDGET_GIB * 1024 ))
+  if (( iso_bytes > budget_mib * 1024 * 1024 )); then
+    echo "!! ISO is $((iso_bytes / 1024 / 1024)) MiB, over the ${budget_mib} MiB budget (ASTROOS_SIZE_BUDGET_MIB to override)." >&2
     exit 1
   fi
   # The container writes as root; hand the artifacts back to the invoking
@@ -82,7 +85,7 @@ if [[ -n "${iso:-}" ]]; then
   if [[ -n "${SUDO_USER:-}" ]]; then
     chown -R "$SUDO_USER" "$outdir" || true
   fi
-  echo ">> Done: $outdir/$iso ($((iso_bytes / 1024 / 1024)) MiB, budget ${budget_gib} GiB)"
+  echo ">> Done: $outdir/$iso ($((iso_bytes / 1024 / 1024)) MiB, budget ${budget_mib} MiB)"
 else
   echo "!! No ISO produced — check build output above." >&2
   exit 1
