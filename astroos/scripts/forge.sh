@@ -313,7 +313,8 @@ stage_audit() {
     # shellcheck disable=SC2086
     grep -h 'menuentry\|MENU LABEL\|MENU TITLE' $cfgs 2>/dev/null | grep -q 'CachyOS' && bad "CachyOS survives in a boot menu title" || ok "no CachyOS in boot menu titles"
   else bad "no bootloader cfg files found in the ISO"; fi
-  sudo umount "$m"; rm -rf "$a"
+  # unsquashfs recreates the image's directory modes, some unwritable for us
+  sudo umount "$m"; chmod -R u+rwX "$a" 2>/dev/null || true; rm -rf "$a" 2>/dev/null || true
   echo "audit: $pass passed, $fail failed" | tee -a "$rep"
   (( fail == 0 )) || die "content audit FAILED ($fail checks)"
   say "audit: PASS ($pass checks)"
