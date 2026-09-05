@@ -8,7 +8,7 @@ set -u
 port="${1:-2222}"
 cap=$(( ${2:-110} * 60 ))
 t0=$(date +%s)
-g() { ssh -p "$port" -o StrictHostKeyChecking=no -o ConnectTimeout=5 liveuser@127.0.0.1 "$@" 2>/dev/null; }
+g() { ssh -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5 liveuser@127.0.0.1 "$@" 2>/dev/null; }
 while :; do
   now=$(date +%s)
   if (( now - t0 > cap )); then echo "CAP reached"; exit 1; fi

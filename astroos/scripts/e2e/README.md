@@ -18,6 +18,12 @@ What it proves, in order:
    trust, the AstroOS packages and hooks, masks, services, the Zenbook Duo
    profile inert on non-Duo hardware, `astroos-doctor`.
 
+Every guest boot has a new ssh host key on 127.0.0.1:2222, so use
+`-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null` for the guest
+(the commands below abbreviate it to `ssh -p 2222 ...`). Run each install on a
+fresh disk image: a second run over a failed one stopped at "failed to create
+a partition table" (2026-09-05), and a clean machine is what a user has anyway.
+
 Host: the build VM (Ubuntu, `qemu-system-x86`, `ovmf`, `/dev/kvm`). Everything
 runs from the repo checkout; `E2E_DIR` (default `/tmp/e2e`) holds the disk
 image, firmware vars, QMP socket, logs and screenshots. Screenshots are PNG

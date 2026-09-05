@@ -221,7 +221,11 @@ stage_audit() {
   done
   [[ -f "$r/usr/share/applications/cachyos-hello.desktop" ]] && bad "cachyos-hello still on the ISO" || ok "cachyos-hello gone"
   [[ -f "$r/usr/share/applications/astroos-install.desktop" ]] && ok "Install AstroOS launcher shipped" || bad "astroos-install.desktop missing"
-  grep -q '^LiveInstaller=astroos-install.desktop' "$r/etc/skel/.config/plasma-welcomerc" 2>/dev/null && ok "plasma-welcome Install button wired" || bad "plasma-welcomerc lacks LiveInstaller"
+  # plasma-welcome looks the value up with KService::serviceByDesktopName: the desktop file NAME without the suffix.
+  # "astroos-install.desktop" rendered an empty icon whose click did nothing
+  # (2026-09-05 E2E), so the check pins the exact value and the file it names.
+  li=$(sed -n 's/^LiveInstaller=//p' "$r/etc/skel/.config/plasma-welcomerc" 2>/dev/null | tr -d '\r')
+  if [[ "$li" == "astroos-install" && -f "$r/usr/share/applications/${li}.desktop" ]]; then ok "plasma-welcome Install button wired (LiveInstaller=$li, desktop file present)"; else bad "plasma-welcomerc LiveInstaller is '${li:-unset}' (must be astroos-install, no .desktop suffix, file present)"; fi
   # skeleton configs re-branded by the 86 hook at pacstrap time
   local ap="$r/etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc"
   if [[ -f "$ap" ]]; then

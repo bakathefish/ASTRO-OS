@@ -1,3 +1,6 @@
 [General]
 LiveEnvironment=true
-LiveInstaller=astroos-install.desktop
+# plasma-welcome resolves this with KService::serviceByDesktopName: the desktop
+# file NAME, without the .desktop suffix. With the suffix the icon renders empty
+# and the click is a silent no-op (found by the end-to-end test, 2026-09-05).
+LiveInstaller=astroos-install
