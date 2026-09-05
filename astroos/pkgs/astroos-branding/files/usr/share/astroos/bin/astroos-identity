@@ -8,5 +8,10 @@ cp "$b/os-release" /etc/os-release
 cp "$b/os-release" /usr/lib/os-release
 cp "$b/lsb-release" /etc/lsb-release
 cp "$b/issue" /etc/issue
+cp "$b/issue" /usr/share/factory/etc/issue 2>/dev/null || true
 cp "$b/motd" /etc/motd
+# CachyOS leftovers nothing needs: the live profile's release file and the
+# login-screen logo from cachyos-settings (a gschema override beside this
+# package points GNOME's login screen at the AstroOS logo instead)
+rm -f /etc/cachyos-release /usr/share/icons/cachyos.svg
 exit 0

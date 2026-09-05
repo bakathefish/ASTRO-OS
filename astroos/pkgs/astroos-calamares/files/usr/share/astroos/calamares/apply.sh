@@ -32,7 +32,10 @@ if [[ -f $y ]]; then
            cachyos-emerald-kde-theme-git cachyos-iridescent-kde cachyos-nord-kde-theme-git; do
     sed -i "/^\s*- ${p}\s*$/d" "$y"
   done
-  sed -i 's/CachyOS/AstroOS/g' "$y"
+  # brand in the group titles; the MangoWM description attributes its dotfiles
+  # to CachyOS, which is true, so those lines (12 languages) keep upstream's text
+  sed -i '/MangoWM/!s/CachyOS/AstroOS/g' "$y"
+  sed -i 's/with AstroOS-provided dotfiles/with CachyOS-provided dotfiles/' "$y"
   grep -q '^- name: "AstroOS (hidden)"' "$y" || cat "$d/netinstall-astroos.yaml" >> "$y"
   # the BlackArch group only when the live system carries the repo (ISO flag)
   if grep -q '^\[blackarch\]' /etc/pacman.conf && ! grep -q '^- name: "BlackArch tools"' "$y"; then
@@ -46,9 +49,27 @@ sed -i 's/CachyOS/AstroOS/g' "$m/shellprocess-before-online.conf" "$m/shellproce
 [[ -f $m/bootloader.conf ]] && sed -i \
   -e 's/^efiBootloaderId:.*/efiBootloaderId: "astroos"/' \
   -e 's|^limineSplashLogo:.*|limineSplashLogo: "/usr/share/astroos/branding/limine-splash.png"|' "$m/bootloader.conf"
-[[ -f $m/grubcfg.conf ]]    && sed -i '/^\s*GRUB_THEME:/d' "$m/grubcfg.conf"
+if [[ -f $m/grubcfg.conf ]]; then
+  # no CachyOS GRUB theme; the AstroOS splash behind GRUB's own menu instead
+  sed -i '/^\s*GRUB_THEME:/d' "$m/grubcfg.conf"
+  grep -q '^\s*GRUB_BACKGROUND:' "$m/grubcfg.conf" \
+    || sed -i 's|^\(\s*\)GRUB_TOP_LEVEL:.*|&\n\1GRUB_BACKGROUND: "/usr/share/astroos/branding/limine-splash.png"|' "$m/grubcfg.conf"
+fi
 install -m644 "$d/plymouthcfg.conf" "$m/plymouthcfg.conf"
 [[ -f $m/welcome_online.conf ]] && sed -i 's|^\(\s*internetCheckUrl:\s*\).*|\1https://archlinux.org|' "$m/welcome_online.conf"
+
+# 3b. installer previews: the bootloader and desktop pages show AstroOS images
+#     (astroos/branding/assetgen.py, shipped by this package) instead of the
+#     upstream CachyOS screenshots
+img=/usr/share/astroos/calamares/images
+[[ -f $m/packagechooser_bootloader.conf ]] && sed -i -E \
+  "s|screenshot: \"/etc/calamares/images/bootloaders/([a-z0-9-]+)\.[a-z]+\"|screenshot: \"$img/bootloaders/\1.png\"|" \
+  "$m/packagechooser_bootloader.conf"
+if [[ -f $m/packagechooser_desktop.conf ]]; then
+  sed -i -E "s|screenshot: \"/etc/calamares/images/([a-z0-9-]+)\.[a-z]+\"|screenshot: \"$img/desktops/\1.png\"|" \
+    "$m/packagechooser_desktop.conf"
+  sed -i "s|$img/desktops/kde.png|$img/desktops/plasma.png|" "$m/packagechooser_desktop.conf"
+fi
 
 # 4. pacstrap: AstroOS identity packages into the target root, the CachyOS
 #    plymouth themes out (the spinner theme + AstroOS watermark replace them)
@@ -77,4 +98,7 @@ warn() { echo "astroos-calamares: WARNING: $1" >&2; }
 [[ -f $y ]] && ! grep -q '^- name: "AstroOS (hidden)"' "$y" && warn "AstroOS groups missing from netinstall.yaml"
 [[ -f $p ]] && ! grep -q '^\s*- astroos-branding\s*$' "$p" && warn "astroos-branding not in pacstrap basePackages"
 grep -q '^branding: astroos' /usr/share/calamares/settings_online.conf 2>/dev/null || warn "settings_online.conf does not select the astroos branding"
+[[ -f $m/packagechooser_bootloader.conf ]] && ! grep -q "$img/bootloaders/limine.png" "$m/packagechooser_bootloader.conf" && warn "bootloader previews still upstream"
+[[ -f $m/packagechooser_desktop.conf ]] && ! grep -q "$img/desktops/plasma.png" "$m/packagechooser_desktop.conf" && warn "desktop previews still upstream"
+[[ -f $y ]] && grep -q 'AstroOS-provided' "$y" && warn "MangoWM description carries the sed artefact"
 exit 0

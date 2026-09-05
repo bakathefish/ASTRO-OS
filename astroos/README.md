@@ -32,7 +32,7 @@ astroos/
 ├── aur-patches/<pkg>/*.sh     tracked PKGBUILD fixes for stale AUR recipes, recorded in aur-map.lock (R3 D6)
 ├── overlay/airootfs/          LIVE-SESSION-ONLY files: hostname, live os-release/issue, plymouthd.conf,
 │                              plasma-welcome install button, installer launcher, smoke unit
-├── branding/                  logo masters + assetgen.py; out/ = icons, splashes, wallpaper (+preview), watermark,
+├── branding/                  logo.py (procedural planet, PNG + SVG) + assetgen.py + fonts/ (OFL); out/ = icons, splashes, wallpaper (+preview), watermark,
 │                              ANSI logo, calamares/ (logo, icon, welcome, three slides)
 ├── releases/<date>/           promotion + release manifests written by forge-remote.sh (R3 D5)
 ├── KEYS.md                    repo signing key: generation, backup, client trust path, rotation
@@ -128,7 +128,7 @@ Preflights on every run: scope count equals `ASTROOS_AUR_SCOPE`, every AUR name 
 ```sh
 bash astroos/scripts/gen-packages.sh                 # after editing meta/
 bash astroos/scripts/build-aur-repo.sh preflight     # scope + liveness + migration (needs podman)
-python astroos/branding/assetgen.py astroos/branding/logo-sr.png astroos/branding/out   # after a new logo master
+python astroos/branding/assetgen.py astroos/branding/out   # after a change to logo.py, assetgen.py or the slide texts
 ```
 
 On the VM, one local package at a time: `bash astroos/scripts/build-aur-repo.sh local astroos-branding`.

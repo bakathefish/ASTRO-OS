@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>AstroOS</title>
+  <defs>
+    <radialGradient id="sphere" cx="0.34" cy="0.30" r="0.85">
+      <stop offset="0" stop-color="#f8e2f6"/>
+      <stop offset="0.42" stop-color="#c99cdc"/>
+      <stop offset="0.80" stop-color="#a679c9"/>
+      <stop offset="1" stop-color="#6e3f9c"/>
+    </radialGradient>
+    <radialGradient id="blotch" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8658b4" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#8658b4" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#96f2f7"/>
+      <stop offset="0.5" stop-color="#4ac0da"/>
+      <stop offset="1" stop-color="#96f2f7"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.62" stop-color="#e29ef0" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#e29ef0" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="far"><rect x="-1024" y="-1024" width="2048" height="1024" transform="rotate(30.0)"/></clipPath>
+    <clipPath id="near"><rect x="-1024" y="0" width="2048" height="1024" transform="rotate(30.0)"/></clipPath>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6.60"/></filter>
+  </defs>
+  <g transform="translate(256.00 256.00)">
+    <circle r="156.31" fill="url(#halo)"/>
+    <g transform="rotate(30.0)" opacity="0.30" filter="url(#soft)">
+      <ellipse rx="148.61" ry="53.50" fill="none" stroke="#62e2ec" stroke-width="50.64"/>
+    </g>
+    <g clip-path="url(#far)"><g transform="rotate(30.0)" opacity="0.80">
+    <ellipse rx="148.61" ry="53.50" fill="none" stroke="url(#band)" stroke-width="33.02" opacity="0.96"/>
+    <ellipse rx="206.95" ry="74.50" fill="none" stroke="#1c8c86" stroke-width="72.65" opacity="0.16"/>
+    <ellipse rx="173.93" ry="62.61" fill="none" stroke="#2cb8ab" stroke-width="6.34" opacity="0.88"/>
+    <ellipse rx="182.73" ry="65.78" fill="none" stroke="#29b0a4" stroke-width="5.81" opacity="0.81"/>
+    <ellipse rx="192.64" ry="69.35" fill="none" stroke="#26a99e" stroke-width="5.55" opacity="0.75"/>
+    <ellipse rx="203.65" ry="73.31" fill="none" stroke="#24a298" stroke-width="5.02" opacity="0.68"/>
+    <ellipse rx="215.76" ry="77.67" fill="none" stroke="#219a92" stroke-width="4.76" opacity="0.61"/>
+    <ellipse rx="227.87" ry="82.03" fill="none" stroke="#1e938c" stroke-width="4.23" opacity="0.55"/>
+    <ellipse rx="239.97" ry="86.39" fill="none" stroke="#1c8c86" stroke-width="3.43" opacity="0.48"/>
+    </g></g>
+    <circle r="110.08" fill="url(#sphere)"/>
+    <ellipse cx="44.03" cy="17.61" rx="57.24" ry="44.03" fill="url(#blotch)"/>
+    <g clip-path="url(#near)"><g transform="rotate(30.0)">
+    <ellipse rx="148.61" ry="53.50" fill="none" stroke="url(#band)" stroke-width="33.02" opacity="0.96"/>
+    <ellipse rx="206.95" ry="74.50" fill="none" stroke="#1c8c86" stroke-width="72.65" opacity="0.16"/>
+    <ellipse rx="173.93" ry="62.61" fill="none" stroke="#2cb8ab" stroke-width="6.34" opacity="0.88"/>
+    <ellipse rx="182.73" ry="65.78" fill="none" stroke="#29b0a4" stroke-width="5.81" opacity="0.81"/>
+    <ellipse rx="192.64" ry="69.35" fill="none" stroke="#26a99e" stroke-width="5.55" opacity="0.75"/>
+    <ellipse rx="203.65" ry="73.31" fill="none" stroke="#24a298" stroke-width="5.02" opacity="0.68"/>
+    <ellipse rx="215.76" ry="77.67" fill="none" stroke="#219a92" stroke-width="4.76" opacity="0.61"/>
+    <ellipse rx="227.87" ry="82.03" fill="none" stroke="#1e938c" stroke-width="4.23" opacity="0.55"/>
+    <ellipse rx="239.97" ry="86.39" fill="none" stroke="#1c8c86" stroke-width="3.43" opacity="0.48"/>
+    </g></g>
+  </g>
+</svg>

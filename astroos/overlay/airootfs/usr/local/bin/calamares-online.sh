@@ -2,8 +2,10 @@
 # AstroOS live installer launcher. Replaces the CachyOS-Live-ISO copy (same
 # path, unowned): identical keyring refresh, but the installer package is NOT
 # re-downloaded at launch (the ISO ships the tested cachyos-calamares-next and
-# the astroos-calamares hook has already re-pointed its configuration), and
-# the AstroOS + BlackArch keyrings are populated alongside Arch and CachyOS.
+# the astroos-calamares hook has already re-pointed its configuration; only
+# astroos-calamares itself is refreshed from the repo, which re-runs that
+# hook), and the AstroOS + BlackArch keyrings are populated alongside Arch and
+# CachyOS.
 # Launched by plasma-welcome's Install button and the "Install AstroOS" menu
 # entry (usr/share/applications/astroos-install.desktop).
 
@@ -17,6 +19,10 @@ main() {
     [ -f /usr/share/pacman/keyrings/astroos.gpg ] && kr+=(astroos)
     [ -f /usr/share/pacman/keyrings/blackarch.gpg ] && kr+=(blackarch)
     sudo pacman-key --populate "${kr[@]}"
+    # the installer configuration and branding are a repo package: refresh it
+    # so fixes published after this ISO reach the installer (the online
+    # install needs the network anyway; a miss here is not fatal)
+    sudo pacman -S --noconfirm --needed astroos-calamares || echo "astroos-calamares refresh skipped"
     # a clock in the past makes freshly created keys "from the future"
     timedatectl set-ntp true
 

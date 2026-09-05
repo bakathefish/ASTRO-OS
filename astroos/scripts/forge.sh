@@ -275,6 +275,22 @@ stage_audit() {
   grep -q '^plymouth_theme: spinner' "$cm/plymouthcfg.conf" 2>/dev/null && ok "installed plymouth theme is spinner (+ AstroOS watermark)" || bad "installed plymouth theme not spinner"
   grep -q 'CachyOS' "$r/etc/calamares/scripts/bootloader-post-setup" "$r/etc/calamares/scripts/btrfs-installation-snapshot" 2>/dev/null \
     && bad "CachyOS survives in the installer scripts (Limine name / snapshot description)" || ok "installer scripts say AstroOS"
+  # installer previews and the last CachyOS surfaces (2026-09-06)
+  grep -q 'screenshot: "/usr/share/astroos/calamares/images/bootloaders/limine.png"' "$cm/packagechooser_bootloader.conf" 2>/dev/null \
+    && ok "bootloader page previews are AstroOS images" || bad "bootloader page still shows upstream previews"
+  grep -q 'screenshot: "/usr/share/astroos/calamares/images/desktops/plasma.png"' "$cm/packagechooser_desktop.conf" 2>/dev/null \
+    && ok "desktop page previews are AstroOS images" || bad "desktop page still shows upstream previews"
+  local pv missing_pv=0
+  for pv in bootloaders/grub bootloaders/limine bootloaders/refind bootloaders/systemd-boot desktops/plasma desktops/gnome; do
+    [[ -f "$r/usr/share/astroos/calamares/images/$pv.png" ]] || missing_pv=1
+  done
+  (( missing_pv == 0 )) && ok "AstroOS preview images present" || bad "AstroOS preview images missing"
+  grep -q 'AstroOS-provided' "$cm/netinstall.yaml" 2>/dev/null && bad "MangoWM description carries the sed artefact" || ok "MangoWM description intact"
+  grep -q '^\s*GRUB_BACKGROUND: "/usr/share/astroos/branding/limine-splash.png"' "$cm/grubcfg.conf" 2>/dev/null \
+    && ok "GRUB gets the AstroOS background" || bad "GRUB_BACKGROUND not configured"
+  [[ -e "$r/etc/cachyos-release" ]] && bad "/etc/cachyos-release survives on the live ISO" || ok "no /etc/cachyos-release"
+  [[ -e "$r/usr/share/icons/cachyos.svg" ]] && bad "CachyOS icon file survives" || ok "no CachyOS icon file"
+  [[ -f "$r/usr/share/icons/hicolor/scalable/apps/astroos-logo.svg" ]] && ok "scalable astroos-logo.svg shipped" || bad "astroos-logo.svg missing"
 
   # laptop profile
   [[ -x "$r/usr/lib/zenbook-duo/zenbook-duo-daemon" ]] && ok "Zenbook Duo runtime shipped" || bad "Zenbook Duo runtime missing"

@@ -47,6 +47,15 @@ package() {
   install -Dm644 "$a/calamares/welcome.png" "$b/welcome.png"
   local i
   for i in 1 2 3; do install -Dm644 "$a/calamares/slide$i.png" "$b/slide$i.png"; done
+  # installer previews: the bootloader and desktop pages (packagechooser
+  # screenshots) show AstroOS images; apply.sh points the upstream configs here
+  local p
+  for p in "$a"/calamares/bootloaders/*.png; do
+    install -Dm644 "$p" "$pkgdir/usr/share/astroos/calamares/images/bootloaders/$(basename "$p")"
+  done
+  for p in "$a"/calamares/desktops/*.png; do
+    install -Dm644 "$p" "$pkgdir/usr/share/astroos/calamares/images/desktops/$(basename "$p")"
+  done
 
   # AstroOS netinstall groups: what an installed AstroOS gets on top of the
   # CachyOS KDE base. The hidden group carries identity + tools + keyring.

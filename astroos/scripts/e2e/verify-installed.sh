@@ -34,6 +34,11 @@ chk "AstroOS wallpaper installed"     test -f /usr/share/wallpapers/AstroOS/cont
 chk "Kickoff icon is astroos-logo"    grep -q '^icon=astroos-logo' "$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
 chk "SDDM greeter background is AstroOS" grep -q '^background=/usr/share/wallpapers/AstroOS/' /usr/share/sddm/themes/breeze/theme.conf.user
 chk "plasmalogin greeter wallpaper drop-in" grep -q '^Image=/usr/share/wallpapers/AstroOS/' /usr/lib/plasmalogin/plasmalogin.conf.d/10-astroos-wallpaper.conf
+chk "no /etc/cachyos-release"          bash -c '[[ ! -e /etc/cachyos-release ]]'
+chk "no CachyOS icon file"             bash -c '[[ ! -e /usr/share/icons/cachyos.svg ]]'
+chk "scalable astroos-logo.svg"        test -f /usr/share/icons/hicolor/scalable/apps/astroos-logo.svg
+chk "GNOME login logo override"        grep -q 'astroos-logo.svg' /usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override
+chk "rEFInd OS icon shipped"           test -f /usr/share/refind/icons/os_astroos.png
 
 echo "== repositories and trust"
 chk "[astroos] in pacman.conf"        grep -q '^\[astroos\]' /etc/pacman.conf

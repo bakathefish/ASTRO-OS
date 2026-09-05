@@ -110,6 +110,9 @@ echo ">> removed from the base list: cachyos-hello cachyos-cli-installer-new"
 
 # --- AstroOS delta 2: airootfs overlay (live-only files) ------------------
 cp -a /build/astroos/overlay/airootfs/. "$prof/airootfs/"
+# the profile's own release file (survey row 25): nothing reads it and the
+# identity hook removes it from installed systems, so the live ISO drops it too
+rm -f "$prof/airootfs/etc/cachyos-release"
 # --- AstroOS delta 2b: bootloader branding (profile-level, not airootfs) ---
 br=/build/astroos/branding/out
 # Bootloader splashes + menu titles. Only the capitalized brand string is
@@ -226,6 +229,8 @@ for f in etc/hostname etc/os-release etc/issue etc/plymouth/plymouthd.conf \
 done
 [[ "$(tr -d '\r\n' < "$prof/airootfs/etc/hostname")" == "astroos" ]] \
   || { echo "!! overlay preflight: etc/hostname is not 'astroos'" >&2; preflight_fail=1; }
+[[ ! -e "$prof/airootfs/etc/cachyos-release" ]] \
+  || { echo "!! overlay preflight: etc/cachyos-release still in airootfs" >&2; preflight_fail=1; }
 # plasma-welcome resolves LiveInstaller with KService::serviceByDesktopName:
 # the desktop entry NAME, no .desktop suffix (with the suffix the Welcome
 # Center's install icon was empty and its click a no-op, E2E 2026-09-05).

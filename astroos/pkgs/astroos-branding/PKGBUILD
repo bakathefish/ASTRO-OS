@@ -49,6 +49,9 @@ package() {
       "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps/astroos-logo.png"
   done
   install -Dm644 "$a/astroos-logo.png"      "$pkgdir/usr/share/pixmaps/astroos-logo.png"
+  install -Dm644 "$a/astroos-logo.svg"      "$pkgdir/usr/share/icons/hicolor/scalable/apps/astroos-logo.svg"
+  # rEFInd shows this for the /EFI/astroos loader (refind-install copies icons/)
+  install -Dm644 "$a/refind/os_astroos.png" "$pkgdir/usr/share/refind/icons/os_astroos.png"
   install -Dm644 "$a/astroos-wallpaper.png" "$pkgdir/usr/share/wallpapers/AstroOS/contents/images/3840x2160.png"
   install -Dm644 "$a/wallpaper-preview.png" "$pkgdir/usr/share/wallpapers/AstroOS/contents/screenshot.png"
   install -Dm644 "$a/astroos-logo.ansi"     "$pkgdir/etc/fastfetch/astroos-logo.ansi"
