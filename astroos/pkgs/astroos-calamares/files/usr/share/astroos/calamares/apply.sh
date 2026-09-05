@@ -32,10 +32,11 @@ if [[ -f $y ]]; then
            cachyos-emerald-kde-theme-git cachyos-iridescent-kde cachyos-nord-kde-theme-git; do
     sed -i "/^\s*- ${p}\s*$/d" "$y"
   done
-  # brand in the group titles; the MangoWM description attributes its dotfiles
-  # to CachyOS, which is true, so those lines (12 languages) keep upstream's text
-  sed -i '/MangoWM/!s/CachyOS/AstroOS/g' "$y"
-  sed -i 's/with AstroOS-provided dotfiles/with CachyOS-provided dotfiles/' "$y"
+  # the MangoWM entry names the dotfiles' origin in its English description and
+  # in 12 translations: reword the English line and drop the translated ones so
+  # Calamares falls back to it, then brand the rest of the file
+  sed -i '/^- name: "MangoWM"/,/^- name: /{s/with CachyOS-provided dotfiles/with preconfigured dotfiles/; /^[[:space:]]*description\[/d;}' "$y"
+  sed -i 's/CachyOS/AstroOS/g' "$y"
   grep -q '^- name: "AstroOS (hidden)"' "$y" || cat "$d/netinstall-astroos.yaml" >> "$y"
   # the BlackArch group only when the live system carries the repo (ISO flag)
   if grep -q '^\[blackarch\]' /etc/pacman.conf && ! grep -q '^- name: "BlackArch tools"' "$y"; then
@@ -45,6 +46,10 @@ fi
 
 # 3. installer texts and installed-system defaults
 sed -i 's/CachyOS/AstroOS/g' "$m/shellprocess-before-online.conf" "$m/shellprocess-before.conf" 2>/dev/null
+# the package-owned copies the hook may rewrite: brand their descriptions too
+for c in packagechooser_desktop.conf packagechooser_bootloader.conf welcome.conf welcome_online.conf; do
+  [[ -f $m/$c ]] && sed -i 's/CachyOS/AstroOS/g' "$m/$c"
+done
 [[ -f $m/users.conf ]]      && sed -i 's/^\(\s*template:\s*\).*/\1"astroos"/' "$m/users.conf"
 [[ -f $m/bootloader.conf ]] && sed -i \
   -e 's/^efiBootloaderId:.*/efiBootloaderId: "astroos"/' \
@@ -100,5 +105,5 @@ warn() { echo "astroos-calamares: WARNING: $1" >&2; }
 grep -q '^branding: astroos' /usr/share/calamares/settings_online.conf 2>/dev/null || warn "settings_online.conf does not select the astroos branding"
 [[ -f $m/packagechooser_bootloader.conf ]] && ! grep -q "$img/bootloaders/limine.png" "$m/packagechooser_bootloader.conf" && warn "bootloader previews still upstream"
 [[ -f $m/packagechooser_desktop.conf ]] && ! grep -q "$img/desktops/plasma.png" "$m/packagechooser_desktop.conf" && warn "desktop previews still upstream"
-[[ -f $y ]] && grep -q 'AstroOS-provided' "$y" && warn "MangoWM description carries the sed artefact"
+[[ -f $y ]] && grep -q 'CachyOS' "$y" && warn "CachyOS survives in netinstall.yaml"
 exit 0

@@ -218,7 +218,7 @@ def write_svg(path, size=512):
       <stop offset="1" stop-color="{_hex(BAND_OUT)}"/>
     </linearGradient>
     <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0.62" stop-color="{_hex(GLOW_PINK)}" stop-opacity="0.30"/>
+      <stop offset="0.62" stop-color="{_hex(GLOW_PINK)}" stop-opacity="0.18"/>
       <stop offset="1" stop-color="{_hex(GLOW_PINK)}" stop-opacity="0"/>
     </radialGradient>
     <clipPath id="far"><rect x="{-big}" y="{-big}" width="{2 * big}" height="{big}" transform="rotate({th})"/></clipPath>
@@ -227,7 +227,7 @@ def write_svg(path, size=512):
   </defs>
   <g transform="translate({c:.2f} {c:.2f})">
     <circle r="{R * 1.42:.2f}" fill="url(#halo)"/>
-    <g transform="rotate({th})" opacity="0.30" filter="url(#soft)">
+    <g transform="rotate({th})" opacity="0.16" filter="url(#soft)">
       <ellipse rx="{1.35 * R:.2f}" ry="{1.35 * R * k:.2f}" fill="none" stroke="{_hex(GLOW_CYAN)}" stroke-width="{0.46 * R:.2f}"/>
     </g>
     <g clip-path="url(#far)"><g transform="rotate({th})" opacity="0.80">

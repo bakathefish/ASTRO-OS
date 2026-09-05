@@ -285,7 +285,8 @@ stage_audit() {
     [[ -f "$r/usr/share/astroos/calamares/images/$pv.png" ]] || missing_pv=1
   done
   (( missing_pv == 0 )) && ok "AstroOS preview images present" || bad "AstroOS preview images missing"
-  grep -q 'AstroOS-provided' "$cm/netinstall.yaml" 2>/dev/null && bad "MangoWM description carries the sed artefact" || ok "MangoWM description intact"
+  grep -l 'CachyOS' "$cm/netinstall.yaml" "$cm/packagechooser_desktop.conf" "$cm/packagechooser_bootloader.conf" "$cm/welcome_online.conf" 2>/dev/null | grep -q . \
+    && bad "CachyOS survives in the installer module configs" || ok "no CachyOS string in the installer module configs"
   grep -q '^\s*GRUB_BACKGROUND: "/usr/share/astroos/branding/limine-splash.png"' "$cm/grubcfg.conf" 2>/dev/null \
     && ok "GRUB gets the AstroOS background" || bad "GRUB_BACKGROUND not configured"
   [[ -e "$r/etc/cachyos-release" ]] && bad "/etc/cachyos-release survives on the live ISO" || ok "no /etc/cachyos-release"

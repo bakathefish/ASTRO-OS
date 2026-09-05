@@ -13,7 +13,7 @@
 pkgname=astroos-calamares
 pkgver=0
 pkgrel=1
-pkgdesc="AstroOS configuration and branding for the CachyOS Calamares installer (applied by an alpm hook)"
+pkgdesc="AstroOS configuration and branding for the Calamares installer (applied by an alpm hook)"
 arch=(any)
 url="https://github.com/bakathefish/ASTRO-OS"
 license=(GPL-3.0-or-later CC-BY-SA-4.0)
@@ -61,7 +61,7 @@ package() {
   # CachyOS KDE base. The hidden group carries identity + tools + keyring.
   {
     printf -- '- name: "AstroOS (hidden)"\n  description: "AstroOS identity, tools and repository trust"\n  hidden: true\n  selected: true\n  critical: true\n  packages:\n     - astroos-keyring\n     - astroos-branding\n     - astroos-tools\n'
-    _group "AstroOS core additions"  "Everyday base AstroOS adds to CachyOS: kernels, desktop apps, dev toolchain, performance daemons" false "$m/astroos-core.list"
+    _group "AstroOS core additions"  "Everyday base: kernels, desktop apps, dev toolchain, performance daemons" false "$m/astroos-core.list"
     _group "AstroOS astronomy"       "Planetarium, sky and astrophoto tools from the Arch repos" false "$m/astroos-astro.list"
     _group "AstroOS continuity"      "Phone and machine-to-machine sharing (LocalSend, KDE Connect, Syncthing, scrcpy)" false "$m/astroos-continuity.list"
     _group "AstroOS security tools"  "Curated pentest essentials from the Arch repos; the heavy set is one command away (astroos-hacking-heavy)" false "$m/astroos-hacking.list"

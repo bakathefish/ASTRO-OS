@@ -25,6 +25,7 @@ chk "lsb-release names AstroOS"       grep -q 'AstroOS' /etc/lsb-release
 chk "issue names AstroOS"             grep -q 'AstroOS' /etc/issue
 chk "motd welcomes to AstroOS"        grep -q 'Welcome to AstroOS' /etc/motd
 chk "motd has no CachyOS welcome"     bash -c '! grep -qi "welcome to your.*cachyos" /etc/motd'
+chk "no CachyOS in motd/issue/lsb-release" bash -c '! grep -qi cachyos /etc/motd /etc/issue /etc/lsb-release'
 chk "hostname is $want_host"          bash -c "[[ \$(hostname) == '$want_host' ]]"
 chk "fastfetch reports AstroOS"       bash -c 'fastfetch --logo none 2>/dev/null | grep -q "OS: AstroOS"'
 chk "bash greeting in ~/.bashrc"      grep -q 'AstroOS terminal greeting' "$HOME/.bashrc"

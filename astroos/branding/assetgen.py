@@ -168,7 +168,7 @@ def watermark(logo, outdir):
     logo.resize((w, h), Image.LANCZOS).save(os.path.join(outdir, "watermark.png"))
 
 
-def ansi_logo(logo, outdir, cols=36):
+def ansi_logo(logo, outdir, cols=32):
     """Truecolor half-block terminal art for fastfetch (file-raw logo).
 
     Transparent cells stay unpainted (a plain space), so the logo sits on the
@@ -283,7 +283,7 @@ def scene(logo, w, h, logo_frac, logo_cy, title, subtitle, title_px, sub_px):
 
 
 SLIDES = (
-    ("AstroOS", "A rolling research workstation, built on CachyOS and Arch Linux"),
+    ("AstroOS", "A rolling research workstation on Arch Linux"),
     (
         "Astronomy stack included",
         "Stellarium, KStars, AstrOmatic, Siril, DS9, TOPCAT, Aladin, sunpy, healpy",
@@ -296,7 +296,7 @@ SLIDES = (
 
 
 def calamares(logo, outdir):
-    """Installer branding component images (sizes match the CachyOS component)."""
+    """Installer branding component images (sizes match the upstream component)."""
     d = os.path.join(outdir, "calamares")
     os.makedirs(d, exist_ok=True)
     sq = square(logo)
@@ -309,7 +309,7 @@ def calamares(logo, outdir):
         0.30,
         0.40,
         "AstroOS",
-        "Research workstation. Built on CachyOS and Arch Linux.",
+        "Research workstation. Built on Arch Linux.",
         56,
         24,
     ).save(os.path.join(d, "welcome.png"))
@@ -327,7 +327,11 @@ GRUB_ENTRIES = (
     "UEFI Firmware Settings",
     "AstroOS Linux snapshots",
 )
-KERNEL = "7.2.2-1-cachyos"
+# Entry labels in these previews are the generic ones ("Linux", "Linux LTS"):
+# a real menu prints the kernel package's own version string, which is not
+# AstroOS's to rename, and these images are the page's illustration of the
+# menu's shape and branding, not a screenshot of one machine.
+KERNEL_MAIN, KERNEL_LTS = "Linux", "Linux LTS"
 
 
 def preview_grub(logo, outdir, w=1600, h=1000):
@@ -396,14 +400,18 @@ def preview_limine(logo, outdir, w=1600, h=1000):
     for key, label in (("ARROWS", "Select"), ("ENTER", "Boot"), ("E", "Edit")):
         hint(x, y, key, label)
         x += d.textlength(key + " " + label, font=mono) + w * 0.03
-    x = w * 0.69
-    for key, label in (("S", "Firmware Setup"), ("B", "Blank Entry")):
+    right = (("S", "Firmware Setup"), ("B", "Blank Entry"))
+    total = sum(d.textlength(k + " " + l, font=mono) for k, l in right) + w * 0.03 * (
+        len(right) - 1
+    )
+    x = w * 0.92 - total
+    for key, label in right:
         hint(x, y, key, label)
         x += d.textlength(key + " " + label, font=mono) + w * 0.03
     cx, cy = w * 0.39, h * 0.49
     lh = h * 0.038
     d.text((cx, cy), "[-] AstroOS", font=mono, fill=white, anchor="lm")
-    sel = "linux-cachyos"
+    sel = KERNEL_MAIN
     tw = d.textlength(sel, font=mono)
     d.text((cx + w * 0.012, cy + lh), "├──▶", font=mono, fill=white, anchor="lm")
     ax = cx + w * 0.012 + d.textlength("├──▶ ", font=mono)
@@ -414,7 +422,7 @@ def preview_limine(logo, outdir, w=1600, h=1000):
     d.text((ax, cy + lh), sel, font=mono, fill=(22, 18, 40), anchor="lm")
     d.text(
         (cx + w * 0.012, cy + 2 * lh),
-        "└──▶ linux-cachyos-lts",
+        "└──▶ " + KERNEL_LTS,
         font=mono,
         fill=white,
         anchor="lm",
@@ -426,22 +434,19 @@ def preview_limine(logo, outdir, w=1600, h=1000):
         fill=white,
         anchor="lm",
     )
-    d.text(
-        (w * 0.05, h * 0.90),
-        "Kernel version: " + KERNEL,
-        font=mono,
-        fill=green,
-        anchor="lm",
-    )
     im.convert("RGB").save(os.path.join(outdir, "limine.png"))
 
 
 def preview_systemd_boot(outdir, w=1600, h=1000):
-    """systemd-boot has no theme: entries are titled from the kernel names."""
+    """systemd-boot has no theme: a plain text menu, titled per kernel."""
     im = Image.new("RGB", (w, h), (0, 0, 0))
     d = ImageDraw.Draw(im)
     mono = _font(int(h * 0.028), 400, mono=True)
-    entries = ("Linux Cachyos", "Linux Cachyos Lts", "Reboot Into Firmware Interface")
+    entries = (
+        "AstroOS " + KERNEL_MAIN,
+        "AstroOS " + KERNEL_LTS,
+        "Reboot Into Firmware Interface",
+    )
     lh = h * 0.045
     y0 = h * 0.46
     widest = max(d.textlength(e, font=mono) for e in entries)
@@ -499,12 +504,12 @@ def preview_refind(logo, outdir):
     base.alpha_composite(
         icon, (tx0 + (tx1 - tx0 - 172) // 2, ty0 + (ty1 - ty0 - 172) // 2)
     )
-    # status lines under the icons (kernel file name is real: the ESP is 4 GiB on AstroOS)
+    # status lines under the icons (the ESP is 4 GiB on AstroOS)
     d.rectangle((0, 738, w, 795), fill=bg)
     mono = _font(23, 400, mono=True)
     d.text(
         (w / 2, 755),
-        "Boot vmlinuz-linux-cachyos from 4 GiB FAT volume",
+        "Boot AstroOS from 4 GiB FAT volume",
         font=mono,
         fill=(48, 48, 48),
         anchor="mm",

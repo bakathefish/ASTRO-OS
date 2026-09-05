@@ -1,5 +1,5 @@
 
-Welcome to AstroOS, a rolling research workstation built on CachyOS and Arch Linux.
+Welcome to AstroOS, a rolling research workstation built on Arch Linux.
 
   astroos-doctor           health check; paste its output in bug reports
   astroos-hacking-heavy    install the heavy pentest set (burpsuite, metasploit, zaproxy, seclists)

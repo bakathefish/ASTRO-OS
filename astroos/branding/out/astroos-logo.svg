@@ -18,7 +18,7 @@
       <stop offset="1" stop-color="#96f2f7"/>
     </linearGradient>
     <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0.62" stop-color="#e29ef0" stop-opacity="0.30"/>
+      <stop offset="0.62" stop-color="#e29ef0" stop-opacity="0.18"/>
       <stop offset="1" stop-color="#e29ef0" stop-opacity="0"/>
     </radialGradient>
     <clipPath id="far"><rect x="-1024" y="-1024" width="2048" height="1024" transform="rotate(30.0)"/></clipPath>
@@ -27,7 +27,7 @@
   </defs>
   <g transform="translate(256.00 256.00)">
     <circle r="156.31" fill="url(#halo)"/>
-    <g transform="rotate(30.0)" opacity="0.30" filter="url(#soft)">
+    <g transform="rotate(30.0)" opacity="0.16" filter="url(#soft)">
       <ellipse rx="148.61" ry="53.50" fill="none" stroke="#62e2ec" stroke-width="50.64"/>
     </g>
     <g clip-path="url(#far)"><g transform="rotate(30.0)" opacity="0.80">
