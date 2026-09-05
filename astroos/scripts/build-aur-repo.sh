@@ -27,9 +27,10 @@ sas_file="${ASTROOS_REPO_SAS:-$HOME/astroos-repo.sas}"
 account="${ASTROOS_REPO_ACCOUNT:-astroosrepo}"
 container="${ASTROOS_REPO_CONTAINER:-repo}"
 IMG="${ASTROOS_BUILDER_IMAGE:-docker.io/archlinux:base-devel}"
-# 36 at R3.1; 35 since 2026-09-05: informant reached [extra] and left the lane
-# (D6 migration rule applied, see meta/astroos-core.list).
-SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-35}"
+# 36 at R3.1; 35 on 2026-09-05 (informant reached [extra], D6 migration rule);
+# 33 the same day: python-parfive's docs-only makedepends (sphinx-automodapi,
+# sphinx_contributors) left with the docs build (aur-patches/python-parfive).
+SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-33}"
 cmd="${1:-build}"
 
 msg() { echo ">> $*"; }
@@ -89,8 +90,19 @@ import json, re, sys
 scope = sys.argv[1:]
 rpc = json.load(open('/tmp/aur-rpc.json'))
 strip = lambda d: re.split(r'[<>=]', d)[0]
-deps = {r['Name']: {strip(d) for d in (r.get('Depends') or []) + (r.get('MakeDepends') or [])} & set(scope)
-        for r in rpc['results']}
+# Resolve dependency NAMES to in-scope PACKAGES through Provides (opendrop
+# depends on "owlink", provided by owlink-git), and include CheckDepends:
+# makepkg -s installs them too (python-aioftp's tests need python-siosocks).
+# Run 2 (2026-09-05) failed both packages on ordering for exactly these reasons.
+prov = {}
+for r in rpc['results']:
+    prov[r['Name']] = r['Name']
+    for pv in (r.get('Provides') or []):
+        prov.setdefault(strip(pv), r['Name'])
+deps = {}
+for r in rpc['results']:
+    ds = (r.get('Depends') or []) + (r.get('MakeDepends') or []) + (r.get('CheckDepends') or [])
+    deps[r['Name']] = {prov[strip(d)] for d in ds if strip(d) in prov} - {r['Name']}
 order, seen = [], set()
 def visit(p, stack=()):
     if p in seen: return
@@ -168,8 +180,13 @@ do_build() {
     n=$(pkgname_of "$f")
     printf '%s\n' "${PKGS[@]}" | grep -qx "$n" && continue
     msg "purging out-of-scope artifact: $(basename "$f")"
-    rm -f "$f" "$f.sig"
+    rm -f "$f" "$f.sig" "$locks/$n.json"
   done < <(pkg_files)
+  for f in "$locks"/*.json; do
+    [[ -e "$f" ]] || continue
+    n=$(basename "$f" .json)
+    printf '%s\n' "${PKGS[@]}" | grep -qx "$n" || { msg "purging out-of-scope lock: $n"; rm -f "$f"; }
+  done
 
   for p in $order; do
     # resumability: a finished package (its OWN artifact + lock entry) is not

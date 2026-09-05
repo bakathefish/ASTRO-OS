@@ -42,10 +42,12 @@ clhep                    # geant4
 healpix                  # python-healpy
 python-aioftp            # python-sunpy
 python-parfive           # python-sunpy
-python-async-timeout     # python-aioftp
-python-siosocks          # python-aioftp
-python-sphinx-automodapi # python-parfive
-python-sphinx_contributors # python-parfive
+python-async-timeout     # python-aioftp (checkdepends)
+python-siosocks          # python-aioftp (checkdepends + optdepends)
+# python-sphinx-automodapi, python-sphinx_contributors: were python-parfive's
+# docs-only makedepends; sphinx_contributors no longer builds under flit_core 4
+# (2026-09-05), and the -doc split was never shipped. aur-patches/python-parfive
+# drops the docs build, so both left the scope (R3 D6: maintenance surface).
 python-fleep             # opendrop
 python-pytest-runner     # opendrop
 python-rustworkx         # python-qiskit
