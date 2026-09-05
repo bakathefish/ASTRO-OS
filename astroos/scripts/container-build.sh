@@ -226,8 +226,13 @@ for f in etc/hostname etc/os-release etc/issue etc/plymouth/plymouthd.conf \
 done
 [[ "$(tr -d '\r\n' < "$prof/airootfs/etc/hostname")" == "astroos" ]] \
   || { echo "!! overlay preflight: etc/hostname is not 'astroos'" >&2; preflight_fail=1; }
-grep -q '^LiveInstaller=astroos-install.desktop' "$prof/airootfs/etc/skel/.config/plasma-welcomerc" \
-  || { echo "!! overlay preflight: plasma-welcomerc lacks LiveInstaller" >&2; preflight_fail=1; }
+# plasma-welcome resolves LiveInstaller with KService::serviceByDesktopName:
+# the desktop entry NAME, no .desktop suffix (with the suffix the Welcome
+# Center's install icon was empty and its click a no-op, E2E 2026-09-05).
+grep -q '^LiveInstaller=astroos-install$' "$prof/airootfs/etc/skel/.config/plasma-welcomerc" \
+  || { echo "!! overlay preflight: plasma-welcomerc LiveInstaller must be exactly astroos-install (no .desktop suffix)" >&2; preflight_fail=1; }
+[[ -f "$prof/airootfs/usr/share/applications/astroos-install.desktop" ]] \
+  || { echo "!! overlay preflight: usr/share/applications/astroos-install.desktop missing" >&2; preflight_fail=1; }
 [[ -L "$prof/airootfs/etc/systemd/system/multi-user.target.wants/astroos-smoke.service" ]] \
   || { echo "!! overlay preflight: smoke unit wants-symlink missing" >&2; preflight_fail=1; }
 # nothing the packages ship may be pre-placed by the overlay (pacstrap would
