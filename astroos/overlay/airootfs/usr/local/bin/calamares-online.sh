@@ -46,6 +46,15 @@ main() {
 ########## System: $SYSTEM
 EOF
 
+    # Calamares embeds Python and decodes pacstrap's output with the process
+    # locale (pkexec keeps LANG). The Plasma session sets LANG=C.UTF-8; a bare
+    # tty or ssh launch does not, and then the first non-ASCII byte of pacman
+    # output fails the pacstrap job with a UnicodeDecodeError.
+    case "${LC_ALL:-${LANG:-}}" in
+        *[Uu][Tt][Ff]-8*|*[Uu][Tt][Ff]8*) ;;
+        *) export LANG=C.UTF-8; unset LC_ALL ;;
+    esac
+
     sudo cp "/usr/share/calamares/settings_${mode}.conf" /etc/calamares/settings.conf
     exec pkexec-wrapper calamares -D6 >> "$log"
 }

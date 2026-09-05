@@ -26,6 +26,7 @@ astroos/
 │   │                            alpm hooks that re-assert identity and mask CachyOS's identity hooks
 │   ├── astroos-tools            astroos-doctor, astroos-cuda-setup, astroos-hacking-heavy
 │   ├── astroos-calamares        installer branding component + the hook that re-points cachyos-calamares-next
+│   ├── astroos-calamares-boost-compat  the three boost 1.91 runtime libs the installer still links (live ISO only, temporary)
 │   └── astroos-zenbook-duo      ASUS Zenbook Duo profile (DMI-gated; zakstam/zenbook-duo-linux runtime)
 ├── aur-patches/<pkg>/*.sh     tracked PKGBUILD fixes for stale AUR recipes, recorded in aur-map.lock (R3 D6)
 ├── overlay/airootfs/          LIVE-SESSION-ONLY files: hostname, live os-release/issue, plymouthd.conf,
@@ -66,6 +67,15 @@ installed system is a package in the signed `[astroos]` repo:
   which now carries the three astroos packages). The netinstall groups it
   appends are generated from `meta/*.list` at package build time, so the
   installed system gets the same package set as the live ISO.
+- `astroos-calamares-boost-compat` is a temporary shim. `cachyos-calamares-next`
+  3.4.2-13 still links three boost 1.91 libraries while `boost-libs` moved to
+  1.92 hours after it was built, so on the first 2026-09-05 ISO the installer
+  did not start at all (found by the end-to-end install test, not by the
+  audit). The package ships exactly those three versioned files from the
+  Arch Linux Archive; they coexist with 1.92. It is in no installer group, so
+  installed systems never get it. Remove it once the installer is rebuilt
+  against the current boost: `ldd /usr/bin/calamares` in the live ISO must
+  report nothing missing (the end-to-end test asserts exactly that).
 - `astroos-zenbook-duo` is a laptop profile that only activates when DMI says
   the machine is a UX8406MA/UX8406CA (override: `/etc/zenbook-duo/force`).
   It ships the zenbook-duo-linux runtime (dual-panel layout, keyboard
