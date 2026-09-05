@@ -8,6 +8,8 @@ set -u
 fail=0
 pass() { printf 'PASS %s\n' "$1"; }
 bad()  { printf 'FAIL %s\n' "$1"; fail=1; }
+# a check whose subject is not installed here says so; it never counts as a pass
+skip() { printf 'SKIP %s\n' "$1"; }
 chk()  { local name=$1; shift; if "$@" >/dev/null 2>&1; then pass "$name"; else bad "$name"; fi; }
 # password on stdin every time: without a tty, sudo's cached ticket does not
 # carry into subshells, so a plain `sudo` inside $(...) or `bash -c` prompts
@@ -40,6 +42,12 @@ chk "no CachyOS icon file"             bash -c '[[ ! -e /usr/share/icons/cachyos
 chk "scalable astroos-logo.svg"        test -f /usr/share/icons/hicolor/scalable/apps/astroos-logo.svg
 chk "GNOME login logo override"        grep -q 'astroos-logo.svg' /usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override
 chk "rEFInd OS icon shipped"           test -f /usr/share/refind/icons/os_astroos.png
+# prose we ship and the owner reads; only the laptop profile puts anything here
+if [[ -d /usr/share/doc/astroos ]]; then
+  chk "no CachyOS in the shipped AstroOS docs" bash -c '! grep -rqi cachyos /usr/share/doc/astroos'
+else
+  skip "no CachyOS in the shipped AstroOS docs (astroos-zenbook-duo not installed)"
+fi
 
 echo "== repositories and trust"
 chk "[astroos] in pacman.conf"        grep -q '^\[astroos\]' /etc/pacman.conf
