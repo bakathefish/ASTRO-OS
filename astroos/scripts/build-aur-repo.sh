@@ -106,7 +106,10 @@ PY
 # pkgname from a package filename: name-ver-rel-arch.pkg.tar.zst has exactly
 # three trailing dash-fields (pkgver never contains "-", epochs and -git
 # pkgvers included), so stripping three suffixes yields the exact pkgname.
-pkgname_of() { local n; n=$(basename "$1" .pkg.tar.zst); n=${n%-*}; n=${n%-*}; n=${n%-*}; echo "$n"; }
+# Package files in out/: ANY package extension (.pkg.tar.zst by default, but
+# a PKGBUILD may override PKGEXT — geant4 does), never the detached .sig files.
+pkg_files() { find "$out" -maxdepth 1 -name '*.pkg.tar*' ! -name '*.sig' | sort; }
+pkgname_of() { local n; n=$(basename "$1"); n=${n%%.pkg.tar*}; n=${n%-*}; n=${n%-*}; n=${n%-*}; echo "$n"; }
 
 # The repo file that belongs to pkgname $1 EXACTLY. A split sibling
 # (python-parfive-doc) or a -debug leftover shares the prefix but never the
@@ -114,10 +117,9 @@ pkgname_of() { local n; n=$(basename "$1" .pkg.tar.zst); n=${n%-*}; n=${n%-*}; n
 # old glob check.
 own_pkg_file() {
   local f
-  for f in "$out/$1"-*.pkg.tar.zst; do
-    [[ -e "$f" ]] || continue
+  while read -r f; do
     [[ "$(pkgname_of "$f")" == "$1" ]] && { echo "$f"; return 0; }
-  done
+  done < <(pkg_files)
   return 1
 }
 
@@ -136,7 +138,7 @@ smoke_check() {
   if podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo "$IMG" bash -c '
       set -e
       # fresh local db so the package built seconds ago is resolvable
-      cd /repo && rm -f astroos-local.* && repo-add -q astroos-local.db.tar.gz ./*.pkg.tar.zst >/dev/null 2>&1
+      cd /repo && rm -f astroos-local.* && repo-add -q astroos-local.db.tar.gz $(find . -maxdepth 1 -name "*.pkg.tar*" ! -name "*.sig" | sort) >/dev/null 2>&1
       printf "[astroos-local]\nSigLevel = Never\nServer = file:///repo\n" >> /etc/pacman.conf
       pacman -Sy >/dev/null
       pacman -S --noconfirm '"$p"' >/dev/null
@@ -162,13 +164,12 @@ do_build() {
   # repo db is built from out/*.pkg.tar.zst, and the ISO build asserts db
   # names == aur.list exactly (D4), so out/ must equal the scope.
   local f n
-  for f in "$out"/*.pkg.tar.zst; do
-    [[ -e "$f" ]] || continue
+  while read -r f; do
     n=$(pkgname_of "$f")
     printf '%s\n' "${PKGS[@]}" | grep -qx "$n" && continue
     msg "purging out-of-scope artifact: $(basename "$f")"
     rm -f "$f" "$f.sig"
-  done
+  done < <(pkg_files)
 
   for p in $order; do
     # resumability: a finished package (its OWN artifact + lock entry) is not
@@ -179,23 +180,28 @@ do_build() {
       smoke_check "$p"
       continue
     fi
-    msg "=== building $p (fresh container) ==="
+    built=0
+    for attempt in 1 2; do
+    msg "=== building $p (fresh container, attempt $attempt) ==="
     # podman does not auto-create bind-mount sources (docker does); leftovers
     # hold subuid-owned files (rootless builder user), so remove them inside
     # the user namespace
     podman unshare rm -rf "/tmp/aur-build-$p"; mkdir -p "/tmp/aur-build-$p"
-    podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo -v /tmp/aur-build-$p:/work -v "$here/aur-patches":/patches:ro "$IMG" bash -c '
+    # the full container output also lands in a per-package log (D1: every
+    # failure attributable to one package, with its own transcript)
+    if podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo -v /tmp/aur-build-$p:/work -v "$here/aur-patches":/patches:ro "$IMG" bash -c '
       set -euo pipefail
       p='"$p"'
       # local repo of already-built packages (SigLevel Never: build-time only,
       # the published repo is signature-verified by clients)
-      if ls /repo/*.pkg.tar.zst >/dev/null 2>&1; then
+      pkgs=$(find /repo -maxdepth 1 -name "*.pkg.tar*" ! -name "*.sig" | sort)
+      if [ -n "$pkgs" ]; then
         # regenerate EVERY container, from scratch: a db inherited from
         # container N-1 lacks N-1 own output (run 4: psfex could not resolve
         # sextractor), and a db that is only ever appended to keeps entries
         # for packages purged since.
         rm -f /repo/astroos-local.*
-        repo-add -q /repo/astroos-local.db.tar.gz /repo/*.pkg.tar.zst >/dev/null 2>&1 || true
+        repo-add -q /repo/astroos-local.db.tar.gz $pkgs >/dev/null 2>&1 || true
         printf "[astroos-local]\nSigLevel = Never\nServer = file:///repo\n" >> /etc/pacman.conf
       fi
       pacman -Syu --noconfirm --needed git base-devel >/dev/null
@@ -230,26 +236,40 @@ do_build() {
       # Copy ONLY the package named $p. Split siblings (python-parfive-doc)
       # and any -debug output must never reach the repo: scope is an exact
       # set, and the ISO build hard-fails on extra names (D4).
+      # (any PKGEXT: geant4 overrides it, so never assume .pkg.tar.zst)
       own=""
-      for f in ./*.pkg.tar.zst; do
-        n=$(basename "$f" .pkg.tar.zst); n=${n%-*}; n=${n%-*}; n=${n%-*}
+      for f in ./*.pkg.tar*; do
+        [[ -e "$f" && "$f" != *.sig ]] || continue
+        n=$(basename "$f"); n=${n%%.pkg.tar*}; n=${n%-*}; n=${n%-*}; n=${n%-*}
         [[ "$n" == "$p" ]] && own="$f"
       done
-      [[ -n "$own" ]] || { echo "!! no package file named $p among: $(ls ./*.pkg.tar.zst)" >&2; exit 1; }
+      [[ -n "$own" ]] || { echo "!! no package file named $p among: $(ls ./*.pkg.tar* 2>/dev/null)" >&2; exit 1; }
       cp "$own" /repo/
       # provenance material for aur-map.lock (D5): raw .SRCINFO source+sums
       awk -F" = " "/^\t(source|sha256sums|sha512sums|b2sums)/ {print \$0}" .SRCINFO > /work/SRCINFO_SOURCES || true
       srcinfo_ver=$(awk -F" = " "/^\tpkgver/{v=\$2} /^\tpkgrel/{r=\$2} END{print v\"-\"r}" .SRCINFO)
       echo "$srcinfo_ver" > /work/PKGVER
-    ' || {
-      # Hermetic container: the failure is attributable to $p alone. Record
-      # it and keep going so one stale package cannot stall the rest of the
-      # scope; the run still ends non-zero and nothing is signed (below).
+    ' 2>&1 | tee "$locks/$p.build.log"; then
+      built=1; break
+    fi
+    # A source mirror reset (gnuastro via ftpmirror.gnu.org, 2026-09-05) is
+    # not a recipe failure: one retry, then attribute.
+    if (( attempt == 1 )) && grep -q "Failure while downloading" "$locks/$p.build.log"; then
+      msg "$p: source download failed at the mirror; retrying once in 30s"
+      sleep 30; continue
+    fi
+    break
+    done
+    if (( ! built )); then
+      # Hermetic container: the failure is attributable to $p alone (its
+      # transcript: locks/$p.build.log). Record it and keep going so one
+      # stale package cannot stall the rest of the scope; the run still ends
+      # non-zero and nothing is signed (below).
       echo "!! build failed: $p (recorded; continuing with the rest of the scope)" >&2
       echo "$p" >> "$locks/BUILD_FAIL"
       podman unshare rm -rf "/tmp/aur-build-$p"
       continue
-    }
+    fi
     jq -n --arg name "$p" \
           --arg commit "$(cat /tmp/aur-build-$p/COMMIT)" \
           --arg pkgver "$(cat /tmp/aur-build-$p/PKGVER)" \
@@ -280,8 +300,9 @@ do_build() {
     export GNUPGHOME=/keys
     fpr=$(cat /keys/FINGERPRINT)
     cd /repo
-    for f in *.pkg.tar.zst; do gpg --batch --yes --pinentry-mode loopback --passphrase "" --detach-sign -u "$fpr" "$f"; done
-    repo-add --sign --key "$fpr" astroos.db.tar.zst *.pkg.tar.zst
+    pkgs=$(find . -maxdepth 1 -name "*.pkg.tar*" ! -name "*.sig" | sort)
+    for f in $pkgs; do gpg --batch --yes --pinentry-mode loopback --passphrase "" --detach-sign -u "$fpr" "$f"; done
+    repo-add --sign --key "$fpr" astroos.db.tar.zst $pkgs
     # repo-add leaves astroos.db/.files (+.sig) as SYMLINKS to the tarballs.
     # Blob storage serves real files, so replace the links with copies. The
     # links must go first: cp onto a symlink of its own source is refused as
@@ -294,7 +315,7 @@ do_build() {
   sha256sum "$out/aur-map.lock" | awk '{print $1}' > "$out/aur-map.lock.sha256"
   podman run --rm -v "$out":/repo -v "$keys":/keys "$IMG" bash -c \
     'export GNUPGHOME=/keys; gpg --batch --yes --pinentry-mode loopback --passphrase "" --detach-sign -u "$(cat /keys/FINGERPRINT)" /repo/aur-map.lock'
-  msg "build complete: $(ls "$out"/*.pkg.tar.zst | wc -l) packages in $out"
+  msg "build complete: $(pkg_files | wc -l) packages in $out"
 }
 
 # --- publish: packages first, db + lock LAST (risk #2) ---------------------
@@ -304,8 +325,7 @@ do_publish() {
   local sas; sas=$(tr -d '\r\n' < "$sas_file")
   local base="https://${account}.blob.core.windows.net/${container}/astroos/x86_64"
   msg "publish stage 1: packages + signatures"
-  azcopy copy "$out/*.pkg.tar.zst"     "${base}?${sas}" >/dev/null
-  azcopy copy "$out/*.pkg.tar.zst.sig" "${base}?${sas}" >/dev/null
+  azcopy copy "$out/*.pkg.tar*" "${base}?${sas}" >/dev/null   # packages + their .sig, any PKGEXT
   msg "publish stage 2: db + lock (goes live atomically last)"
   for f in astroos.files astroos.files.sig astroos.files.tar.zst astroos.files.tar.zst.sig \
            aur-map.lock aur-map.lock.sha256 aur-map.lock.sig \
@@ -317,7 +337,7 @@ do_publish() {
     echo "published=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "repo_db_sha256=$(sha256sum "$out/astroos.db.tar.zst" | awk '{print $1}')"
     echo "lock_sha256=$(cat "$out/aur-map.lock.sha256")"
-    echo "package_count=$(ls "$out"/*.pkg.tar.zst | wc -l)"
+    echo "package_count=$(pkg_files | wc -l)"
     echo "base_url=$base"
   } > "$out/PROMOTION"
   msg "published to $base — PROMOTION manifest written"
