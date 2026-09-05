@@ -191,8 +191,14 @@ smoke_check() {
       # fresh local db so the package built seconds ago is resolvable
       cd /repo && rm -f astroos-local.* && repo-add -q astroos-local.db.tar.gz $(find . -maxdepth 1 -name "*.pkg.tar*" ! -name "*.sig" | sort) >/dev/null 2>&1
       printf "[astroos-local]\nSigLevel = Never\nServer = file:///repo\n" >> /etc/pacman.conf
+      # pacman copies file:// installs into the cache volume, which outlives
+      # containers: a package rebuilt under an unchanged file name then fails
+      # validation against its stale cached copy (run 4: python-qiskit smoke)
+      for f in /repo/*.pkg.tar*; do rm -f "/var/cache/pacman/pkg/${f##*/}"; done
       pacman -Sy >/dev/null
-      pacman -S --noconfirm '"$p"' >/dev/null
+      # one retry: with --noconfirm pacman deletes a cached file that fails
+      # validation and aborts; the second attempt fetches it again
+      pacman -S --noconfirm '"$p"' >/dev/null || pacman -S --noconfirm '"$p"' >/dev/null
       python -c "import '"$mod"'; print(\"import OK: '"$mod"'\")"'; then
     [[ -f "$locks/SMOKE_FAIL" ]] && sed -i "/^$p\$/d" "$locks/SMOKE_FAIL"
     return 0
@@ -231,6 +237,10 @@ build_aur() {
         rm -f /repo/astroos-local.*
         repo-add -q /repo/astroos-local.db.tar.gz $pkgs >/dev/null 2>&1
         printf "[astroos-local]\nSigLevel = Never\nServer = file:///repo\n" >> /etc/pacman.conf
+      # pacman copies file:// installs into the cache volume, which outlives
+      # containers: a package rebuilt under an unchanged file name then fails
+      # validation against its stale cached copy (run 4: python-qiskit smoke)
+      for f in /repo/*.pkg.tar*; do rm -f "/var/cache/pacman/pkg/${f##*/}"; done
       fi
       pacman -Syu --noconfirm --needed git base-devel >/dev/null
       useradd -m builder
@@ -377,6 +387,10 @@ build_local() {
         rm -f /repo/astroos-local.*
         repo-add -q /repo/astroos-local.db.tar.gz $pkgs >/dev/null 2>&1
         printf "[astroos-local]\nSigLevel = Never\nServer = file:///repo\n" >> /etc/pacman.conf
+      # pacman copies file:// installs into the cache volume, which outlives
+      # containers: a package rebuilt under an unchanged file name then fails
+      # validation against its stale cached copy (run 4: python-qiskit smoke)
+      for f in /repo/*.pkg.tar*; do rm -f "/var/cache/pacman/pkg/${f##*/}"; done
       fi
       pacman -Syu --noconfirm --needed git base-devel >/dev/null
       useradd -m builder
