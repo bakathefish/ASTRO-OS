@@ -1,0 +1,18 @@
+#!/bin/sh
+# Minimal-delta rebrand of the skeleton configs shipped by cachyos-kde-settings
+# and cachyos-alacritty-config (run by 86-astroos-skel.hook). Every edit is an
+# idempotent sed on one line, so upstream changes to the rest of the files are
+# kept (directive 7a: configure and skin, do not fork).
+a=/etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc
+if [ -f "$a" ]; then
+  sed -i \
+    -e 's|^icon=org\.cachyos\.hello$|icon=astroos-logo|' \
+    -e 's|^Image=/usr/share/wallpapers/cachyos-wallpapers/.*|Image=/usr/share/wallpapers/AstroOS/contents/images/3840x2160.png|' \
+    -e 's|^PreviewImage=/usr/share/wallpapers/cachyos-wallpapers/.*|PreviewImage=/usr/share/wallpapers/AstroOS/contents/images/3840x2160.png|' \
+    "$a"
+fi
+t=/etc/skel/.config/alacritty/alacritty.toml
+if [ -f "$t" ]; then
+  sed -i 's|^title = "Alacritty@CachyOS"|title = "Alacritty@AstroOS"|' "$t"
+fi
+exit 0

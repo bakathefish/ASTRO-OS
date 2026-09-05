@@ -1,0 +1,13 @@
+#!/bin/sh
+# Per-login Plasma defaults on a Zenbook Duo (xdg autostart). The
+# zenbook-duo-linux session agent owns rotation for both panels (KWin's own
+# auto-rotate only flips each output and cannot re-lay out the second panel),
+# so KWin's per-output auto-rotate is switched off. Idempotent, cheap; exits
+# immediately on other hardware.
+/usr/lib/zenbook-duo/astroos-is-duo || exit 0
+command -v kscreen-doctor >/dev/null 2>&1 || exit 0
+# wait for the outputs to be up (fresh login)
+i=0
+while [ $i -lt 20 ] && ! kscreen-doctor --outputs 2>/dev/null | grep -q eDP-1; do i=$((i+1)); sleep 1; done
+kscreen-doctor output.eDP-1.autoRotatePolicy.never output.eDP-2.autoRotatePolicy.never >/dev/null 2>&1 || true
+exit 0

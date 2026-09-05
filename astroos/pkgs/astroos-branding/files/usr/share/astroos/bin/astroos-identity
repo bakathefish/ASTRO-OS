@@ -1,0 +1,12 @@
+#!/bin/sh
+# AstroOS identity enforcement, run by zz-astroos-identity.hook after every
+# install/upgrade of filesystem, cachyos-hooks, cachyos-settings, lsb-release
+# or astroos-branding. Copies the staged identity files over the package-owned
+# ones (none of them can be shipped by another package without a conflict).
+b=/usr/share/astroos/branding
+cp "$b/os-release" /etc/os-release
+cp "$b/os-release" /usr/lib/os-release
+cp "$b/lsb-release" /etc/lsb-release
+cp "$b/issue" /etc/issue
+cp "$b/motd" /etc/motd
+exit 0

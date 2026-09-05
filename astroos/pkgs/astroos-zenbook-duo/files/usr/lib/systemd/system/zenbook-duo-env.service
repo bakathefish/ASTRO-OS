@@ -1,0 +1,12 @@
+[Unit]
+Description=Zenbook Duo: resolve the desktop user for the system daemon (AstroOS glue)
+ConditionPathExists=!/etc/zenbook-duo/env
+Before=zenbook-duo-rust-daemon.service
+
+[Service]
+Type=oneshot
+ExecCondition=/usr/lib/zenbook-duo/astroos-is-duo
+ExecStart=/usr/lib/zenbook-duo/astroos-duo-env
+
+[Install]
+WantedBy=multi-user.target

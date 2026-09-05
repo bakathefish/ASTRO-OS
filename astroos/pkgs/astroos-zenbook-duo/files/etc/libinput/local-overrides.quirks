@@ -1,0 +1,8 @@
+# Palm rejection for the Zenbook Duo keyboard's touchpad (the keyboard sits
+# below the touchpad). From alesya-h/zenbook-duo-2024-ux8406ma-linux
+# (BSD-2-Clause); libinput has no upstream quirk for this device.
+[ASUS Zenbook Duo Keyboard Touchpad]
+MatchUdevType=touchpad
+MatchVendor=0x0B05
+MatchName=*ASUS Zenbook Duo Keyboard Touchpad
+AttrTPKComboLayout=below

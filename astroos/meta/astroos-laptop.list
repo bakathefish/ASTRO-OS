@@ -1,0 +1,17 @@
+# astroos-laptop — ASUS Zenbook Duo (UX8406MA 2024 / UX8406CA 2025) support
+# (council R4, research: .planning/R4_ZENBOOK_DUO.md). Everything functional is
+# upstream: the kernels CachyOS ships already carry every Duo fix, KWin +
+# PowerDevil drive both 120 Hz OLED panels, touch, pen and brightness, and the
+# dock/undock, rotation, keyboard-backlight and hotkey helper is
+# zakstam/zenbook-duo-linux, packaged in the [astroos] lane as
+# astroos-zenbook-duo (its systemd units are DMI-gated, so this bucket is
+# inert on other machines). Names verified in the Arch/CachyOS indexes 2026-09-05.
+
+iio-sensor-proxy       # accelerometer to D-Bus; a kwin dependency, declared on purpose
+plasma-keyboard        # Plasma 6.6+ on-screen keyboard (also via plasma-meta)
+bluez-utils            # bluetoothctl for pairing the detached keyboard
+brightnessctl          # CLI backlight control for both panels
+intel-media-driver     # VA-API on Meteor Lake / Arrow Lake
+vulkan-intel
+intel-npu-driver       # NPU user driver (firmware ships in linux-firmware)
+asusctl                # [cachyos] repo: charge limit + platform profiles

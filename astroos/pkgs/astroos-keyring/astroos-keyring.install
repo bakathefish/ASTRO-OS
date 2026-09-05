@@ -1,0 +1,12 @@
+# Same shape as archlinux-keyring's install script: populate only when a
+# pacman keyring exists (inside the ISO build's pacstrap chroot there is none
+# yet; pacman-init.service creates it at first boot and populates everything).
+post_install() {
+  if usr/bin/pacman-key -l >/dev/null 2>&1; then
+    usr/bin/pacman-key --populate astroos
+  fi
+}
+
+post_upgrade() {
+  post_install
+}

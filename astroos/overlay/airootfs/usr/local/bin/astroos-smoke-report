@@ -22,7 +22,7 @@ else
   echo "ASTROOS-SMOKE-NET-FAIL"
 fi
 
-if bash /usr/local/bin/astroos-doctor --quick; then
+if astroos-doctor --quick; then
   echo "ASTROOS-SMOKE-DOCTOR-PASS"
 else
   echo "ASTROOS-SMOKE-DOCTOR-FAIL"

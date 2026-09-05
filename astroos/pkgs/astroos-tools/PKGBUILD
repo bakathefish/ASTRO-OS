@@ -1,0 +1,24 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Local lane package (see astroos-keyring/PKGBUILD for the version scheme).
+# The AstroOS command-line helpers, packaged so they reach installed systems
+# (the live overlay never does; R4 branding survey section 0). They lived in
+# /usr/local/bin of the overlay until R4.1; /usr/bin is the packaged location.
+pkgname=astroos-tools
+pkgver=0
+pkgrel=1
+pkgdesc="AstroOS helpers: astroos-doctor (health check), astroos-hacking-heavy, astroos-cuda-setup"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(GPL-3.0-or-later)
+depends=(bash pacman)
+optdepends=('pacman-contrib: pacdiff check in astroos-doctor'
+            'snapper: snapshot check in astroos-doctor')
+
+pkgver() { cat "$startdir/VERSION"; }
+
+package() {
+  local b
+  for b in astroos-doctor astroos-hacking-heavy astroos-cuda-setup; do
+    install -Dm755 "$startdir/files/usr/bin/$b" "$pkgdir/usr/bin/$b"
+  done
+}

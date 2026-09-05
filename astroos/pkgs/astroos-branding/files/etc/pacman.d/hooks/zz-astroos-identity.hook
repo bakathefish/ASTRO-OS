@@ -1,0 +1,23 @@
+# AstroOS distro identity enforcement.
+# cachyos-hooks ships /usr/share/libalpm/hooks/{cachyos-branding,os-release,
+# lsb-release}.hook whose script rewrites /etc/os-release + /etc/lsb-release to
+# CachyOS on every trigger (this clobbered the pre-placed identity in ISO build
+# 13). Those hooks are masked by same-name /dev/null symlinks shipped beside
+# this file; this hook is the enforcement layer: named zz- so it sorts after
+# every stock hook and re-asserts AstroOS identity last. It runs at pacstrap
+# time for installed systems (filesystem + this package land in one
+# transaction) and again after every relevant upgrade.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = filesystem
+Target = cachyos-hooks
+Target = cachyos-settings
+Target = lsb-release
+Target = astroos-branding
+
+[Action]
+Description = AstroOS: enforce distro identity (os-release, lsb-release, issue, motd)
+When = PostTransaction
+Exec = /usr/share/astroos/bin/astroos-identity

@@ -1,0 +1,9 @@
+
+Welcome to AstroOS, a rolling research workstation built on CachyOS and Arch Linux.
+
+  astroos-doctor           health check; paste its output in bug reports
+  astroos-hacking-heavy    install the heavy pentest set (burpsuite, metasploit, zaproxy, seclists)
+  astroos-cuda-setup       CUDA stack on NVIDIA hardware
+
+Source, issues and release notes: https://github.com/bakathefish/ASTRO-OS
+

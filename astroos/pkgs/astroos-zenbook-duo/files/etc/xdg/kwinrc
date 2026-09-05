@@ -1,0 +1,6 @@
+# AstroOS system defaults for KWin (KConfig cascade: a user's ~/.config/kwinrc
+# overrides per key). Plasma Keyboard as the Wayland input method: the
+# on-screen keyboard appears when a text field is focused by touch or pen
+# (VirtualKeyboardMode NonMouseInput), i.e. only when a touch panel is used.
+[Wayland]
+InputMethod=/usr/share/applications/org.kde.plasma.keyboard.desktop

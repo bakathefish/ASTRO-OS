@@ -1,0 +1,28 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Local lane package: built by astroos/scripts/build-aur-repo.sh from this
+# directory (never from the AUR). pkgver comes from the VERSION file the build
+# script writes (UTC date.time of the commit that last touched the inputs), so
+# an unchanged package keeps its version and is skipped on the next run.
+#
+# Trust path (KEYS.md, council R3 Q2): pacman-key --populate astroos reads
+# astroos.gpg + astroos-trusted (<fingerprint>:4:) + astroos-revoked. The live
+# ISO does that in pacman-init.service at first boot; Calamares copies the
+# resulting keyring into the installed system, and this package keeps the
+# keyring files there so every later --populate keeps the trust.
+pkgname=astroos-keyring
+pkgver=0
+pkgrel=1
+pkgdesc="AstroOS [astroos] repository signing key for pacman-key"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(GPL-3.0-or-later)
+install=astroos-keyring.install
+
+pkgver() { cat "$startdir/VERSION"; }
+
+package() {
+  local k="$startdir/files/usr/share/pacman/keyrings"
+  install -Dm644 "$k/astroos.gpg"      "$pkgdir/usr/share/pacman/keyrings/astroos.gpg"
+  install -Dm644 "$k/astroos-trusted"  "$pkgdir/usr/share/pacman/keyrings/astroos-trusted"
+  install -Dm644 "$k/astroos-revoked"  "$pkgdir/usr/share/pacman/keyrings/astroos-revoked"
+}

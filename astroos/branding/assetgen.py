@@ -2,14 +2,23 @@
 """AstroOS branding asset generator.
 
 Single source of truth: run against the best available logo master and it
-emits every branding asset the ISO needs. Rerun whenever the master improves
-(e.g. after super-resolution) — all assets regenerate deterministically.
+emits every branding asset the ISO, the astroos-branding package and the
+Calamares branding component need. Rerun whenever the master improves; all
+assets regenerate deterministically (fixed starfield seed).
 
 usage: python assetgen.py <logo-master.png> <outdir>
+
+Outputs (outdir):
+  icons/<s>x<s>/astroos-logo.png, astroos-logo.png   hicolor icons + pixmap
+  watermark.png                                       plymouth spinner watermark
+  astroos-logo.ansi                                   fastfetch truecolor logo
+  astroos-wallpaper.png, wallpaper-preview.png        3840x2160 + KPackage screenshot
+  splash-1920.png, splash-640.png                     GRUB/syslinux backgrounds (+ Limine)
+  calamares/{logo,icon,welcome,slide1..3}.png         installer branding component
 """
 
 import sys, os, random
-from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
+from PIL import Image, ImageDraw, ImageFilter, ImageEnhance, ImageFont
 import numpy as np
 
 STAR_SEED = 20260825  # reproducible starfield
@@ -17,6 +26,20 @@ STAR_SEED = 20260825  # reproducible starfield
 # only the ringed planet (fractional crop so it survives upscaled masters).
 CONTENT_CROP = (0.24, 0.0, 1.0, 1.0)
 KEY_LO, KEY_HI = 26, 60  # smoothstep: <=lo fully transparent, >=hi opaque
+
+# Text for the installer slides: the first bold TTF found wins, so the same
+# repository checkout renders the same slides on the same machine; the
+# committed PNGs are the source of truth for the build.
+FONT_CANDIDATES = (
+    "C:/Windows/Fonts/segoeuib.ttf",
+    "C:/Windows/Fonts/arialbd.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/noto/NotoSans-Bold.ttf",
+)
+TEXT_MAIN = (232, 230, 245)
+TEXT_SUB = (200, 196, 222)
 
 
 def load_keyed(path):
@@ -144,6 +167,94 @@ def splashes(keyed, outdir):
     small.save(os.path.join(outdir, "splash-640.png"))
 
 
+def _font(size):
+    for p in FONT_CANDIDATES:
+        if os.path.exists(p):
+            try:
+                return ImageFont.truetype(p, size)
+            except OSError:
+                continue
+    try:
+        return ImageFont.load_default(size=size)
+    except TypeError:  # very old Pillow: bitmap default only
+        return ImageFont.load_default()
+
+
+def _text_center(draw, y, text, font, fill, w):
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw = bbox[2] - bbox[0]
+    draw.text(((w - tw) // 2 - bbox[0], y - bbox[1]), text, font=font, fill=fill)
+
+
+def scene(keyed, w, h, logo_frac, logo_cy, title, subtitle, title_px, sub_px):
+    """Starfield + glowing logo centred at logo_cy (fraction of h) + captions."""
+    bgim = starfield(w, h)
+    lw = int(w * logo_frac)
+    lh = int(keyed.height * lw / keyed.width)
+    logo = keyed.resize((lw, lh), Image.LANCZOS)
+    cy = int(h * logo_cy)
+    glow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    gl = logo.resize((int(lw * 1.25), int(lh * 1.25)), Image.LANCZOS)
+    glow.paste(gl, ((w - gl.width) // 2, cy - gl.height // 2), gl)
+    glow = glow.filter(ImageFilter.GaussianBlur(max(12, w // 32)))
+    glow = ImageEnhance.Brightness(glow).enhance(0.7)
+    out = bgim.convert("RGBA")
+    out.alpha_composite(glow)
+    out.alpha_composite(logo, ((w - lw) // 2, cy - lh // 2))
+    d = ImageDraw.Draw(out)
+    y = cy + lh // 2 + int(h * 0.06)
+    if title:
+        _text_center(d, y, title, _font(title_px), TEXT_MAIN, w)
+        y += int(title_px * 1.5)
+    if subtitle:
+        _text_center(d, y, subtitle, _font(sub_px), TEXT_SUB, w)
+    return out.convert("RGB")
+
+
+SLIDES = (
+    ("AstroOS", "A rolling research workstation, built on CachyOS and Arch Linux"),
+    (
+        "Astronomy stack included",
+        "Stellarium, KStars, AstrOmatic, Siril, DS9, TOPCAT, Aladin, sunpy, healpy",
+    ),
+    (
+        "Research and security tooling",
+        "Jupyter, Julia, R, ROOT, ParaView, TeX Live; nmap, Wireshark, BlackArch on demand",
+    ),
+)
+
+
+def calamares(keyed, outdir):
+    """Installer branding component images (sizes match the CachyOS component)."""
+    d = os.path.join(outdir, "calamares")
+    os.makedirs(d, exist_ok=True)
+    sq = square(keyed)
+    sq.resize((64, 64), Image.LANCZOS).save(os.path.join(d, "logo.png"))
+    sq.resize((128, 128), Image.LANCZOS).save(os.path.join(d, "icon.png"))
+    scene(
+        keyed,
+        900,
+        516,
+        0.30,
+        0.40,
+        "AstroOS",
+        "Research workstation. Built on CachyOS and Arch Linux.",
+        56,
+        24,
+    ).save(os.path.join(d, "welcome.png"))
+    for i, (title, sub) in enumerate(SLIDES, start=1):
+        scene(keyed, 1920, 1080, 0.24, 0.38, title, sub, 84, 36).save(
+            os.path.join(d, f"slide{i}.png")
+        )
+
+
+def wallpaper_preview(outdir):
+    im = Image.open(os.path.join(outdir, "astroos-wallpaper.png"))
+    im.resize((400, 225), Image.LANCZOS).save(
+        os.path.join(outdir, "wallpaper-preview.png")
+    )
+
+
 def main():
     master, outdir = sys.argv[1], sys.argv[2]
     os.makedirs(outdir, exist_ok=True)
@@ -152,7 +263,9 @@ def main():
     watermark(keyed, outdir)
     ansi_logo(master, outdir)
     wallpaper(keyed, outdir)
+    wallpaper_preview(outdir)
     splashes(keyed, outdir)
+    calamares(keyed, outdir)
     print(
         f"assets generated in {outdir} from {master} "
         f"(keyed content {keyed.width}x{keyed.height})"

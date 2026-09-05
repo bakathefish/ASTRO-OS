@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=AstroOS Zenbook Duo session defaults
+Comment=Hands panel rotation to the Zenbook Duo helper on a Duo; exits at once elsewhere
+Exec=/usr/bin/astroos-zenbook-duo-session
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2

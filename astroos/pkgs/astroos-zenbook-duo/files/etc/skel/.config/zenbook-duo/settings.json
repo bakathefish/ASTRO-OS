@@ -1,0 +1,11 @@
+{
+  "autoDualScreen": true,
+  "syncBrightness": false,
+  "theme": "system",
+  "invertSensorRotation": false,
+  "defaultBacklight": 1,
+  "defaultScale": 1.66,
+  "usbMediaRemapEnabled": true,
+  "startOnBootMinimized": false,
+  "setupCompleted": true
+}

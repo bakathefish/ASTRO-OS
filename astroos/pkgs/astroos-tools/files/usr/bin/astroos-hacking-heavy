@@ -10,7 +10,8 @@ heavy=(burpsuite metasploit zaproxy seclists)
 case "${1:-}" in
   --list) printf '%s\n' "${heavy[@]}"; exit 0 ;;
   ""|--install) ;;
-  -h|--help|*) echo "usage: sudo astroos-hacking-heavy [--install|--list]"; exit 0 ;;
+  -h|--help) echo "usage: sudo astroos-hacking-heavy [--install|--list]"; exit 0 ;;
+  *) echo "usage: sudo astroos-hacking-heavy [--install|--list]" >&2; exit 2 ;;
 esac
 
 if [[ $EUID -ne 0 ]]; then

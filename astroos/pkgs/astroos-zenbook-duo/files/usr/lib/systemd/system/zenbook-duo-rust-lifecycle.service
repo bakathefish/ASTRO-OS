@@ -1,0 +1,18 @@
+# Upstream unit from install-rust-runtime.sh plus the hardware condition.
+[Unit]
+Description=Zenbook Duo Rust Lifecycle Handler
+DefaultDependencies=no
+Before=shutdown.target
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecCondition=/usr/lib/zenbook-duo/astroos-is-duo
+ExecStart=/usr/lib/zenbook-duo/zenbook-duo-lifecycle boot
+ExecStop=/usr/lib/zenbook-duo/zenbook-duo-lifecycle shutdown
+RemainAfterExit=yes
+TimeoutStartSec=10
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

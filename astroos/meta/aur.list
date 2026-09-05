@@ -50,7 +50,8 @@ python-siosocks          # python-aioftp (checkdepends + optdepends)
 # (2026-09-05), and the -doc split was never shipped. aur-patches/python-parfive
 # drops the docs build, so both left the scope (R3 D6: maintenance surface).
 python-fleep             # opendrop
-python-pytest-runner     # opendrop
+# python-pytest-runner: was opendrop's checkdepend; its check() no longer runs on the
+# Python 3.14 stack (pkg_resources gone) and aur-patches/opendrop drops it (2026-09-05).
 python-rustworkx         # python-qiskit
 python-zxing-cpp         # normcap
 

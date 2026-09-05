@@ -1,0 +1,69 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Local lane package: ASUS Zenbook Duo (UX8406MA 2024 / UX8406CA 2025) support.
+# Research and design: .planning/R4_ZENBOOK_DUO.md (council R4). Lift, do not
+# rebuild: the runtime is zakstam/zenbook-duo-linux pinned at a commit (four
+# Rust binaries: system daemon, user session agent, lifecycle handler, USB
+# media-key remap helper; KDE Plasma Wayland backend through kscreen-doctor).
+# AstroOS adds the packaging glue only: systemd units that (a) are inert on any
+# other machine (ExecCondition on the DMI product name) and (b) resolve the
+# desktop user from /etc/passwd instead of baking it in at install time, the
+# udev rule, the libinput palm-rejection quirk, the OLED/PSR modprobe drop-in
+# applied at first boot on a Duo, Plasma defaults and a first-login session hook.
+pkgname=astroos-zenbook-duo
+_commit=da2d09dfd29bbbd93e820cbc7e4a82cb5f4a0f5e   # upstream 2026-07-09, Cargo version 0.3.7
+pkgver=0.3.7.da2d09d
+pkgrel=1
+pkgdesc="ASUS Zenbook Duo dual-screen support: zenbook-duo-linux runtime (dock/undock, rotation, hotkeys, keyboard backlight) with AstroOS Plasma glue"
+arch=(x86_64)
+url="https://github.com/zakstam/zenbook-duo-linux"
+license=(GPL-3.0-only BSD-2-Clause)   # runtime GPL-3.0; libinput quirk from alesya-h (BSD-2-Clause)
+depends=(webkit2gtk-4.1 gtk3 libayatana-appindicator libusb iio-sensor-proxy kscreen usbutils systemd)
+makedepends=(rust pkgconf librsvg)
+optdepends=('plasma-keyboard: on-screen keyboard when the keyboard is detached'
+            'bluez-utils: bluetoothctl for pairing the keyboard'
+            'brightnessctl: command-line control of both panel backlights')
+source=("zenbook-duo-linux-${_commit}.tar.gz::https://github.com/zakstam/zenbook-duo-linux/archive/${_commit}.tar.gz")
+sha256sums=('2c38a9cec30258cd8f23a31e080f1b70d362cfe47aa4d6d040cb4e44247eed9a')
+_src="zenbook-duo-linux-${_commit}"
+_crate="$_src/ui-tauri-react/src-tauri"
+
+prepare() {
+  # the repo's cargo config selects clang + mold; build with the stock toolchain
+  rm -f "$_src/ui-tauri-react/.cargo/config" "$_src/ui-tauri-react/.cargo/config.toml"
+  cd "$_crate"
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$_crate"
+  export CARGO_TARGET_DIR=target
+  # exactly the four runtime binaries upstream's install-rust-runtime.sh builds
+  cargo build --release --frozen \
+    --bin zenbook-duo-daemon \
+    --bin zenbook-duo-session-agent \
+    --bin zenbook-duo-lifecycle \
+    --bin zenbook-duo-usb-remap-helper
+}
+
+package() {
+  local b
+  for b in zenbook-duo-daemon zenbook-duo-session-agent zenbook-duo-lifecycle zenbook-duo-usb-remap-helper; do
+    install -Dm755 "$_crate/target/release/$b" "$pkgdir/usr/lib/zenbook-duo/$b"
+  done
+  install -Dm644 "$_src/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  # upstream wires the lifecycle binary in as a system-sleep hook by symlink
+  install -d "$pkgdir/usr/lib/systemd/system-sleep"
+  ln -s /usr/lib/zenbook-duo/zenbook-duo-lifecycle "$pkgdir/usr/lib/systemd/system-sleep/zenbook-duo-rust-lifecycle"
+
+  # AstroOS glue
+  cp -r "$startdir/files/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir/usr/share" "$pkgdir/etc" -type f -exec chmod 644 {} +
+  chmod 755 "$pkgdir"/usr/lib/zenbook-duo/* "$pkgdir"/usr/bin/*
+  # static enablement: the units gate themselves on the hardware
+  install -d "$pkgdir/usr/lib/systemd/system/multi-user.target.wants" "$pkgdir/usr/lib/systemd/user/default.target.wants"
+  for b in zenbook-duo-env zenbook-duo-rust-daemon zenbook-duo-rust-lifecycle astroos-zenbook-duo-setup; do
+    ln -s "../$b.service" "$pkgdir/usr/lib/systemd/system/multi-user.target.wants/$b.service"
+  done
+  ln -s ../zenbook-duo-session-agent.service "$pkgdir/usr/lib/systemd/user/default.target.wants/zenbook-duo-session-agent.service"
+}

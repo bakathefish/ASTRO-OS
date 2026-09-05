@@ -1,0 +1,19 @@
+# Upstream unit from install-rust-runtime.sh, with the user values read from
+# /etc/zenbook-duo/env (written by zenbook-duo-env.service) instead of being
+# baked in, and a hardware condition so the unit is inert off a Zenbook Duo.
+[Unit]
+Description=Zenbook Duo Rust Daemon
+After=network.target zenbook-duo-env.service
+Wants=zenbook-duo-env.service
+ConditionPathExists=/etc/zenbook-duo/env
+
+[Service]
+Type=simple
+ExecCondition=/usr/lib/zenbook-duo/astroos-is-duo
+EnvironmentFile=/etc/zenbook-duo/env
+ExecStart=/usr/lib/zenbook-duo/zenbook-duo-daemon
+Restart=on-failure
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

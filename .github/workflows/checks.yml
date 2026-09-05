@@ -1,6 +1,6 @@
 name: checks
 
-# Two jobs, cheap and always-on:
+# Three jobs (the first two cheap and always-on, the third on schedule):
 #   lint       shellcheck + bash -n on every script; the generated additions
 #              list must match its meta sources (council R1: generated, never
 #              hand-edited)
@@ -23,8 +23,11 @@ jobs:
       - name: shellcheck (warning level)
         run: |
           sudo apt-get install -y -qq shellcheck >/dev/null
-          shellcheck -S warning astroos/scripts/*.sh astroos/aur-patches/*/*.sh astroos/overlay/airootfs/usr/local/bin/*
-          for f in astroos/scripts/*.sh; do bash -n "$f"; done
+          shellcheck -S warning astroos/scripts/*.sh astroos/aur-patches/*/*.sh astroos/overlay/airootfs/usr/local/bin/* astroos/pkgs/*/files/usr/bin/* astroos/pkgs/*/files/usr/share/astroos/bin/* astroos/pkgs/astroos-calamares/files/usr/share/astroos/calamares/apply.sh astroos/pkgs/astroos-zenbook-duo/files/usr/lib/zenbook-duo/*
+          for f in astroos/scripts/*.sh astroos/aur-patches/*/*.sh astroos/overlay/airootfs/usr/local/bin/* astroos/pkgs/*/files/usr/bin/* astroos/pkgs/*/files/usr/share/astroos/bin/* astroos/pkgs/astroos-calamares/files/usr/share/astroos/calamares/apply.sh astroos/pkgs/astroos-zenbook-duo/files/usr/lib/zenbook-duo/*; do
+            [[ -f "$f" ]] || continue
+            bash -n "$f"
+          done
       - name: generated additions list is current
         run: |
           bash astroos/scripts/gen-packages.sh
@@ -36,3 +39,27 @@ jobs:
       - uses: actions/checkout@v4
       - name: scope + AUR liveness + official-repo migration (build-aur-repo.sh preflight)
         run: bash astroos/scripts/build-aur-repo.sh preflight
+
+  # hosted-repo is the standing liveness check for the published [astroos]
+  # repository: aur-scope only proves the AUR *names* still resolve, not that
+  # the hosted binaries still install for a real client (review finding D-E).
+  # It runs on schedule + workflow_dispatch only. GitHub disables scheduled
+  # workflows after 60 days without repository activity, so a push or a manual
+  # workflow_dispatch every few weeks keeps this schedule alive.
+  hosted-repo:
+    if: github.event_name != 'push' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: client install against the hosted repo, shipped keyring trust path
+        run: |
+          names=$( { tr -d '\r' < astroos/meta/aur.list | grep -vE '^\s*(#|$)' | awk '{print $1}'; ls astroos/pkgs; } | tr '\n' ' ')
+          podman run --rm -v "$PWD/astroos/pkgs/astroos-keyring/files/usr/share/pacman/keyrings":/kr:ro docker.io/archlinux:base-devel bash -ec '
+            install -m644 /kr/astroos.gpg /kr/astroos-trusted /kr/astroos-revoked /usr/share/pacman/keyrings/
+            pacman-key --init >/dev/null 2>&1
+            pacman-key --populate archlinux astroos >/dev/null 2>&1
+            printf "\n[astroos]\nSigLevel = Required DatabaseOptional\nServer = https://astroosrepo.blob.core.windows.net/repo/astroos/\$arch\n" >> /etc/pacman.conf
+            pacman -Sy >/dev/null
+            pacman -Sp --noconfirm '"$names"' >/dev/null
+            pacman -S --noconfirm astroos-branding astroos-tools python-healpy >/dev/null
+            pacman -Q astroos-branding astroos-tools python-healpy'

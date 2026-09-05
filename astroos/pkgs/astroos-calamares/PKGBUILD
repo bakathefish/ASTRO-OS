@@ -1,0 +1,65 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Local lane package (see astroos-keyring/PKGBUILD for the version scheme).
+#
+# The AstroOS installer is cachyos-calamares-next, re-pointed: that package
+# owns every file under /etc/calamares and /usr/share/calamares (no backup
+# array), so AstroOS never forks it. This package ships (a) its own branding
+# component beside upstream's (an unowned directory), (b) the AstroOS netinstall
+# groups generated from astroos/meta at build time, and (c) an alpm hook that
+# applies targeted, idempotent seds to the upstream configuration after every
+# install/upgrade of cachyos-calamares-next (R4 branding survey sections 0/2).
+# Live-ISO only: shellprocess_cleanup_calamares removes /etc/calamares from
+# installed systems and the installer package is not part of the target.
+pkgname=astroos-calamares
+pkgver=0
+pkgrel=1
+pkgdesc="AstroOS configuration and branding for the CachyOS Calamares installer (applied by an alpm hook)"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(GPL-3.0-or-later CC-BY-SA-4.0)
+depends=(bash sed)
+optdepends=('cachyos-calamares-next: the installer this configuration applies to')
+
+pkgver() { cat "$startdir/VERSION"; }
+
+# one netinstall group from one or more meta lists (YAML, 5-space item indent
+# like upstream's file)
+_group() {
+  local name="$1" desc="$2" hidden="$3" f
+  shift 3
+  printf -- '- name: "%s"\n  description: "%s"\n  hidden: %s\n  selected: true\n  critical: true\n  packages:\n' "$name" "$desc" "$hidden"
+  for f in "$@"; do
+    tr -d '\r' < "$f" | grep -vE '^\s*(#|$)' | sed 's/[[:space:]]*#.*$//; s/[[:space:]]*$//' | awk '{print "     - " $1}'
+  done
+}
+
+package() {
+  local f="$startdir/files" a="$startdir/assets" m="$startdir/meta" d="$pkgdir/usr/share/astroos/calamares"
+  cp -r "$f/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+  chmod 755 "$d/apply.sh"
+
+  # branding images (astroos/branding/assetgen.py)
+  local b="$pkgdir/usr/share/calamares/branding/astroos"
+  install -Dm644 "$a/calamares/logo.png"    "$b/logo.png"
+  install -Dm644 "$a/calamares/icon.png"    "$b/icon.png"
+  install -Dm644 "$a/calamares/welcome.png" "$b/welcome.png"
+  local i
+  for i in 1 2 3; do install -Dm644 "$a/calamares/slide$i.png" "$b/slide$i.png"; done
+
+  # AstroOS netinstall groups: what an installed AstroOS gets on top of the
+  # CachyOS KDE base. The hidden group carries identity + tools + keyring.
+  {
+    printf -- '- name: "AstroOS (hidden)"\n  description: "AstroOS identity, tools and repository trust"\n  hidden: true\n  selected: true\n  critical: true\n  packages:\n     - astroos-keyring\n     - astroos-branding\n     - astroos-tools\n'
+    _group "AstroOS core additions"  "Everyday base AstroOS adds to CachyOS: kernels, desktop apps, dev toolchain, performance daemons" false "$m/astroos-core.list"
+    _group "AstroOS astronomy"       "Planetarium, sky and astrophoto tools from the Arch repos" false "$m/astroos-astro.list"
+    _group "AstroOS continuity"      "Phone and machine-to-machine sharing (LocalSend, KDE Connect, Syncthing, scrcpy)" false "$m/astroos-continuity.list"
+    _group "AstroOS security tools"  "Curated pentest essentials from the Arch repos; the heavy set is one command away (astroos-hacking-heavy)" false "$m/astroos-hacking.list"
+    _group "AstroOS research"        "Physics, scientific computing, data science, visualization and writing stack" false "$m/astroos-research.list"
+    _group "AstroOS laptop (ASUS Zenbook Duo)" "Dual-screen Zenbook Duo support; inert on other hardware" false "$m/astroos-laptop.list"
+    printf -- '     - astroos-zenbook-duo\n'
+    _group "AstroOS repository packages" "Prebuilt, signed AUR packages from the [astroos] repository: AstrOmatic, Siril, DS9, TOPCAT, Aladin, Geant4, qiskit, sunpy and more" false "$m/aur.list"
+  } > "$d/netinstall-astroos.yaml"
+  _group "BlackArch tools" "Curated BlackArch packages (repository enabled on this ISO)" false "$m/blackarch.list" > "$d/netinstall-blackarch.yaml"
+}

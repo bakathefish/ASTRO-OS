@@ -44,6 +44,11 @@ $runtime run --rm --privileged -t \
   --ulimit nofile=1048576:1048576 \
   -e BASE_REPO="$BASE_REPO" -e BASE_COMMIT="$BASE_COMMIT" \
   -e ASTROOS_FAST="${ASTROOS_FAST:-0}" \
+  -e ASTROOS_WITH_AUR_REPO="${ASTROOS_WITH_AUR_REPO:-0}" \
+  -e ASTROOS_WITH_BLACKARCH="${ASTROOS_WITH_BLACKARCH:-0}" \
+  -e ASTROOS_MIN_ADDITIONS="${ASTROOS_MIN_ADDITIONS:-80}" \
+  -e ASTROOS_ALLOW_UNBRANDED="${ASTROOS_ALLOW_UNBRANDED:-0}" \
+  -e ASTROOS_COMMIT="${ASTROOS_COMMIT:-}" \
   -v "$repo":/build -w /build \
   -v astroos-pacman-cache:/var/cache/pacman/pkg \
   "$BUILDER_IMAGE" bash /build/astroos/scripts/container-build.sh
@@ -60,7 +65,10 @@ if [[ -n "${iso:-}" ]]; then
     echo "builder_image=$BUILDER_IMAGE"
     echo "base_repo=$BASE_REPO"
     echo "base_commit=$BASE_COMMIT"
-    echo "astroos_commit=$(git -C "$repo" rev-parse HEAD 2>/dev/null || echo unknown)"
+    echo "astroos_commit=${ASTROOS_COMMIT:-$(git -C "$repo" rev-parse HEAD 2>/dev/null || echo unknown)}"
+    echo "with_aur_repo=${ASTROOS_WITH_AUR_REPO:-0}"
+    echo "with_blackarch=${ASTROOS_WITH_BLACKARCH:-0}"
+    echo "fast=${ASTROOS_FAST:-0}"
   } > "build-metadata.txt"
   # Size-budget gate (council R2, D2): fail the build if the ISO regresses
   # past the budget. Post-diet expectation is ~6.5 GiB; budget default 7.

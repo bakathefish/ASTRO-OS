@@ -1,0 +1,17 @@
+# cachyos-kde-settings and cachyos-alacritty-config own the skeleton configs
+# that carry the last CachyOS surfaces a user sees (Kickoff icon, default
+# wallpaper, Alacritty window title). Neither file is in a backup array, so
+# AstroOS cannot ship them; instead this hook re-applies a minimal, idempotent
+# sed after every install/upgrade of the owner (R4 survey rows 6, 7, 13).
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = cachyos-kde-settings
+Target = cachyos-alacritty-config
+Target = astroos-branding
+
+[Action]
+Description = AstroOS: rebrand the KDE and Alacritty skeleton configs
+When = PostTransaction
+Exec = /usr/share/astroos/bin/astroos-rebrand-skel

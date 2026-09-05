@@ -1,0 +1,3 @@
+# extra inputs (repo-relative) that bump this package's version when they change
+astroos/branding/out
+astroos/meta

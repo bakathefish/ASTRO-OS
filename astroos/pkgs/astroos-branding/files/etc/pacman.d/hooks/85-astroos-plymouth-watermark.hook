@@ -1,0 +1,14 @@
+# plymouth owns usr/share/plymouth/themes/spinner/watermark.png, so the AstroOS
+# watermark is staged at an AstroOS-owned path and copied over plymouth's after
+# every plymouth install/upgrade. Numbered 85 so it runs before
+# 90-mkinitcpio-install and the branded file lands in the initramfs.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Path
+Target = usr/share/plymouth/themes/spinner/watermark.png
+
+[Action]
+Description = AstroOS: re-brand plymouth spinner watermark
+When = PostTransaction
+Exec = /usr/bin/cp /usr/share/astroos/branding/watermark.png /usr/share/plymouth/themes/spinner/watermark.png

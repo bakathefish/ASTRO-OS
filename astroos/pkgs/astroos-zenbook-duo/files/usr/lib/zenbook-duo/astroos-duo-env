@@ -1,0 +1,17 @@
+#!/bin/sh
+# Writes /etc/zenbook-duo/env (ZENBOOK_DUO_USER/UID/GID/HOME) for the system
+# daemon, which upstream's installer bakes into the unit at install time. A
+# distro package cannot know the user, so pick the first regular account
+# (uid 1000..59999 with a login shell): the live session user on the ISO, the
+# account Calamares created on an installed system. Edit the file to choose
+# another user; delete it to re-detect at the next boot.
+set -e
+u=$(awk -F: '$3 >= 1000 && $3 < 60000 && $7 !~ /(nologin|false)$/ { print $1; exit }' /etc/passwd)
+if [ -z "$u" ]; then
+  echo "astroos-duo-env: no regular user account yet; the daemon stays off" >&2
+  exit 1
+fi
+mkdir -p /etc/zenbook-duo
+printf 'ZENBOOK_DUO_USER=%s\nZENBOOK_DUO_UID=%s\nZENBOOK_DUO_GID=%s\nZENBOOK_DUO_HOME=%s\n' \
+  "$u" "$(id -u "$u")" "$(id -g "$u")" "$(getent passwd "$u" | cut -d: -f6)" > /etc/zenbook-duo/env
+echo "astroos-duo-env: daemon user is $u"

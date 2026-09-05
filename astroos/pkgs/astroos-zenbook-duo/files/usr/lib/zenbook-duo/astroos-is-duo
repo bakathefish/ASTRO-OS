@@ -1,0 +1,11 @@
+#!/bin/sh
+# Exit 0 on an ASUS Zenbook Duo UX8406MA (2024) or UX8406CA (2025), 1 elsewhere.
+# ExecCondition= of every zenbook-duo unit, so the package is inert on other
+# machines. The kernel's asus-nb-wmi quirk table matches the same substrings.
+# Touch /etc/zenbook-duo/force to run on other hardware (testing).
+[ -e /etc/zenbook-duo/force ] && exit 0
+pn=$(cat /sys/class/dmi/id/product_name 2>/dev/null)
+case "$pn" in
+  *UX8406MA*|*UX8406CA*) exit 0 ;;
+esac
+exit 1

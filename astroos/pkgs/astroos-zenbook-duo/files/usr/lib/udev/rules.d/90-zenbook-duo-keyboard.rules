@@ -1,0 +1,5 @@
+# zakstam/zenbook-duo-linux setup-common.sh (verbatim): the session agent grabs
+# the detachable keyboard's evdev node for the USB media-key remap; uaccess
+# gives the logged-in user access. No hwdb KEYBOARD_KEY_7003* remap: it breaks
+# the keyboard's Fn layer.
+SUBSYSTEM=="input", ATTRS{name}=="*ASUS Zenbook Duo Keyboard", TAG+="uaccess", MODE="0660", GROUP="input"

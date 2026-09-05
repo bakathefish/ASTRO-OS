@@ -1,0 +1,22 @@
+# AstroOS system defaults for PowerDevil: OLED care timers (dim early, blank
+# early, blank quickly once locked). Users change them in System Settings.
+[AC][Display]
+DimDisplayWhenIdle=true
+DimDisplayIdleTimeoutSec=120
+TurnOffDisplayWhenIdle=true
+TurnOffDisplayIdleTimeoutSec=300
+TurnOffDisplayIdleTimeoutWhenLockedSec=30
+
+[Battery][Display]
+DimDisplayWhenIdle=true
+DimDisplayIdleTimeoutSec=60
+TurnOffDisplayWhenIdle=true
+TurnOffDisplayIdleTimeoutSec=180
+TurnOffDisplayIdleTimeoutWhenLockedSec=20
+
+[LowBattery][Display]
+DimDisplayWhenIdle=true
+DimDisplayIdleTimeoutSec=30
+TurnOffDisplayWhenIdle=true
+TurnOffDisplayIdleTimeoutSec=60
+TurnOffDisplayIdleTimeoutWhenLockedSec=10

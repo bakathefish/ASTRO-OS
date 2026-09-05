@@ -1,0 +1,7 @@
+/*
+ * AstroOS Calamares stylesheet.
+ * SPDX-License-Identifier: CC0-1.0
+ * Same two rules as the CachyOS component; everything else is Qt defaults.
+ */
+QWidget { font: 13px; }
+QDialogButtonBox { dialogbuttonbox-buttons-have-icons: 0; }

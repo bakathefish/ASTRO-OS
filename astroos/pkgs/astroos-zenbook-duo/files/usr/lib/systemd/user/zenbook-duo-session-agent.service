@@ -1,0 +1,21 @@
+# Upstream user unit from install-rust-runtime.sh plus the hardware condition.
+# Statically enabled for every user (default.target.wants); on other machines
+# the condition fails and the unit is skipped without an error.
+[Unit]
+Description=Zenbook Duo Session Agent
+ConditionUser=!gdm
+After=graphical-session.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecCondition=/usr/lib/zenbook-duo/astroos-is-duo
+ExecStartPre=/bin/sh -c 'test -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}${NIRI_SOCKET:-}"'
+ExecStart=/usr/lib/zenbook-duo/zenbook-duo-session-agent
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=5
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+
+[Install]
+WantedBy=default.target

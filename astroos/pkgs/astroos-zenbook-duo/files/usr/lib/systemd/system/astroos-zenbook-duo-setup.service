@@ -1,0 +1,14 @@
+[Unit]
+Description=AstroOS Zenbook Duo one-time setup (OLED PSR off, initramfs regeneration)
+ConditionPathExists=!/etc/modprobe.d/zenbook-duo-i915.conf
+After=local-fs.target
+
+[Service]
+# simple, not oneshot: the initramfs rebuild must not hold up the login screen
+Type=simple
+ExecCondition=/usr/lib/zenbook-duo/astroos-is-duo
+ExecStart=/usr/lib/zenbook-duo/astroos-duo-setup
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

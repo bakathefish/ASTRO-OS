@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Install AstroOS
+Comment=Install AstroOS to disk (Calamares)
+Exec=/usr/local/bin/calamares-online.sh
+Icon=astroos-logo
+Terminal=false
+Categories=System;
+Keywords=installer;calamares;install;
+StartupNotify=true

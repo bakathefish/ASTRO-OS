@@ -1,0 +1,19 @@
+#!/bin/sh
+# One-time Duo setup on an installed system (astroos-zenbook-duo-setup.service):
+# disable Panel Self Refresh, which flickers on the two OLED panels
+# (.planning/R4_ZENBOOK_DUO.md section 6). A modprobe.d option must be in the
+# initramfs (modconf hook), so the initramfs is regenerated once; it takes
+# effect at the next boot. Skipped on the live ISO (its initramfs is fixed).
+# Revert: rm /etc/modprobe.d/zenbook-duo-i915.conf && mkinitcpio -P
+set -e
+conf=/etc/modprobe.d/zenbook-duo-i915.conf
+[ -e "$conf" ] && exit 0
+if [ -d /run/archiso ]; then
+  echo "astroos-duo-setup: live session, leaving the initramfs alone"
+  exit 0
+fi
+install -Dm644 /usr/share/astroos/zenbook-duo/i915-psr.conf "$conf"
+echo "astroos-duo-setup: PSR disabled for the OLED panels; regenerating the initramfs"
+if command -v mkinitcpio >/dev/null 2>&1; then
+  mkinitcpio -P >/dev/null 2>&1 || echo "astroos-duo-setup: mkinitcpio failed; run mkinitcpio -P manually" >&2
+fi

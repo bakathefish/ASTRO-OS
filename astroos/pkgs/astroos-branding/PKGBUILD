@@ -1,0 +1,54 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Local lane package (see astroos-keyring/PKGBUILD for the version scheme).
+#
+# Why a package and not the live overlay: CachyOS Calamares is an ONLINE
+# installer (pacstrap + netinstall), so nothing in the live-ISO overlay ever
+# reaches an installed system (R4 branding survey, .planning/R4_BRANDING_SURVEY.md
+# section 0). Everything an installed AstroOS needs to look like AstroOS lives
+# here; the installer config (astroos-calamares) lists this package in
+# pacstrap basePackages. The live ISO gets it from the [astroos] repo too.
+#
+# Package-owned upstream files (os-release/lsb-release/issue/motd, the KDE and
+# Alacritty skeleton configs, plymouth's watermark) are never shipped twice:
+# alpm PostTransaction hooks re-assert them after every install/upgrade of the
+# owning package. Masks (same-name /dev/null symlinks in /etc/pacman.d/hooks)
+# silence the CachyOS identity hooks; that is the documented libalpm override.
+pkgname=astroos-branding
+pkgver=0
+pkgrel=1
+pkgdesc="AstroOS distro identity: os-release, lsb-release, issue, motd, pacman hooks, icons, wallpaper, terminal greeting"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(GPL-3.0-or-later CC-BY-SA-4.0)
+optdepends=('fastfetch: terminal greeting with the AstroOS logo'
+            'plymouth: branded boot splash (spinner theme + AstroOS watermark)')
+
+pkgver() { cat "$startdir/VERSION"; }
+
+package() {
+  local f="$startdir/files" a="$startdir/assets" s
+  # plain cp (not -a): ownership must be root:root in the package, and exec
+  # bits are normalised below because the git checkout may come from Windows
+  cp -r "$f/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+  chmod 755 "$pkgdir"/usr/share/astroos/bin/*
+
+  # generated assets (astroos/branding/assetgen.py, committed in branding/out)
+  for s in 512 256 128 64 48 32 16; do
+    install -Dm644 "$a/icons/${s}x${s}/astroos-logo.png" \
+      "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps/astroos-logo.png"
+  done
+  install -Dm644 "$a/astroos-logo.png"      "$pkgdir/usr/share/pixmaps/astroos-logo.png"
+  install -Dm644 "$a/astroos-wallpaper.png" "$pkgdir/usr/share/wallpapers/AstroOS/contents/images/3840x2160.png"
+  install -Dm644 "$a/wallpaper-preview.png" "$pkgdir/usr/share/wallpapers/AstroOS/contents/screenshot.png"
+  install -Dm644 "$a/astroos-logo.ansi"     "$pkgdir/etc/fastfetch/astroos-logo.ansi"
+  install -Dm644 "$a/watermark.png"         "$pkgdir/usr/share/astroos/branding/watermark.png"
+  install -Dm644 "$a/splash-1920.png"       "$pkgdir/usr/share/astroos/branding/limine-splash.png"
+
+  # masks for the cachyos-hooks identity/notification hooks (R4 survey rows 18-20)
+  local h
+  for h in cachyos-branding.hook lsb-release.hook os-release.hook cachyos-reboot-required.hook; do
+    ln -s /dev/null "$pkgdir/etc/pacman.d/hooks/$h"
+  done
+}

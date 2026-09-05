@@ -1,20 +1,33 @@
 #!/usr/bin/env bash
-# Build + publish the signed [astroos] pacman repo from AUR sources.
+# Build + publish the signed [astroos] pacman repo: AUR sources (meta/aur.list)
+# plus the AstroOS local packages (pkgs/<name>/PKGBUILD).
 # Council R3 (CONVERGED 2026-08-25, COUNCIL_LEDGER.md): every design point
-# below is ratified — change only via a new council round.
+# below is ratified — change only via a new council round. R4 (2026-09-05)
+# added the local lane and the review fixes (M4, M5, m7, m8, m9, B1).
 #
-#   scope      aur.list non-comment entries == v1 scope, machine-checked (D4)
+#   scope      aur.list non-comment entries == v1 AUR scope, machine-checked
+#              (D4); the repo db carries exactly aur.list ∪ pkgs/ names
 #   liveness   AUR RPC check for every name, hard-fail, every run (D7)
-#   migration  fail if any name reached the official repos (D6)
+#   migration  fail if any name reached the official repos (D6), asked of
+#              archlinux.org directly (no container, no vacuous pass)
 #   isolation  one FRESH container per package, local repo grows between
 #              packages -> contamination impossible by construction (D1)
 #   gate       python packages must pass an import smoke in a fresh container
 #              (D6: astroml/emcee gate, applied to all python-*)
-#   provenance aur-map.lock: AUR commit, pkgver, epoch, .SRCINFO sources +
-#              checksums per package; published signed beside the db (D5)
-#   publish    packages first, db+lock LAST (half-published-state risk #2)
+#   provenance aur-map.lock: AUR commit, pkgver AS BUILT, upstream VCS commit
+#              for -git packages, pre-patch .SRCINFO sources, applied patches;
+#              local packages: the commit that last touched their inputs (D5)
+#   publish    packages first, db+lock LAST; refused while any failure is on
+#              record (risk #2, review B1)
 #
-# Subcommands:  keygen | build | publish | all   (default: build)
+# Local lane (pkgs/<name>/): the AstroOS identity, tools, installer config and
+# laptop packages that must reach INSTALLED systems (the installer pacstraps
+# from repos; the live overlay never lands on disk: R4 branding survey §0).
+# Same container discipline; version = UTC date.time of the commit that last
+# touched the package's inputs (its directory + the paths in pkgs/<name>/inputs),
+# so an unchanged package keeps its version and is skipped.
+#
+# Subcommands:  keygen | preflight | build | local <name> | publish | all
 # Host needs: podman, curl, jq, python3, git. Publish needs azcopy + SAS file.
 set -euo pipefail
 
@@ -29,12 +42,17 @@ container="${ASTROOS_REPO_CONTAINER:-repo}"
 IMG="${ASTROOS_BUILDER_IMAGE:-docker.io/archlinux:base-devel}"
 # 36 at R3.1; 35 on 2026-09-05 (informant reached [extra], D6 migration rule);
 # 33 the same day: python-parfive's docs-only makedepends (sphinx-automodapi,
-# sphinx_contributors) left with the docs build (aur-patches/python-parfive).
-SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-33}"
+# sphinx_contributors) left with the docs build (aur-patches/python-parfive);
+# 32: python-pytest-runner left with opendrop's check() (aur-patches/opendrop).
+SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-32}"
 cmd="${1:-build}"
+arg="${2:-}"
 
 msg() { echo ">> $*"; }
 die() { echo "!! $*" >&2; exit 1; }
+
+# Local packages: every pkgs/<name>/PKGBUILD.
+local_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/PKGBUILD" ]] && basename "$d"; done; return 0; }
 
 # --- keygen: one-time signing key (procedure: astroos/KEYS.md) -------------
 do_keygen() {
@@ -62,7 +80,7 @@ scope_preflight() {
   local n=${#PKGS[@]}
   (( n == SCOPE_EXPECT )) || die "scope: ${n} entries in aur.list, expected ${SCOPE_EXPECT} (D4)"
   for p in "${PKGS[@]}"; do [[ "$p" == "burpsuite" ]] && die "scope: parked package in list (D4)"; done
-  msg "scope OK: $n packages"
+  msg "scope OK: $n AUR packages"
 
   # AUR liveness via RPC v5 — every name must resolve (D7, mandatory pre-publish)
   local args=(); for p in "${PKGS[@]}"; do args+=(--data-urlencode "arg[]=$p"); done
@@ -75,12 +93,22 @@ scope_preflight() {
   printf '%s\n' "$rpc" > /tmp/aur-rpc.json
 
   # Official-repo migration check (D6): a name that reached the repos must
-  # leave the AUR lane (maintenance surface minimization).
-  local migrated
-  migrated=$(podman run --rm -v astroos-pacman-cache:/var/cache/pacman/pkg "$IMG" bash -c \
-    "pacman -Sy >/dev/null 2>&1; for p in ${PKGS[*]}; do pacman -Si \"\$p\" >/dev/null 2>&1 && echo \"\$p\"; done" || true)
-  [[ -z "$migrated" ]] || die "migrated to official repos, move out of aur.list (D6): $migrated"
+  # leave the AUR lane (maintenance surface minimization). Asked of
+  # archlinux.org's package search (exact name match); an unreachable API is a
+  # failure, never a pass (review M4: the old container check passed
+  # vacuously whenever podman/docker.io failed).
+  local migrated=() hit
+  for p in "${PKGS[@]}"; do
+    hit=$(curl -sfG --retry 3 "https://archlinux.org/packages/search/json/" --data-urlencode "name=$p" \
+          | jq -r '.results[] | "\(.repo)/\(.pkgname)"' | sort -u | tr '\n' ' ') \
+      || die "migration check: archlinux.org unreachable for $p (D6 needs a verdict, not a guess)"
+    [[ -z "$hit" ]] || migrated+=("$p -> $hit")
+  done
+  (( ${#migrated[@]} == 0 )) || die "migrated to official repos, move out of aur.list (D6): ${migrated[*]}"
   msg "migration check OK: all $n are AUR-only"
+
+  mapfile -t LOCALS < <(local_names)
+  msg "local packages: ${#LOCALS[@]} (${LOCALS[*]:-none})"
 }
 
 # --- dependency order: topo sort over in-scope depends (RPC data) ----------
@@ -122,6 +150,9 @@ PY
 # a PKGBUILD may override PKGEXT — geant4 does), never the detached .sig files.
 pkg_files() { find "$out" -maxdepth 1 -name '*.pkg.tar*' ! -name '*.sig' | sort; }
 pkgname_of() { local n; n=$(basename "$1"); n=${n%%.pkg.tar*}; n=${n%-*}; n=${n%-*}; n=${n%-*}; echo "$n"; }
+# "pkgver-pkgrel" as built, from the filename (review M5: .SRCINFO is wrong
+# for VCS packages)
+pkgver_of() { local n; n=$(basename "$1"); n=${n%%.pkg.tar*}; n=${n%-*}; echo "${n#"$(pkgname_of "$1")-"}"; }
 
 # The repo file that belongs to pkgname $1 EXACTLY. A split sibling
 # (python-parfive-doc) or a -debug leftover shares the prefix but never the
@@ -162,43 +193,14 @@ smoke_check() {
   grep -qx "$p" "$locks/SMOKE_FAIL" 2>/dev/null || echo "$p" >> "$locks/SMOKE_FAIL"
 }
 
-# --- build: one fresh container per package (D1) ---------------------------
-do_build() {
-  scope_preflight
-  mkdir -p "$out" "$locks"
-  [[ -f "$keys/FINGERPRINT" ]] || die "no signing key — run: $0 keygen"
-  local order; order=$(topo_order "${PKGS[@]}")
-  msg "build order: $order"
-  rm -f "$locks/BUILD_FAIL"
-
-  # Purge anything in out/ whose pkgname is not in scope: -debug and split
-  # -doc siblings copied by earlier runs, or packages excluded since. The
-  # repo db is built from out/*.pkg.tar.zst, and the ISO build asserts db
-  # names == aur.list exactly (D4), so out/ must equal the scope.
-  local f n
-  while read -r f; do
-    n=$(pkgname_of "$f")
-    printf '%s\n' "${PKGS[@]}" | grep -qx "$n" && continue
-    msg "purging out-of-scope artifact: $(basename "$f")"
-    rm -f "$f" "$f.sig" "$locks/$n.json"
-  done < <(pkg_files)
-  for f in "$locks"/*.json; do
-    [[ -e "$f" ]] || continue
-    n=$(basename "$f" .json)
-    printf '%s\n' "${PKGS[@]}" | grep -qx "$n" || { msg "purging out-of-scope lock: $n"; rm -f "$f"; }
-  done
-
-  for p in $order; do
-    # resumability: a finished package (its OWN artifact + lock entry) is not
-    # rebuilt; its import smoke still reruns (seconds) so a resumed run
-    # carries a complete D6 verdict.
-    if [[ -s "$locks/$p.json" ]] && own_pkg_file "$p" >/dev/null; then
-      msg "=== $p already built, skipping ==="
-      smoke_check "$p"
-      continue
-    fi
-    built=0
-    for attempt in 1 2; do
+# --- AUR package: one fresh container (D1) ----------------------------------
+build_aur() {
+  local p="$1" base built=0 attempt
+  # clone the PackageBase, not the pkgname (review m8: identical for all 32
+  # today; a split-package entry would clone an empty repo)
+  base=$(jq -r --arg n "$p" '.results[] | select(.Name==$n) | .PackageBase' /tmp/aur-rpc.json)
+  [[ -n "$base" && "$base" != "null" ]] || base="$p"
+  for attempt in 1 2; do
     msg "=== building $p (fresh container, attempt $attempt) ==="
     # podman does not auto-create bind-mount sources (docker does); leftovers
     # hold subuid-owned files (rootless builder user), so remove them inside
@@ -209,6 +211,7 @@ do_build() {
     if podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo -v /tmp/aur-build-$p:/work -v "$here/aur-patches":/patches:ro "$IMG" bash -c '
       set -euo pipefail
       p='"$p"'
+      base='"$base"'
       # local repo of already-built packages (SigLevel Never: build-time only,
       # the published repo is signature-verified by clients)
       pkgs=$(find /repo -maxdepth 1 -name "*.pkg.tar*" ! -name "*.sig" | sort)
@@ -216,19 +219,22 @@ do_build() {
         # regenerate EVERY container, from scratch: a db inherited from
         # container N-1 lacks N-1 own output (run 4: psfex could not resolve
         # sextractor), and a db that is only ever appended to keeps entries
-        # for packages purged since.
+        # for packages purged since. A broken db is a hard failure (review m9).
         rm -f /repo/astroos-local.*
-        repo-add -q /repo/astroos-local.db.tar.gz $pkgs >/dev/null 2>&1 || true
+        repo-add -q /repo/astroos-local.db.tar.gz $pkgs >/dev/null 2>&1
         printf "[astroos-local]\nSigLevel = Never\nServer = file:///repo\n" >> /etc/pacman.conf
       fi
       pacman -Syu --noconfirm --needed git base-devel >/dev/null
       useradd -m builder
       echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
       cd /work
-      git clone --quiet "https://aur.archlinux.org/$p.git" pkg
+      git clone --quiet "https://aur.archlinux.org/$base.git" pkg
       # capture the commit BEFORE chown: root git on a builder-owned repo
       # trips safe.directory ("dubious ownership")
       git -C pkg rev-parse HEAD > /work/COMMIT
+      # provenance material for aur-map.lock (D5): raw .SRCINFO source+sums,
+      # as published by the AUR, i.e. BEFORE any aur-patches edit
+      awk -F" = " "/^\t(source|sha256sums|sha512sums|b2sums)/ {print \$0}" pkg/.SRCINFO > /work/SRCINFO_SOURCES || true
       # aur-patches mechanism (council R3 D6): tracked scripts adjust a stale
       # PKGBUILD in place; applied patches are recorded in aur-map.lock
       touch /work/PATCHES
@@ -262,10 +268,14 @@ do_build() {
       done
       [[ -n "$own" ]] || { echo "!! no package file named $p among: $(ls ./*.pkg.tar* 2>/dev/null)" >&2; exit 1; }
       cp "$own" /repo/
-      # provenance material for aur-map.lock (D5): raw .SRCINFO source+sums
-      awk -F" = " "/^\t(source|sha256sums|sha512sums|b2sums)/ {print \$0}" .SRCINFO > /work/SRCINFO_SOURCES || true
-      srcinfo_ver=$(awk -F" = " "/^\tpkgver/{v=\$2} /^\tpkgrel/{r=\$2} END{print v\"-\"r}" .SRCINFO)
-      echo "$srcinfo_ver" > /work/PKGVER
+      # pkgver-pkgrel AS BUILT (review M5): exact for VCS packages
+      n=$(basename "$own"); n=${n%%.pkg.tar*}; n=${n%-*}; echo "${n#"$p-"}" > /work/PKGVER
+      # upstream VCS checkouts makepkg made (git+ sources): record their commits
+      : > /work/VCS_COMMITS
+      for d in src/*/; do
+        [[ -d "$d/.git" ]] || continue
+        echo "$(basename "$d") $(git -c safe.directory="*" -C "$d" rev-parse HEAD)" >> /work/VCS_COMMITS
+      done
     ' 2>&1 | tee "$locks/$p.build.log"; then
       built=1; break
     fi
@@ -276,31 +286,161 @@ do_build() {
       sleep 30; continue
     fi
     break
-    done
-    if (( ! built )); then
-      # Hermetic container: the failure is attributable to $p alone (its
-      # transcript: locks/$p.build.log). Record it and keep going so one
-      # stale package cannot stall the rest of the scope; the run still ends
-      # non-zero and nothing is signed (below).
-      echo "!! build failed: $p (recorded; continuing with the rest of the scope)" >&2
-      echo "$p" >> "$locks/BUILD_FAIL"
-      podman unshare rm -rf "/tmp/aur-build-$p"
+  done
+  if (( ! built )); then
+    # Hermetic container: the failure is attributable to $p alone (its
+    # transcript: locks/$p.build.log). Record it and keep going so one
+    # stale package cannot stall the rest of the scope; the run still ends
+    # non-zero and nothing is signed (below).
+    echo "!! build failed: $p (recorded; continuing with the rest of the scope)" >&2
+    echo "$p" >> "$locks/BUILD_FAIL"
+    podman unshare rm -rf "/tmp/aur-build-$p"
+    return 0
+  fi
+  jq -n --arg name "$p" \
+        --arg base "$base" \
+        --arg commit "$(cat /tmp/aur-build-$p/COMMIT)" \
+        --arg pkgver "$(cat /tmp/aur-build-$p/PKGVER)" \
+        --arg epoch "$(date +%s)" \
+        --rawfile src /tmp/aur-build-$p/SRCINFO_SOURCES \
+        --rawfile pat /tmp/aur-build-$p/PATCHES \
+        --rawfile vcs /tmp/aur-build-$p/VCS_COMMITS \
+        '{name:$name, source:"aur", aur_package_base:$base, aur_commit:$commit, pkgver:$pkgver, build_epoch:($epoch|tonumber),
+          vcs_commits:($vcs|split("\n")|map(select(length>0))),
+          srcinfo_sources_prepatch:($src|split("\n")|map(select(length>0))),
+          patches:($pat|split("\n")|map(select(length>0)))}' > "$locks/$p.json"
+  podman unshare rm -rf /tmp/aur-build-$p
+  smoke_check "$p"
+}
+
+# --- local package: version + identity from git, one fresh container -------
+local_inputs() {
+  local d="$here/pkgs/$1" l
+  echo "$d"
+  [[ -f "$d/inputs" ]] || return 0
+  while read -r l; do
+    l="${l%%#*}"; l="${l%"${l##*[![:space:]]}"}"
+    [[ -n "$l" ]] && echo "$repo/$l"
+  done < "$d/inputs"
+}
+# identity of the inputs: the last commit touching them, or "dirty-<epoch>"
+local_inputs_id() {
+  local -a in; mapfile -t in < <(local_inputs "$1")
+  if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+     && [[ -z "$(git -C "$repo" status --porcelain -- "${in[@]}")" ]]; then
+    git -C "$repo" log -1 --format=%H -- "${in[@]}"
+  else
+    echo "dirty-$(date +%s)"
+  fi
+}
+local_version() {
+  local -a in; mapfile -t in < <(local_inputs "$1")
+  local ts=""
+  if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+     && [[ -z "$(git -C "$repo" status --porcelain -- "${in[@]}")" ]]; then
+    ts=$(git -C "$repo" log -1 --format=%ct -- "${in[@]}")
+  fi
+  [[ -n "$ts" ]] || ts=$(date +%s)
+  date -u -d "@$ts" +%Y%m%d.%H%M
+}
+
+build_local() {
+  local p="$1" id ver old
+  id=$(local_inputs_id "$p"); ver=$(local_version "$p")
+  if [[ -s "$locks/$p.json" ]] && own_pkg_file "$p" >/dev/null \
+     && [[ "$(jq -r .inputs_id "$locks/$p.json")" == "$id" ]]; then
+    msg "=== $p already built from $id, skipping ==="
+    return 0
+  fi
+  # one artifact per name in the db: a rebuild replaces the previous file
+  old=$(own_pkg_file "$p" || true)
+  [[ -n "$old" ]] && rm -f "$old" "$old.sig"
+  msg "=== building local package $p (VERSION $ver, inputs $id; fresh container) ==="
+  podman unshare rm -rf "/tmp/aur-build-$p"; mkdir -p "/tmp/aur-build-$p/pkg"
+  cp -r "$here/pkgs/$p/." "/tmp/aur-build-$p/pkg/"
+  cp -r "$here/branding/out" "/tmp/aur-build-$p/pkg/assets"
+  cp -r "$here/meta" "/tmp/aur-build-$p/pkg/meta"
+  echo "$ver" > "/tmp/aur-build-$p/pkg/VERSION"
+  if podman run --rm --pids-limit=-1 -v astroos-pacman-cache:/var/cache/pacman/pkg -v "$out":/repo -v /tmp/aur-build-$p:/work "$IMG" bash -c '
+      set -euo pipefail
+      p='"$p"'
+      pkgs=$(find /repo -maxdepth 1 -name "*.pkg.tar*" ! -name "*.sig" | sort)
+      if [ -n "$pkgs" ]; then
+        rm -f /repo/astroos-local.*
+        repo-add -q /repo/astroos-local.db.tar.gz $pkgs >/dev/null 2>&1
+        printf "[astroos-local]\nSigLevel = Never\nServer = file:///repo\n" >> /etc/pacman.conf
+      fi
+      pacman -Syu --noconfirm --needed git base-devel >/dev/null
+      useradd -m builder
+      echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
+      chown -R builder:builder /work/pkg
+      cd /work/pkg
+      export MAKEFLAGS="-j$(nproc)"
+      echo "OPTIONS+=(!debug)" >> /etc/makepkg.conf
+      su builder -c "makepkg --noconfirm -s"
+      own=""
+      for f in ./*.pkg.tar*; do
+        [[ -e "$f" && "$f" != *.sig ]] || continue
+        n=$(basename "$f"); n=${n%%.pkg.tar*}; n=${n%-*}; n=${n%-*}; n=${n%-*}
+        [[ "$n" == "$p" ]] && own="$f"
+      done
+      [[ -n "$own" ]] || { echo "!! no package file named $p among: $(ls ./*.pkg.tar* 2>/dev/null)" >&2; exit 1; }
+      cp "$own" /repo/
+      n=$(basename "$own"); n=${n%%.pkg.tar*}; n=${n%-*}; echo "${n#"$p-"}" > /work/PKGVER
+    ' 2>&1 | tee "$locks/$p.build.log"; then
+    jq -n --arg name "$p" --arg id "$id" --arg pkgver "$(cat /tmp/aur-build-$p/PKGVER)" --arg epoch "$(date +%s)" \
+      '{name:$name, source:"local", inputs_id:$id, pkgver:$pkgver, build_epoch:($epoch|tonumber)}' > "$locks/$p.json"
+  else
+    echo "!! build failed: $p (recorded; continuing)" >&2
+    echo "$p" >> "$locks/BUILD_FAIL"
+  fi
+  podman unshare rm -rf "/tmp/aur-build-$p"
+}
+
+# --- build: every package, then sign -----------------------------------------
+do_build() {
+  scope_preflight
+  mkdir -p "$out" "$locks"
+  [[ -f "$keys/FINGERPRINT" ]] || die "no signing key — run: $0 keygen"
+  local order; order=$(topo_order "${PKGS[@]}")
+  msg "build order: $order ${LOCALS[*]:-}"
+  rm -f "$locks/BUILD_FAIL"
+  local -a ALL=("${PKGS[@]}" "${LOCALS[@]}")
+
+  # Purge anything in out/ whose pkgname is not in scope: -debug and split
+  # -doc siblings copied by earlier runs, or packages excluded since. The
+  # repo db is built from out/*.pkg.tar*, and the ISO build asserts db
+  # names == scope exactly (D4), so out/ must equal the scope.
+  local f n
+  while read -r f; do
+    n=$(pkgname_of "$f")
+    printf '%s\n' "${ALL[@]}" | grep -qx "$n" && continue
+    msg "purging out-of-scope artifact: $(basename "$f")"
+    rm -f "$f" "$f.sig" "$locks/$n.json"
+  done < <(pkg_files)
+  for f in "$locks"/*.json; do
+    [[ -e "$f" ]] || continue
+    n=$(basename "$f" .json)
+    printf '%s\n' "${ALL[@]}" | grep -qx "$n" || { msg "purging out-of-scope lock: $n"; rm -f "$f"; }
+  done
+
+  local p
+  for p in $order; do
+    # resumability: a finished package (its OWN artifact + lock entry) is not
+    # rebuilt; its import smoke still reruns (seconds) so a resumed run
+    # carries a complete D6 verdict.
+    if [[ -s "$locks/$p.json" ]] && own_pkg_file "$p" >/dev/null; then
+      msg "=== $p already built, skipping ==="
+      smoke_check "$p"
       continue
     fi
-    jq -n --arg name "$p" \
-          --arg commit "$(cat /tmp/aur-build-$p/COMMIT)" \
-          --arg pkgver "$(cat /tmp/aur-build-$p/PKGVER)" \
-          --arg epoch "$(date +%s)" \
-          --rawfile src /tmp/aur-build-$p/SRCINFO_SOURCES \
-          --rawfile pat /tmp/aur-build-$p/PATCHES \
-          '{name:$name, aur_commit:$commit, pkgver:$pkgver, build_epoch:($epoch|tonumber), sources:($src|split("\n")|map(select(length>0))), patches:($pat|split("\n")|map(select(length>0)))}' > "$locks/$p.json"
-    podman unshare rm -rf /tmp/aur-build-$p
-    smoke_check "$p"
+    build_aur "$p"
   done
+  for p in "${LOCALS[@]}"; do build_local "$p"; done
 
   # D6 verdict: every failure recorded above blocks signing. Resolution per
   # R3 D6 is exclusion, not a silent ship: drop the name from meta/aur.list
-  # (documented pip/uv fallback), delete its .pkg.tar.zst + lock, lower
+  # (documented pip/uv fallback), delete its package + lock, lower
   # ASTROOS_AUR_SCOPE, rerun — banked packages are skipped, so that is fast.
   if [[ -s "$locks/BUILD_FAIL" ]]; then
     die "build FAILED for: $(tr '\n' ' ' < "$locks/BUILD_FAIL"); patch via aur-patches/<pkg>/ (R3 D6) or exclude, then rerun (banked packages are skipped)"
@@ -332,21 +472,40 @@ do_build() {
   sha256sum "$out/aur-map.lock" | awk '{print $1}' > "$out/aur-map.lock.sha256"
   podman run --rm -v "$out":/repo -v "$keys":/keys "$IMG" bash -c \
     'export GNUPGHOME=/keys; gpg --batch --yes --pinentry-mode loopback --passphrase "" --detach-sign -u "$(cat /keys/FINGERPRINT)" /repo/aur-map.lock'
-  msg "build complete: $(pkg_files | wc -l) packages in $out"
+  msg "build complete: $(pkg_files | wc -l) packages in $out ($(echo "$order" | wc -w) AUR + ${#LOCALS[@]} local)"
+}
+
+# --- local <name>: build one local package on its own (iteration/test) -------
+do_local_one() {
+  [[ -n "$arg" && -f "$here/pkgs/$arg/PKGBUILD" ]] || die "usage: $0 local <name>  (one of: $(local_names | tr '\n' ' '))"
+  mkdir -p "$out" "$locks"
+  rm -f "$locks/BUILD_FAIL"
+  build_local "$arg"
+  [[ -s "$locks/BUILD_FAIL" ]] && die "local build FAILED: $arg (see $locks/$arg.build.log)"
+  msg "built: $(own_pkg_file "$arg")"
 }
 
 # --- publish: packages first, db + lock LAST (risk #2) ---------------------
 do_publish() {
   [[ -s "$sas_file" ]] || die "no SAS token at $sas_file (generate on the laptop, scp here)"
   command -v azcopy >/dev/null || die "azcopy not installed"
+  # never ship a repo whose build stage is on record as failed (review B1)
+  [[ -s "$locks/BUILD_FAIL" ]] && die "publish refused: build failures on record: $(tr '\n' ' ' < "$locks/BUILD_FAIL")"
+  [[ -s "$locks/SMOKE_FAIL" ]] && die "publish refused: import-smoke failures on record: $(tr '\n' ' ' < "$locks/SMOKE_FAIL")"
+  [[ -s "$out/astroos.db.tar.zst" && -s "$out/astroos.db.tar.zst.sig" && -s "$out/aur-map.lock.sig" ]] \
+    || die "publish refused: no signed db in $out (run build first)"
   local sas; sas=$(tr -d '\r\n' < "$sas_file")
   local base="https://${account}.blob.core.windows.net/${container}/astroos/x86_64"
   msg "publish stage 1: packages + signatures"
   azcopy copy "$out/*.pkg.tar*" "${base}?${sas}" >/dev/null   # packages + their .sig, any PKGEXT
-  msg "publish stage 2: db + lock (goes live atomically last)"
-  for f in astroos.files astroos.files.sig astroos.files.tar.zst astroos.files.tar.zst.sig \
-           aur-map.lock aur-map.lock.sha256 aur-map.lock.sig \
-           astroos.db.tar.zst astroos.db.tar.zst.sig astroos.db astroos.db.sig; do
+  # Stage 2: each signature BEFORE its file, so a client syncing mid-upload
+  # sees old-db + new-sig (invalid, retried on the next -Sy) rather than
+  # new-db + old-sig; blob storage has no multi-object atomicity, the window
+  # is seconds long and recorded in the ledger (review m7).
+  msg "publish stage 2: db + lock (signatures first)"
+  for f in astroos.files.tar.zst.sig astroos.files.tar.zst astroos.files.sig astroos.files \
+           aur-map.lock.sig aur-map.lock.sha256 aur-map.lock \
+           astroos.db.tar.zst.sig astroos.db.tar.zst astroos.db.sig astroos.db; do
     azcopy copy "$out/$f" "${base}/$f?${sas}" >/dev/null
   done
   # promotion manifest -> synced into git at the next laptop session (D5)
@@ -364,7 +523,8 @@ case "$cmd" in
   keygen)    do_keygen ;;
   preflight) scope_preflight ;;   # scope + AUR liveness + migration only (CI, R3 D7 standing check)
   build)     do_build ;;
+  local)     do_local_one ;;
   publish)   do_publish ;;
   all)       do_build; do_publish ;;
-  *) die "usage: $0 [keygen|preflight|build|publish|all]" ;;
+  *) die "usage: $0 [keygen|preflight|build|local <name>|publish|all]" ;;
 esac
