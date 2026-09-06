@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the AstroOS ISO: pinned CachyOS-Live-ISO base + AstroOS delta,
 # inside a container (host needs only docker/podman, not Arch).
-# Owner directive 7a / ledger R1.2: lift, don't rebuild — we configure and
+# Owner directive 7a / ledger R1.2: lift, don't rebuild. We configure and
 # skin CachyOS; custom surface = package additions, airootfs overlay, identity.
 set -euo pipefail
 
@@ -87,6 +87,6 @@ if [[ -n "${iso:-}" ]]; then
   fi
   echo ">> Done: $outdir/$iso ($((iso_bytes / 1024 / 1024)) MiB, budget ${budget_mib} MiB)"
 else
-  echo "!! No ISO produced — check build output above." >&2
+  echo "!! No ISO produced. Check build output above." >&2
   exit 1
 fi

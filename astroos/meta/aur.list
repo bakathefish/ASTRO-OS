@@ -1,8 +1,8 @@
-# AUR / non-core-repo packages — the v1 scope of the signed [astroos] repo
+# AUR / non-core-repo packages: the v1 scope of the signed [astroos] repo
 # (council R3/R3.1). The non-comment count IS the scope; the repo build
 # preflight machine-checks count == ASTROOS_AUR_SCOPE and repo db == this set.
 
-# Continuity — native iPhone/Mac AirDrop receive
+# Continuity: native iPhone/Mac AirDrop receive
 opendrop
 owlink-git
 
@@ -61,7 +61,7 @@ mkinitcpio-openswap  # hard depends of astroos-calamares-installer (the initcpio
                   # ISO only as a transitive dependency of cachyos-calamares-next, served by
                   # [cachyos]. 0.1.1-1, arch any, depends mkinitcpio only, no makedepends.
 
-# Transitive AUR dependencies of the packages above (council R3.1 P2 —
+# Transitive AUR dependencies of the packages above (council R3.1 P2,
 # explicit allowlist, measured closure 2026-08-25; consumer in parens)
 cdsclient                # astromatic-scamp
 clhep                    # geant4
@@ -81,10 +81,10 @@ python-rustworkx         # python-qiskit
 python-zxing-cpp         # normcap
 
 # PARKED (not in v1 scope):
-# burpsuite — BlackArch repo arrives in Phase 2, not day-1 ISO.
-# dvc — cut in R3.1 P1: generic data tool, pip-installable, ~17-pkg AUR tail.
-# snakemake — cut in R3.1 P1: generic workflow tool, ~16-pkg AUR tail.
-# celestia (+gtk2, gtkglext) — parked in R3.1 P3 (Codex counter accepted):
+# burpsuite: BlackArch repo arrives in Phase 2, not day-1 ISO.
+# dvc, cut in R3.1 P1: generic data tool, pip-installable, ~17-pkg AUR tail.
+# snakemake, cut in R3.1 P1: generic workflow tool, ~16-pkg AUR tail.
+# celestia (+gtk2, gtkglext), parked in R3.1 P3 (Codex counter accepted):
 #   EOL GTK2 runtime is a supportability liability, not just a build risk;
 #   Stellarium (official repos, on the ISO) covers planetarium duty.
 #   Re-introduce only with a maintained dependency path.

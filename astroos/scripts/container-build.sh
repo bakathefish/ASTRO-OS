@@ -101,11 +101,11 @@ grep -vE '^\s*(#|$)' "$prof/packages_desktop.x86_64" | sort -u > /tmp/astro.base
 net_adds=$(comm -23 /tmp/astro.add /tmp/astro.base | wc -l)
 echo ">> package list: $(grep -cvE '^\s*(#|$)' "$prof/packages_desktop.x86_64") total ($net_adds AstroOS additions)"
 # Council R2 (B2): a suspiciously small additions count means the generated
-# list is broken (e.g. gen-packages emitting garbage) — a base-only ISO would
+# list is broken (e.g. gen-packages emitting garbage); a base-only ISO would
 # still pass the boot gate, so fail here instead of shipping a no-op AstroOS.
 min_adds="${ASTROOS_MIN_ADDITIONS:-80}"
 if (( net_adds < min_adds )); then
-  echo "!! Only $net_adds net additions (< $min_adds floor) — additions list looks broken. Aborting." >&2
+  echo "!! Only $net_adds net additions (< $min_adds floor). Additions list looks broken. Aborting." >&2
   exit 1
 fi
 # Every CachyOS name the base list carries, and what AstroOS installs instead.
@@ -258,7 +258,7 @@ if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
   pacman-key --populate astroos
   repo_url='https://astroosrepo.blob.core.windows.net/repo/astroos/$arch'
   # D4 client-side machine check: repo db name set == aur.list ∪ pkgs/, BEFORE
-  # pacstrap. A missing/extra name means repo and tree diverged — hard fail.
+  # pacstrap. A missing/extra name means repo and tree diverged: hard fail.
   mapfile -t aur_scope < <(tr -d '\r' < /build/astroos/meta/aur.list | grep -vE '^\s*(#|$)' | awk '{print $1}')
   # A PKGBUILD that produces more than one pkgname lists the extra names in
   # pkgs/<name>/splits: one linux-astroos build yields the base package,
@@ -342,7 +342,7 @@ if [[ "${ASTROOS_WITH_BLACKARCH:-0}" == "1" ]]; then
 fi
 
 # Overlay integrity preflight (council R2, D4). The mask units live in git as
-# symlink blobs that a Windows worktree cannot materialize — a checkout that
+# symlink blobs that a Windows worktree cannot materialize; a checkout that
 # silently loses them still builds and boots, so assert them here.
 preflight_fail=0
 for u in systemd-networkd-wait-online.service systemd-time-wait-sync.service; do
@@ -433,8 +433,8 @@ fi
 echo ">> profile clean: the only cachy strings left are the GRUB ids, the overlay-owned live scripts and usr/share sed patterns"
 
 # --- Their build (four one-line patches) ---------------------------------
-# Their buildiso.sh traps EXIT itself with an error message, so EVERY run —
-# success included — ends with "==> ERROR: An unknown error has occurred."
+# Their buildiso.sh traps EXIT itself with an error message, so EVERY run,
+# success included, ends with "==> ERROR: An unknown error has occurred."
 # (ledger R2-C3). Delete only the EXIT trap; ERR/INT/TERM traps stay intact.
 sed -i "/trap 'trap_exit EXIT/d" "$base/buildiso.sh"
 # USER: their util-iso.sh ends with `sudo chown $USER $outFolder`; in the

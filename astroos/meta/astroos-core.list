@@ -1,4 +1,4 @@
-# astroos-core — the everyday base (installed by default)
+# astroos-core: the everyday base (installed by default)
 # One package per line. '#' comments and blank lines ignored by gen-packages.sh.
 # Some entries duplicate the pinned base list ON PURPOSE (council R2, B1): that
 # base is CachyOS-Live-ISO's packages_desktop.x86_64 (astroos/base.lock), a git

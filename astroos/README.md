@@ -1,4 +1,4 @@
-# AstroOS — build definition
+# AstroOS: build definition
 
 AstroOS is CachyOS plus a declared delta. The ISO is the *output* of this
 directory, never a hand-tuned system. `../ASTROOS-SPEC.md` is the manifest;
@@ -10,7 +10,7 @@ directory, never a hand-tuned system. `../ASTROOS-SPEC.md` is the manifest;
 astroos/
 ├── base.lock                  CachyOS-Live-ISO repo + commit the ISO is built from (R1.2: lift, don't rebuild)
 ├── blackarch-keyring.lock     BlackArch keyring version + sha256 pin (delta 2d)
-├── astroos-additions.x86_64   GENERATED from meta/ by scripts/gen-packages.sh — never hand-edited
+├── astroos-additions.x86_64   GENERATED from meta/ by scripts/gen-packages.sh, never hand-edited
 ├── meta/                      SOURCE OF TRUTH: one list per bucket
 │   ├── astroos-core.list        everyday base, convenience layer, reliability daemons
 │   ├── astroos-astro.list       sky, FITS tools, astrophoto (hardware-free)

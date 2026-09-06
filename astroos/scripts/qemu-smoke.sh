@@ -26,7 +26,7 @@ if [[ -r /dev/kvm && -w /dev/kvm ]]; then
   accel=(-enable-kvm -cpu host)
 else
   # linux-cachyos needs x86-64-v3: TCG must emulate a v3-capable CPU (-cpu max).
-  echo ">> /dev/kvm unavailable — TCG fallback (slow, extended timeout)."
+  echo ">> /dev/kvm unavailable: TCG fallback (slow, extended timeout)."
   accel=(-cpu max)
   timeout=2400
 fi
@@ -91,6 +91,6 @@ check 'ASTROOS-SMOKE-DOCTOR-PASS'   'astroos-doctor --quick'
 if [[ $fail -eq 0 ]]; then
   echo ">> SMOKE TEST PASS"
 else
-  echo ">> SMOKE TEST FAIL — inspect $log"
+  echo ">> SMOKE TEST FAIL: inspect $log"
   exit 1
 fi

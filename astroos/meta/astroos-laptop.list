@@ -1,4 +1,4 @@
-# astroos-laptop — ASUS Zenbook Duo (UX8406MA 2024 / UX8406CA 2025) support
+# astroos-laptop: ASUS Zenbook Duo (UX8406MA 2024 / UX8406CA 2025) support
 # (council R4, research: .planning/R4_ZENBOOK_DUO.md). Everything functional is
 # upstream: the linux-astroos kernels, which AstroOS builds from the CachyOS
 # patch set, already carry every Duo fix, KWin + PowerDevil drive both 120 Hz

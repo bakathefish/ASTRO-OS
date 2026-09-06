@@ -1,4 +1,4 @@
-# astroos-continuity — AirDrop-style sharing, phone mirroring, machine-to-machine
+# astroos-continuity: AirDrop-style sharing, phone mirroring, machine-to-machine
 
 # AirDrop-equivalents (default)
 localsend
@@ -16,5 +16,5 @@ scrcpy
 # QR utility
 qrencode
 
-# Native iPhone/Mac AirDrop receive (OpenDrop + OWL) — AUR, see aur.list
+# Native iPhone/Mac AirDrop receive (OpenDrop + OWL): AUR, see aur.list
 # opendrop, owl (owlink) installed via AUR bootstrap

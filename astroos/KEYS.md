@@ -1,4 +1,4 @@
-# AstroOS repository signing key — procedure (council R3, risk #3)
+# AstroOS repository signing key: procedure (council R3, risk #3)
 
 The `[astroos]` pacman repo is signed end-to-end: every package carries a
 detached signature and the repo db is signed (`repo-add --sign`). Clients get

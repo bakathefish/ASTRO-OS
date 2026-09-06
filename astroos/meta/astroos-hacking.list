@@ -1,4 +1,4 @@
-# astroos-hacking — curated security essentials from the ARCH repos ([extra]).
+# astroos-hacking: curated security essentials from the ARCH repos ([extra]).
 # NOT the full ~2800 BlackArch tools. BlackArch-only additions live in
 # meta/blackarch.list (gated on the repo); the heavy set (burpsuite,
 # metasploit, zaproxy, seclists) is one command away: astroos-hacking-heavy.

@@ -1,14 +1,14 @@
-# astroos-astro — hardware-free astro identity (CORE, ships by default)
+# astroos-astro: hardware-free astro identity (CORE, ships by default)
 
 # Sky + planetarium
 stellarium
 kstars
 
 # Data / analysis + FITS
-# aladin           # AUR — pulled by AUR bootstrap, not pacman
+# aladin           # AUR, pulled by AUR bootstrap, not pacman
 
 # Pro pipeline (AstrOmatic)
-# source-extractor scamp swarp psfex — AUR/astro repo, see aur.list
+# source-extractor scamp swarp psfex: AUR/astro repo, see aur.list
 
 # Astrophoto processing
 gimp

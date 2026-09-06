@@ -2,7 +2,7 @@
 # Build + publish the signed [astroos] pacman repo: AUR sources (meta/aur.list)
 # plus the AstroOS local packages (pkgs/<name>/PKGBUILD).
 # Council R3 (CONVERGED 2026-08-25, COUNCIL_LEDGER.md): every design point
-# below is ratified — change only via a new council round. R4 (2026-09-05)
+# below is ratified; change only via a new council round. R4 (2026-09-05)
 # added the local lane and the review fixes (M4, M5, m7, m8, m9, B1).
 #
 #   scope      aur.list non-comment entries == v1 AUR scope, machine-checked
@@ -80,7 +80,7 @@ local_all_names() {
 
 # --- keygen: one-time signing key (procedure: astroos/KEYS.md) -------------
 do_keygen() {
-  [[ -d "$keys" ]] && die "$keys already exists — rotation is manual, see KEYS.md"
+  [[ -d "$keys" ]] && die "$keys already exists; rotation is manual, see KEYS.md"
   mkdir -p "$keys"; chmod 700 "$keys"
   podman run --rm -v "$keys":/keys "$IMG" bash -c '
     set -e
@@ -106,7 +106,7 @@ scope_preflight() {
   for p in "${PKGS[@]}"; do [[ "$p" == "burpsuite" ]] && die "scope: parked package in list (D4)"; done
   msg "scope OK: $n AUR packages"
 
-  # AUR liveness via RPC v5 — every name must resolve (D7, mandatory pre-publish)
+  # AUR liveness via RPC v5: every name must resolve (D7, mandatory pre-publish)
   local args=(); for p in "${PKGS[@]}"; do args+=(--data-urlencode "arg[]=$p"); done
   local rpc; rpc=$(curl -sG --retry 3 "https://aur.archlinux.org/rpc/v5/info" "${args[@]}")
   local found missing=()
@@ -185,7 +185,7 @@ PY
 # three trailing dash-fields (pkgver never contains "-", epochs and -git
 # pkgvers included), so stripping three suffixes yields the exact pkgname.
 # Package files in out/: ANY package extension (.pkg.tar.zst by default, but
-# a PKGBUILD may override PKGEXT — geant4 does), never the detached .sig files.
+# a PKGBUILD may override PKGEXT, geant4 does), never the detached .sig files.
 pkg_files() { find "$out" -maxdepth 1 -name '*.pkg.tar*' ! -name '*.sig' | sort; }
 pkgname_of() { local n; n=$(basename "$1"); n=${n%%.pkg.tar*}; n=${n%-*}; n=${n%-*}; n=${n%-*}; echo "$n"; }
 # "pkgver-pkgrel" as built, from the filename (review M5: .SRCINFO is wrong
@@ -194,7 +194,7 @@ pkgver_of() { local n; n=$(basename "$1"); n=${n%%.pkg.tar*}; n=${n%-*}; echo "$
 
 # The repo file that belongs to pkgname $1 EXACTLY. A split sibling
 # (python-parfive-doc) or a -debug leftover shares the prefix but never the
-# pkgname, and a -git pkgver (r45.da255a7) is not "[0-9]*" — both fooled the
+# pkgname, and a -git pkgver (r45.da255a7) is not "[0-9]*". Both fooled the
 # old glob check.
 own_pkg_file() {
   local f
@@ -481,7 +481,7 @@ build_local() {
 do_build() {
   scope_preflight
   mkdir -p "$out" "$locks"
-  [[ -f "$keys/FINGERPRINT" ]] || die "no signing key — run: $0 keygen"
+  [[ -f "$keys/FINGERPRINT" ]] || die "no signing key; run: $0 keygen"
   local order; order=$(topo_order "${PKGS[@]}")
   msg "build order: $order ${LOCALS[*]:-}"
   rm -f "$locks/BUILD_FAIL"
@@ -521,7 +521,7 @@ do_build() {
   # D6 verdict: every failure recorded above blocks signing. Resolution per
   # R3 D6 is exclusion, not a silent ship: drop the name from meta/aur.list
   # (documented pip/uv fallback), delete its package + lock, lower
-  # ASTROOS_AUR_SCOPE, rerun — banked packages are skipped, so that is fast.
+  # ASTROOS_AUR_SCOPE, rerun; banked packages are skipped, so that is fast.
   if [[ -s "$locks/BUILD_FAIL" ]]; then
     die "build FAILED for: $(tr '\n' ' ' < "$locks/BUILD_FAIL"); patch via aur-patches/<pkg>/ (R3 D6) or exclude, then rerun (banked packages are skipped)"
   fi
@@ -603,7 +603,7 @@ do_publish() {
     echo "package_count=$(pkg_files | wc -l)"
     echo "base_url=$base"
   } > "$out/PROMOTION"
-  msg "published to $base — PROMOTION manifest written"
+  msg "published to $base, PROMOTION manifest written"
 }
 
 case "$cmd" in
