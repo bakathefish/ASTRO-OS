@@ -55,8 +55,15 @@ echo "== theme"
 # into this user's home has to select it, the files it names have to be there,
 # and nothing may still select BreezeDark. Every check names a file, so one
 # that never got installed fails here instead of passing quietly.
-chk "kdeglobals selects ColorScheme=AstroOSDark"  grep -qx 'ColorScheme=AstroOSDark' "$HOME/.config/kdeglobals"
-chk "kdeglobals selects the AstroOS look-and-feel" grep -qx 'LookAndFeelPackage=org.astroos.desktop' "$HOME/.config/kdeglobals"
+# The scheme is shipped in the skel's main kdeglobals, but Plasma normalises
+# that file on first login: when the user's scheme equals the global-theme
+# default it drops the now-redundant ColorScheme line from ~/.config/kdeglobals
+# and keeps only a ColorSchemeHash, leaving the effective scheme in the
+# kdedefaults cascade layer (~/.config/kdedefaults/kdeglobals). Both spellings
+# mean "this session uses AstroOS Dark", and the rendered desktop confirms it,
+# so accept either. Same for the look-and-feel package.
+chk "session colour scheme is AstroOS Dark" bash -c 'grep -qx "ColorScheme=AstroOSDark" "$HOME/.config/kdeglobals" || grep -qx "ColorScheme=AstroOSDark" "$HOME/.config/kdedefaults/kdeglobals"'
+chk "session look-and-feel is org.astroos.desktop" bash -c 'grep -qx "LookAndFeelPackage=org.astroos.desktop" "$HOME/.config/kdeglobals" || grep -qx "LookAndFeelPackage=org.astroos.desktop" "$HOME/.config/kdedefaults/kdeglobals"'
 chk "no BreezeDark in ~/.config/kdeglobals" bash -c '[[ -f $HOME/.config/kdeglobals ]] && ! grep -q BreezeDark "$HOME/.config/kdeglobals"'
 chk "AstroOS Dark colour scheme installed"    test -f /usr/share/color-schemes/AstroOSDark.colors
 chk "AstroOS Light colour scheme installed"   test -f /usr/share/color-schemes/AstroOSLight.colors
