@@ -83,7 +83,14 @@ fpr_expect()  { tr -d ' \r\n' < "$here/branding/REPO_FINGERPRINT"; }
 # run's start stamp
 run_start=$(date +%s)
 echo "$run_start" > "$out/RUN_START"
-rm -f "$out/RELEASE" "$out/audit.txt"
+# Clear only the manifests the stages in THIS run regenerate. A standalone
+# `release` must still read the audit.txt written by the run that built the
+# ISO; deleting it here unconditionally left the RELEASE manifest's audit=
+# line empty (2026-09-06). RELEASE carries this run's RUN_START either way
+# (review M2), so run identity is preserved.
+has_stage() { local x; for x in "${stages[@]}"; do [[ "$x" == "$1" ]] && return 0; done; return 1; }
+if has_stage release; then rm -f "$out/RELEASE"; fi
+if has_stage audit; then rm -f "$out/audit.txt"; fi
 : > "$status"
 
 cur=""
