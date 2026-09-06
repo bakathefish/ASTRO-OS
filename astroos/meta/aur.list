@@ -37,7 +37,7 @@ veusz
 quarto-cli
 
 # Left the CachyOS repos with them 2026-09-06: [cachyos] is deleted from every
-# pacman.conf, and these four are not in Arch core/extra/multilib and are not
+# pacman.conf, and these six are not in Arch core/extra/multilib and are not
 # CachyOS-branded, so they keep their upstream names and build here instead.
 # None of them pulls an AUR-only dependency: the transitive block below is unchanged.
 paru              # AUR helper. makedepends cargo (extra/rust provides it); depends git,
@@ -60,6 +60,13 @@ mkinitcpio-openswap  # hard depends of astroos-calamares-installer (the initcpio
                   # /etc/openswap.conf). It never appeared in a package list: it reached the
                   # ISO only as a transitive dependency of cachyos-calamares-next, served by
                   # [cachyos]. 0.1.1-1, arch any, depends mkinitcpio only, no makedepends.
+fish-autopair     # hard depends of astroos-fish-config: auto-closes brackets and quotes
+                  # in fish. 1.0.4-2, arch any, depends fish, makedepends git. Served by
+                  # [cachyos] until 2026-09-06 and not in Arch; the first scope-36 run
+                  # failed astroos-fish-config on it.
+fish-pure-prompt  # hard depends of astroos-fish-config: the pure prompt the shipped
+                  # config loads (its colours come from the AstroOS palette).
+                  # 4.18.0-1, arch any, depends fish, no makedepends. Same provenance.
 
 # Transitive AUR dependencies of the packages above (council R3.1 P2,
 # explicit allowlist, measured closure 2026-08-25; consumer in parens)

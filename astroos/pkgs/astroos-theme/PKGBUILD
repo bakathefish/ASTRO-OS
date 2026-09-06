@@ -22,8 +22,9 @@
 # reads that file out of the installed package, so the build needs it whether
 # or not the runtime does. The two entries are separate statements about
 # separate needs, and collapsing them would break the build the day the
-# runtime reference goes away. The lane builds pkgs/* in glob order, so
-# astroos-branding is in the local repo before this package starts.
+# runtime reference goes away. The lane builds pkgs/* in dependency order
+# (build-aur-repo.sh local_order), so astroos-branding is in the local repo
+# before this package starts.
 #
 # makedepends=(plymouth) for the same kind of reason: a two-step Plymouth theme
 # draws with the image files sitting in its own ImageDir, and rather than

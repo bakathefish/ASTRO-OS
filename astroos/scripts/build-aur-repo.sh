@@ -49,7 +49,10 @@ IMG="${ASTROOS_BUILDER_IMAGE:-docker.io/archlinux:base-devel}"
 # CachyOS-branded, so they keep their own names and build here instead of
 # coming from upstream's repo (openswap is the installer's hard dependency;
 # it only ever reached the ISO transitively, so the base-list sweep missed it).
-SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-36}"
+# 38 the same day: fish-autopair and fish-pure-prompt, hard depends of
+# astroos-fish-config that [cachyos] used to serve and Arch does not carry
+# (the first scope-36 run failed that package on both names).
+SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-38}"
 cmd="${1:-build}"
 arg="${2:-}"
 
@@ -131,7 +134,8 @@ scope_preflight() {
   (( ${#migrated[@]} == 0 )) || die "migrated to official repos, move out of aur.list (D6): ${migrated[*]}"
   msg "migration check OK: all $n are AUR-only"
 
-  mapfile -t LOCALS < <(local_names)
+  mapfile -t LOCALS < <(local_order | tr ' ' '\n')
+  (( ${#LOCALS[@]} == $(local_names | wc -l) )) || die "local_order lost a package: ${LOCALS[*]} vs $(local_names | tr '\n' ' ')"
   mapfile -t LOCAL_ALL < <(local_all_names)
   # one owner per name: a pkgs/ package that shares a name with an AUR scope
   # entry would be built twice and make the D4 set ambiguous. Split names count
@@ -176,6 +180,46 @@ def visit(p, stack=()):
     for d in sorted(deps.get(p, ())): visit(d, stack + (p,))
     seen.add(p); order.append(p)
 for p in sorted(scope): visit(p)
+print(' '.join(order))
+PY
+}
+
+# --- local packages in dependency order -------------------------------------
+# pkgs/* build after the AUR scope, and among themselves each one after every
+# local package it depends on: astroos-kde-settings needs astroos-theme, which
+# needs astroos-branding. Glob order built kde-settings before theme on
+# 2026-09-06 and failed on the missing dependency. Edges come from the
+# depends, makedepends and checkdepends arrays of each PKGBUILD (makepkg -s
+# installs all three), restricted to local unit names and their split names.
+local_order() {
+  python3 - "$here/pkgs" << 'PY'
+import os, re, sys
+root = sys.argv[1]
+units = sorted(d for d in os.listdir(root) if os.path.isfile(os.path.join(root, d, 'PKGBUILD')))
+owner = {u: u for u in units}
+for u in units:
+    sp = os.path.join(root, u, 'splits')
+    if os.path.isfile(sp):
+        for line in open(sp, encoding='utf-8', errors='replace'):
+            line = line.split('#', 1)[0].strip()
+            if line: owner.setdefault(line.split()[0], u)
+arr = re.compile(r'^(?:make|check)?depends=\((.*?)\)', re.S | re.M)
+deps = {}
+for u in units:
+    raw = open(os.path.join(root, u, 'PKGBUILD'), encoding='utf-8', errors='replace').read()
+    text = '\n'.join(l.split('#', 1)[0] for l in raw.splitlines())
+    names = set()
+    for body in arr.findall(text):
+        for tok in body.replace("'", ' ').replace('"', ' ').split():
+            names.add(re.split(r'[<>=]', tok)[0])
+    deps[u] = {owner[n] for n in names if n in owner} - {u}
+order, seen = [], set()
+def visit(u, stack=()):
+    if u in seen: return
+    if u in stack: raise SystemExit(f"dependency cycle among local packages at {u}")
+    for d in sorted(deps[u]): visit(d, stack + (u,))
+    seen.add(u); order.append(u)
+for u in units: visit(u)
 print(' '.join(order))
 PY
 }

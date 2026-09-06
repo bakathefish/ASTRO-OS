@@ -1,0 +1,54 @@
+--- a/scripts/chwd-kernel/src/kernel.rs
++++ b/scripts/chwd-kernel/src/kernel.rs
+@@ -102,33 +102,15 @@
+     handle.localdb().pkg(name.as_bytes()).is_ok()
+ }
+ 
+-mod alpm_ffi {
+-    use std::os::raw::{c_char, c_void};
+-
+-    unsafe extern "C" {
+-        pub fn alpm_db_get_pkg(db: *mut c_void, name: *const c_char) -> *mut c_void;
+-        pub fn alpm_pkg_get_installed_db(pkg: *mut c_void) -> *const c_char;
+-    }
+-}
+-
+-/// Repo a package was InstalledFrom.
+-fn installed_db_name(local_db: &alpm::Db, name: &str) -> String {
+-    let Ok(cname) = std::ffi::CString::new(name) else {
+-        return String::new();
+-    };
+-    // SAFETY: localdb owned by the alpm handle. Both calls
+-    // return borrowed pointers owned by libalpm, and the
+-    // returned C string outlives this call.
+-    unsafe {
+-        let pkg = alpm_ffi::alpm_db_get_pkg(local_db.as_ptr().cast(), cname.as_ptr());
+-        if pkg.is_null() {
+-            return String::new();
+-        }
+-        let db_name = alpm_ffi::alpm_pkg_get_installed_db(pkg);
+-        if db_name.is_null() {
+-            return String::new();
+-        }
+-        std::ffi::CStr::from_ptr(db_name).to_string_lossy().into_owned()
++/// Repo a package was installed from. CachyOS's pacman records this through
++/// alpm_pkg_get_installed_db, a CachyOS patch to libalpm that Arch's libalpm
++/// does not export, so on AstroOS the sync repo that carries the package
++/// stands in for it when the package is installed, and it is empty otherwise.
++fn installed_db_name(handle: &alpm::Alpm, db_name: &str, name: &str) -> String {
++    if localdb_has(handle, name) {
++        db_name.to_owned()
++    } else {
++        String::new()
+     }
+ }
+ 
+@@ -190,7 +172,7 @@
+                 category: category_of(base_name).to_owned(),
+                 installed: localdb_has(handle, base_name),
+                 update_available,
+-                installed_db: installed_db_name(handle.localdb(), base_name),
++                installed_db: installed_db_name(handle, db_name, base_name),
+                 headers_pkg: header_name.to_owned(),
+                 ..Default::default()
+             };

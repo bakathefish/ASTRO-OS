@@ -53,9 +53,12 @@ provides=(chwd chwd-db)
 conflicts=(chwd chwd-db)
 replaces=(chwd chwd-db)
 _src="chwd-$pkgver"
-source=("$_src.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz")
-sha256sums=('0610cb65a0df2da75f1cf8a8a3369478f726c1e77a9088f612c35507e984a53a')
-b2sums=('2a19da62dd23ee96cbdc0f0e7a77ff1904e858b94170b7d026a4904f1892c34f3e00997b3ed38016d2c96105bc742bbc04e199cb053afe24f684e9826111eb5a')
+source=("$_src.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz"
+        0001-installed-db-without-the-cachyos-libalpm-patch.patch)
+sha256sums=('0610cb65a0df2da75f1cf8a8a3369478f726c1e77a9088f612c35507e984a53a'
+            '7b3f9d33cc546f547fca8f2a733cee85296eb717dad3bde35d075fb4adc53508')
+b2sums=('2a19da62dd23ee96cbdc0f0e7a77ff1904e858b94170b7d026a4904f1892c34f3e00997b3ed38016d2c96105bc742bbc04e199cb053afe24f684e9826111eb5a'
+        '2c240c6484e461f28883cef35421dc0ded8994319157573c226db3dd847be1baf041e98be4e2f066a2782606ad8ad2b0699d673fd9d3d296183cc8980e740bde')
 
 prepare() {
   cd "$srcdir/$_src"
@@ -76,6 +79,14 @@ prepare() {
     || { echo "!! the nvidia profile no longer matches the kernel by prefix (chwd moved?)" >&2; return 1; }
   grep -q 'starts_with("linux-astroos")' scripts/chwd-kernel/src/kernel.rs \
     || { echo "!! chwd-kernel no longer matches the kernel by prefix (chwd moved?)" >&2; return 1; }
+  # chwd-kernel binds alpm_pkg_get_installed_db by hand: a CachyOS patch to
+  # libalpm (their pacman records the repo a package was installed from) that
+  # Arch's pacman does not export, so the link fails on the symbol here. The
+  # patch derives that field from the sync repo carrying the package instead;
+  # the TUI shows the same name on a system whose kernels come from one repo.
+  patch -Np1 -i "$srcdir/0001-installed-db-without-the-cachyos-libalpm-patch.patch"
+  grep -q 'alpm_pkg_get_installed_db(' scripts/chwd-kernel/src/kernel.rs \
+    && { echo "!! the libalpm binding survived the patch" >&2; return 1; }
 
   cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 
