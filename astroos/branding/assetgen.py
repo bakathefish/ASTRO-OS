@@ -38,6 +38,11 @@ STAR_SEED = 20260825  # reproducible starfield
 # palette (shared with logo.py's planet)
 SPACE_TOP = (3, 2, 10)
 SPACE_BOTTOM = (14, 8, 32)
+SPACE_WINDOW = (
+    27,
+    22,
+    48,
+)  # palette "window": the flat surface the installer images sit on
 NEBULA_LAVENDER = (108, 79, 176)
 NEBULA_TEAL = (31, 127, 138)
 TEXT_MAIN = (232, 230, 245)
@@ -324,6 +329,37 @@ SLIDES = (
 )
 
 
+def plain_scene(
+    logo, w, h, logo_frac, logo_cy, title=None, subtitle=None, title_px=0, sub_px=0
+):
+    """A flat brand surface (the window colour), the planet as drawn, and at
+    most two lines of text. The installer's images since 2026-09-06: the
+    starfield, nebula and glow version of the welcome page read as overdone
+    next to the plain pages around it (owner's note), and CachyOS's own
+    installer, the shape this one follows, shows a logo on a flat surface."""
+    im = Image.new("RGBA", (w, h), SPACE_WINDOW + (255,))
+    lw = int(w * logo_frac)
+    lh = int(logo.height * lw / logo.width)
+    im.alpha_composite(
+        logo.resize((lw, lh), Image.LANCZOS),
+        (int(w / 2 - lw / 2), int(h * logo_cy - lh / 2)),
+    )
+    if title or subtitle:
+        d = ImageDraw.Draw(im)
+        y = h * logo_cy + lh / 2 + h * 0.06
+        if title:
+            d.text((w / 2, y), title, font=_font(title_px), fill=TEXT_MAIN, anchor="ma")
+        if subtitle:
+            d.text(
+                (w / 2, y + title_px * 1.45),
+                subtitle,
+                font=_font(sub_px, 500),
+                fill=TEXT_SUB,
+                anchor="ma",
+            )
+    return im
+
+
 def calamares(logo, outdir):
     """Installer branding component images (sizes match the upstream component)."""
     d = os.path.join(outdir, "calamares")
@@ -331,19 +367,11 @@ def calamares(logo, outdir):
     sq = square(logo)
     sq.resize((64, 64), Image.LANCZOS).save(os.path.join(d, "logo.png"))
     sq.resize((128, 128), Image.LANCZOS).save(os.path.join(d, "icon.png"))
-    scene(
-        logo,
-        900,
-        516,
-        0.30,
-        0.40,
-        "AstroOS",
-        "Research workstation. Built on Arch Linux.",
-        56,
-        24,
-    ).save(os.path.join(d, "welcome.png"))
+    # the welcome page: the planet on the flat surface, nothing else; the
+    # page's own heading already says whose installer it is
+    plain_scene(logo, 900, 516, 0.30, 0.50).save(os.path.join(d, "welcome.png"))
     for i, (title, sub) in enumerate(SLIDES, start=1):
-        scene(logo, 1920, 1080, 0.24, 0.38, title, sub, 84, 36).save(
+        plain_scene(logo, 1920, 1080, 0.22, 0.40, title, sub, 84, 36).save(
             os.path.join(d, f"slide{i}.png")
         )
 
