@@ -21,38 +21,38 @@
       <stop offset="0.62" stop-color="#e29ef0" stop-opacity="0.18"/>
       <stop offset="1" stop-color="#e29ef0" stop-opacity="0"/>
     </radialGradient>
-    <clipPath id="far"><rect x="-1024" y="-1024" width="2048" height="1024" transform="rotate(30.0)"/></clipPath>
-    <clipPath id="near"><rect x="-1024" y="0" width="2048" height="1024" transform="rotate(30.0)"/></clipPath>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6.60"/></filter>
   </defs>
   <g transform="translate(256.00 256.00)">
     <circle r="156.31" fill="url(#halo)"/>
-    <g transform="rotate(30.0)" opacity="0.16" filter="url(#soft)">
-      <ellipse rx="148.61" ry="53.50" fill="none" stroke="#62e2ec" stroke-width="50.64"/>
+    <g transform="rotate(30.0)">
+    <ellipse rx="148.61" ry="53.50" fill="none" stroke="#62e2ec" stroke-width="81.46" opacity="0.04"/>
+    <ellipse rx="148.61" ry="53.50" fill="none" stroke="#62e2ec" stroke-width="66.05" opacity="0.05"/>
+    <ellipse rx="148.61" ry="53.50" fill="none" stroke="#62e2ec" stroke-width="50.64" opacity="0.06"/>
+    <ellipse rx="148.61" ry="53.50" fill="none" stroke="#62e2ec" stroke-width="35.23" opacity="0.07"/>
     </g>
-    <g clip-path="url(#far)"><g transform="rotate(30.0)" opacity="0.80">
-    <ellipse rx="148.61" ry="53.50" fill="none" stroke="url(#band)" stroke-width="33.02" opacity="0.96"/>
-    <ellipse rx="206.95" ry="74.50" fill="none" stroke="#1c8c86" stroke-width="72.65" opacity="0.16"/>
-    <ellipse rx="173.93" ry="62.61" fill="none" stroke="#2cb8ab" stroke-width="6.34" opacity="0.88"/>
-    <ellipse rx="182.73" ry="65.78" fill="none" stroke="#29b0a4" stroke-width="5.81" opacity="0.81"/>
-    <ellipse rx="192.64" ry="69.35" fill="none" stroke="#26a99e" stroke-width="5.55" opacity="0.75"/>
-    <ellipse rx="203.65" ry="73.31" fill="none" stroke="#24a298" stroke-width="5.02" opacity="0.68"/>
-    <ellipse rx="215.76" ry="77.67" fill="none" stroke="#219a92" stroke-width="4.76" opacity="0.61"/>
-    <ellipse rx="227.87" ry="82.03" fill="none" stroke="#1e938c" stroke-width="4.23" opacity="0.55"/>
-    <ellipse rx="239.97" ry="86.39" fill="none" stroke="#1c8c86" stroke-width="3.43" opacity="0.48"/>
-    </g></g>
+    <g transform="rotate(30.0)" opacity="0.80">
+    <path d="M -148.61 0 A 148.61 53.50 0 0 1 148.61 0" fill="none" stroke="url(#band)" stroke-width="33.02" opacity="0.96"/>
+    <path d="M -206.95 0 A 206.95 74.50 0 0 1 206.95 0" fill="none" stroke="#1c8c86" stroke-width="72.65" opacity="0.16"/>
+    <path d="M -173.93 0 A 173.93 62.61 0 0 1 173.93 0" fill="none" stroke="#2cb8ab" stroke-width="3.96" opacity="0.80"/>
+    <path d="M -182.73 0 A 182.73 65.78 0 0 1 182.73 0" fill="none" stroke="#29b0a4" stroke-width="3.63" opacity="0.74"/>
+    <path d="M -192.64 0 A 192.64 69.35 0 0 1 192.64 0" fill="none" stroke="#26a99e" stroke-width="3.47" opacity="0.68"/>
+    <path d="M -203.65 0 A 203.65 73.31 0 0 1 203.65 0" fill="none" stroke="#24a298" stroke-width="3.14" opacity="0.62"/>
+    <path d="M -215.76 0 A 215.76 77.67 0 0 1 215.76 0" fill="none" stroke="#219a92" stroke-width="2.97" opacity="0.56"/>
+    <path d="M -227.87 0 A 227.87 82.03 0 0 1 227.87 0" fill="none" stroke="#1e938c" stroke-width="2.64" opacity="0.50"/>
+    <path d="M -239.97 0 A 239.97 86.39 0 0 1 239.97 0" fill="none" stroke="#1c8c86" stroke-width="2.15" opacity="0.44"/>
+    </g>
     <circle r="110.08" fill="url(#sphere)"/>
     <ellipse cx="44.03" cy="17.61" rx="57.24" ry="44.03" fill="url(#blotch)"/>
-    <g clip-path="url(#near)"><g transform="rotate(30.0)">
-    <ellipse rx="148.61" ry="53.50" fill="none" stroke="url(#band)" stroke-width="33.02" opacity="0.96"/>
-    <ellipse rx="206.95" ry="74.50" fill="none" stroke="#1c8c86" stroke-width="72.65" opacity="0.16"/>
-    <ellipse rx="173.93" ry="62.61" fill="none" stroke="#2cb8ab" stroke-width="6.34" opacity="0.88"/>
-    <ellipse rx="182.73" ry="65.78" fill="none" stroke="#29b0a4" stroke-width="5.81" opacity="0.81"/>
-    <ellipse rx="192.64" ry="69.35" fill="none" stroke="#26a99e" stroke-width="5.55" opacity="0.75"/>
-    <ellipse rx="203.65" ry="73.31" fill="none" stroke="#24a298" stroke-width="5.02" opacity="0.68"/>
-    <ellipse rx="215.76" ry="77.67" fill="none" stroke="#219a92" stroke-width="4.76" opacity="0.61"/>
-    <ellipse rx="227.87" ry="82.03" fill="none" stroke="#1e938c" stroke-width="4.23" opacity="0.55"/>
-    <ellipse rx="239.97" ry="86.39" fill="none" stroke="#1c8c86" stroke-width="3.43" opacity="0.48"/>
-    </g></g>
+    <g transform="rotate(30.0)">
+    <path d="M -148.61 0 A 148.61 53.50 0 0 0 148.61 0" fill="none" stroke="url(#band)" stroke-width="33.02" opacity="0.96"/>
+    <path d="M -206.95 0 A 206.95 74.50 0 0 0 206.95 0" fill="none" stroke="#1c8c86" stroke-width="72.65" opacity="0.16"/>
+    <path d="M -173.93 0 A 173.93 62.61 0 0 0 173.93 0" fill="none" stroke="#2cb8ab" stroke-width="3.96" opacity="0.80"/>
+    <path d="M -182.73 0 A 182.73 65.78 0 0 0 182.73 0" fill="none" stroke="#29b0a4" stroke-width="3.63" opacity="0.74"/>
+    <path d="M -192.64 0 A 192.64 69.35 0 0 0 192.64 0" fill="none" stroke="#26a99e" stroke-width="3.47" opacity="0.68"/>
+    <path d="M -203.65 0 A 203.65 73.31 0 0 0 203.65 0" fill="none" stroke="#24a298" stroke-width="3.14" opacity="0.62"/>
+    <path d="M -215.76 0 A 215.76 77.67 0 0 0 215.76 0" fill="none" stroke="#219a92" stroke-width="2.97" opacity="0.56"/>
+    <path d="M -227.87 0 A 227.87 82.03 0 0 0 227.87 0" fill="none" stroke="#1e938c" stroke-width="2.64" opacity="0.50"/>
+    <path d="M -239.97 0 A 239.97 86.39 0 0 0 239.97 0" fill="none" stroke="#1c8c86" stroke-width="2.15" opacity="0.44"/>
+    </g>
   </g>
 </svg>

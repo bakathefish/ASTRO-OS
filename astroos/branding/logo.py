@@ -184,20 +184,36 @@ def write_svg(path, size=512):
     k = RING_K
     th = TILT_DEG
 
-    def ell(rr, width, color, opacity):
+    # Qt's SVG renderer (Plasma's icon loader) implements neither clip-path nor
+    # filters, and silently draws the shape unclipped: the near half of the ring
+    # then crosses the planet's face. So each half of every ring is an explicit
+    # elliptical arc, and the glow is a stack of wide strokes rather than a blur.
+    # Nothing here is outside SVG 1.1 basic shapes, paths and gradients.
+    def arc(rr, width, color, opacity, far):
+        rx, ry = rr * R, rr * R * k
+        sweep = 1 if far else 0        # y grows downward: sweep 1 goes over the top
         return (
-            f'    <ellipse rx="{rr * R:.2f}" ry="{rr * R * k:.2f}" fill="none" '
-            f'stroke="{color}" stroke-width="{width * R:.2f}" opacity="{opacity:.2f}"/>\n'
+            f'    <path d="M {-rx:.2f} 0 A {rx:.2f} {ry:.2f} 0 0 {sweep} {rx:.2f} 0" '
+            f'fill="none" stroke="{color}" stroke-width="{width * R:.2f}" '
+            f'opacity="{opacity:.2f}"/>\n'
         )
 
-    rings = ""
-    rings += ell(1.35, 0.30, "url(#band)", 0.96)
-    rings += ell(1.88, 0.66, _hex(LINE_OUT), 0.16)  # haze between the grooves
+    band = [(1.35, 0.30, "url(#band)", 0.96), (1.88, 0.66, _hex(LINE_OUT), 0.16)]
     for i, (p, w) in enumerate(LINES):
         tcol = i / (len(LINES) - 1)
         col = tuple(int(a + (b - a) * tcol) for a, b in zip(LINE_IN, LINE_OUT))
-        rings += ell(p, w * 2.4, _hex(col), 0.88 - 0.40 * tcol)
-    big = size * 2
+        band.append((p, w * 1.5, _hex(col), 0.80 - 0.36 * tcol))
+    far_rings = "".join(arc(*r, far=True) for r in band)
+    near_rings = "".join(arc(*r, far=False) for r in band)
+
+    # four concentric strokes standing in for one Gaussian blur
+    glow = ""
+    for wmul, op in ((0.74, 0.04), (0.60, 0.05), (0.46, 0.06), (0.32, 0.07)):
+        glow += (
+            f'    <ellipse rx="{1.35 * R:.2f}" ry="{1.35 * R * k:.2f}" fill="none" '
+            f'stroke="{_hex(GLOW_CYAN)}" stroke-width="{wmul * R:.2f}" opacity="{op:.2f}"/>\n'
+        )
+
     svg = f'''<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size} {size}" width="{size}" height="{size}">
   <title>AstroOS</title>
@@ -221,21 +237,17 @@ def write_svg(path, size=512):
       <stop offset="0.62" stop-color="{_hex(GLOW_PINK)}" stop-opacity="0.18"/>
       <stop offset="1" stop-color="{_hex(GLOW_PINK)}" stop-opacity="0"/>
     </radialGradient>
-    <clipPath id="far"><rect x="{-big}" y="{-big}" width="{2 * big}" height="{big}" transform="rotate({th})"/></clipPath>
-    <clipPath id="near"><rect x="{-big}" y="0" width="{2 * big}" height="{big}" transform="rotate({th})"/></clipPath>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="{R * 0.06:.2f}"/></filter>
   </defs>
   <g transform="translate({c:.2f} {c:.2f})">
     <circle r="{R * 1.42:.2f}" fill="url(#halo)"/>
-    <g transform="rotate({th})" opacity="0.16" filter="url(#soft)">
-      <ellipse rx="{1.35 * R:.2f}" ry="{1.35 * R * k:.2f}" fill="none" stroke="{_hex(GLOW_CYAN)}" stroke-width="{0.46 * R:.2f}"/>
-    </g>
-    <g clip-path="url(#far)"><g transform="rotate({th})" opacity="0.80">
-{rings}    </g></g>
+    <g transform="rotate({th})">
+{glow}    </g>
+    <g transform="rotate({th})" opacity="0.80">
+{far_rings}    </g>
     <circle r="{R:.2f}" fill="url(#sphere)"/>
     <ellipse cx="{0.40 * R:.2f}" cy="{0.16 * R:.2f}" rx="{0.52 * R:.2f}" ry="{0.40 * R:.2f}" fill="url(#blotch)"/>
-    <g clip-path="url(#near)"><g transform="rotate({th})">
-{rings}    </g></g>
+    <g transform="rotate({th})">
+{near_rings}    </g>
   </g>
 </svg>
 '''
