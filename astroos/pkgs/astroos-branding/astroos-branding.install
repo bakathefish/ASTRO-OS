@@ -1,0 +1,23 @@
+# The greeter accounts must own their config directories, because the greeter
+# writes its own settings next to the kdeglobals/plasmarc this package ships
+# there (see usr/lib/tmpfiles.d/astroos-greeter.conf for the failure this
+# prevents). The tmpfiles rule covers sddm at install and at every boot;
+# plasmalogin only exists where plasma-login-manager is installed, so it is
+# handled here behind a getent guard rather than by a tmpfiles line that would
+# fail systemd-tmpfiles-setup on systems without the account.
+_own_greeter_config() {
+  local u
+  for u in sddm plasmalogin; do
+    if getent passwd "$u" >/dev/null 2>&1 && [ -d "/var/lib/$u/.config" ]; then
+      chown -R "$u:$u" "/var/lib/$u/.config"
+    fi
+  done
+}
+
+post_install() {
+  _own_greeter_config
+}
+
+post_upgrade() {
+  _own_greeter_config
+}

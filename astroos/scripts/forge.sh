@@ -223,7 +223,7 @@ stage_audit() {
     usr/share/color-schemes/AstroOSDark.colors usr/share/color-schemes/AstroOSLight.colors \
     usr/share/plasma/look-and-feel/org.astroos.desktop \
     usr/share/konsole/AstroOS.colorscheme usr/share/konsole/AstroOS.profile \
-    usr/share/grub/themes/astroos var/lib/sddm/.config \
+    usr/share/grub/themes/astroos var/lib/sddm/.config usr/lib/tmpfiles.d/astroos-greeter.conf \
     etc/skel/.config/kdeglobals etc/skel/.config/kdedefaults \
     etc/skel/.config/konsolerc etc/xdg/kscreenlockerrc \
     usr/share/libalpm/hooks usr/lib/calamares/modules/pacstrap \
@@ -469,6 +469,11 @@ stage_audit() {
     && ok "plymouthd.conf selects Theme=astroos" || bad "etc/plymouth/plymouthd.conf does not select the astroos theme"
   grep -q '^ColorScheme=AstroOSDark$' "$r/var/lib/sddm/.config/kdeglobals" 2>/dev/null \
     && ok "SDDM greeter kdeglobals selects AstroOS" || bad "var/lib/sddm/.config/kdeglobals does not select AstroOS"
+  # the greeter must own that directory on the installed system (it writes
+  # its own rc files there; root-owned it showed "not writable" boxes before
+  # the login form, 2026-09-06): the tmpfiles rule that hands it over ships
+  grep -q '^Z /var/lib/sddm/.config - sddm sddm' "$r/usr/lib/tmpfiles.d/astroos-greeter.conf" 2>/dev/null \
+    && ok "tmpfiles rule hands the SDDM greeter its config directory" || bad "usr/lib/tmpfiles.d/astroos-greeter.conf missing or without the sddm ownership rule"
   [[ -s "$r/usr/share/grub/themes/astroos/theme.txt" ]] && ok "GRUB theme shipped (astroos-grub-theme)" || bad "usr/share/grub/themes/astroos/theme.txt missing"
   # astroos-theme owns Plymouth now: a leftover 85-astroos-plymouth-watermark
   # hook would keep copying the watermark into plymouth's stock spinner theme

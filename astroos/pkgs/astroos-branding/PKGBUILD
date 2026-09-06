@@ -64,6 +64,8 @@ pkgdesc="AstroOS distro identity: os-release, lsb-release, issue, motd, pacman h
 arch=(any)
 url="https://github.com/bakathefish/ASTRO-OS"
 license=(GPL-3.0-or-later CC-BY-SA-4.0)
+# hands the greeter accounts their config directories (see the tmpfiles rule)
+install=astroos-branding.install
 # Every entry here is a file a System Settings page overwrites in place, so a
 # backup entry keeps the user's choice across upgrades (.pacnew).
 #   theme.conf.user            sddm-kcm writes it when the user picks another
@@ -91,8 +93,11 @@ package() {
   chmod 755 "$pkgdir"/usr/share/astroos/bin/*
   # Greeter homes: 0750 to match the tmpfiles drop-ins that own them, so
   # pacman does not report the mode as changed. The .config directories below
-  # stay 0755 root:root, which is what the login KCM helpers leave when they
-  # create them, and the files 0644: only the greeter reads them.
+  # leave the package root-owned (makepkg cannot know the greeter uids) and
+  # are handed to the greeter accounts by usr/lib/tmpfiles.d/astroos-greeter.conf
+  # and the install script: the greeter writes its own rc files beside the
+  # shipped kdeglobals, and a root-owned directory made it show
+  # "Configuration file ... not writable" before the login form (2026-09-06).
   chmod 750 "$pkgdir/var/lib/sddm" "$pkgdir/var/lib/plasmalogin"
 
   # generated assets (astroos/branding/assetgen.py, committed in branding/out)

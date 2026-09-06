@@ -76,6 +76,12 @@ else
 fi
 # /var/lib/sddm is 0700, so the greeter's own config is only readable as root
 chk "SDDM greeter uses the AstroOS colour scheme" bash -c 'sudo_ grep -qx "ColorScheme=AstroOSDark" /var/lib/sddm/.config/kdeglobals'
+# the greeter writes its own rc files beside the shipped kdeglobals; a
+# root-owned directory made it show "Configuration file ... not writable"
+# before the login form (2026-09-06), so the directory must be the greeter's
+# and, after the greeter has run once, its own settings file must exist
+chk "SDDM greeter owns its config directory" bash -c '[[ $(sudo_ stat -c %U /var/lib/sddm/.config) == sddm ]]'
+chk "SDDM greeter could write its own settings" bash -c 'sudo_ test -f /var/lib/sddm/.config/sddm-greeter-qt6rc'
 # the GRUB theme only applies where the installer wrote GRUB; another
 # bootloader is a legitimate install, not a failure
 if [[ -d /boot/grub ]]; then
