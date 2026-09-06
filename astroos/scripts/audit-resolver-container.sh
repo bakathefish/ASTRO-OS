@@ -13,7 +13,9 @@
 # phase failed. Prepare-phase errors are audit failures.
 #
 # Mounts: /iso-pacman.conf, /iso-pacman.d, /iso-keyrings, /iso-modules
-# (etc/calamares/modules with netinstall.yaml and pacstrap.conf).
+# (etc/calamares/modules with netinstall.yaml and pacstrap.conf) and
+# /iso-pacstrap-main.py (the pacstrap module, whose code adds the bootloader,
+# filesystem, microcode and platform packages the YAML never lists).
 set -u
 cp /iso-pacman.d/*mirrorlist /etc/pacman.d/ 2>/dev/null || true
 cp /iso-keyrings/* /usr/share/pacman/keyrings/
@@ -49,11 +51,23 @@ def walk(g, sel):
         walk(sg, s)
 for g in ni:
     walk(g, False)
+# The pacstrap module adds packages in code, per bootloader, filesystem,
+# CPU vendor and platform choice (base_packages += [...] and .append(...)):
+# every name it can add is resolved here, whatever the page choices, because
+# a user can make any of them and the 2026-09-06 install died on exactly one
+# of these sets (Limine + btrfs: limine-entry-tool, limine-snapper-sync).
+import re
+src = open("/iso-pacstrap-main.py").read()
+for line in src.splitlines():
+    if "base_packages" in line and ("+=" in line or ".append(" in line):
+        for n in re.findall(r'"([a-z0-9][a-z0-9@._+-]*)"', line):
+            names.add(n)
 # Calamares expands $LOCALE at install time (the language pack group); the
 # shipped default is American English
 for n in sorted(x.replace("$LOCALE", "en-us") for x in names if x):
     print(n)
 PY
+grep -qx limine-entry-tool /tmp/names || { echo "!! the pacstrap module's bootloader packages were not read"; exit 1; }
 n=$(wc -l < /tmp/names)
 (( n > 100 )) || { echo "!! only $n names selected from the installer lists"; exit 1; }
 grep -qx geant4 /tmp/names || { echo "!! the AstroOS repository group is not in the default selection"; exit 1; }

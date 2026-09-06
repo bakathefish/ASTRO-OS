@@ -601,9 +601,10 @@ stage_audit() {
   # over the default selection) on a zlib-ng-compat base with downloads
   # blocked, so prepare-phase errors surface and nothing is installed.
   local mods="$r/etc/calamares/modules"
-  if [[ -f "$mods/netinstall.yaml" && -f "$mods/pacstrap.conf" ]]; then
+  if [[ -f "$mods/netinstall.yaml" && -f "$mods/pacstrap.conf" && -f "$r/usr/lib/calamares/modules/pacstrap/main.py" ]]; then
     if podman run --rm --pids-limit=-1 -v "$r/etc/pacman.conf":/iso-pacman.conf:ro -v "$r/etc/pacman.d":/iso-pacman.d:ro \
          -v "$r/usr/share/pacman/keyrings":/iso-keyrings:ro -v "$mods":/iso-modules:ro \
+         -v "$r/usr/lib/calamares/modules/pacstrap/main.py":/iso-pacstrap-main.py:ro \
          -v "$here/scripts/audit-resolver-container.sh":/audit-resolver.sh:ro \
          -v astroos-pacman-cache:/var/cache/pacman/pkg "$IMG" bash /audit-resolver.sh > "$a/resolve.out" 2>&1; then
       ok "installed-system resolver: $(tail -1 "$a/resolve.out")"

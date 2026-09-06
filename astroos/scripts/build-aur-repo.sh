@@ -55,7 +55,11 @@ IMG="${ASTROOS_BUILDER_IMAGE:-docker.io/archlinux:base-devel}"
 # 40 the same day: zotero-bin and localsend-bin, for the "zotero" and
 # "localsend" entries of the meta lists that only [cachyos] ever served (the
 # first ISO build without [cachyos] failed at pacstrap on exactly those two).
-SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-40}"
+# 45 since 2026-09-06 (run 10's install): the five bootloader helpers the
+# installer's pacstrap module adds in code (limine-entry-tool,
+# limine-mkinitcpio-hook, limine-snapper-sync, grub-hook,
+# systemd-boot-manager-git), which only [cachyos] had served.
+SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-45}"
 cmd="${1:-build}"
 arg="${2:-}"
 

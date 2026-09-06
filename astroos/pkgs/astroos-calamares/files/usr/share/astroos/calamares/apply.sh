@@ -304,6 +304,19 @@ if [[ -f $py/pacstrap/main.py ]]; then
     -e 's/"linux-cachyos-zfs"/"linux-astroos-zfs"/g' \
     -e 's/"linux-cachyos"/"linux-astroos"/g' \
     "$py/pacstrap/main.py"
+  # The btrfs snapshot helpers per bootloader (2026-09-06, the first install
+  # on the independent scope): the Limine pair is in the [astroos] repo from
+  # the AUR; grub-btrfs-support was a CachyOS wrapper around Arch's own
+  # grub-btrfs, which is what the GRUB choice gets now; refind-btrfs is on
+  # the AUR behind a tail of Python packages that are not, so the rEFInd
+  # choice installs rEFInd without the snapshot submenu rather than failing
+  # in pacstrap.
+  sed -i \
+    -e 's/"snapper", "btrfs-assistant", "grub-btrfs-support"/"snapper", "btrfs-assistant", "grub-btrfs"/' \
+    -e 's/"snapper", "btrfs-assistant", "refind-btrfs" \]/"snapper", "btrfs-assistant" ]/' \
+    "$py/pacstrap/main.py"
+  grep -q 'grub-btrfs-support\|refind-btrfs' "$py/pacstrap/main.py" \
+    && warn "a CachyOS-only btrfs helper survives in pacstrap/main.py"
   grep -q 'cachyos' "$py/pacstrap/main.py" && warn "a cachyos package name survives in pacstrap/main.py"
   grep -q '"astroos-grub-theme"' "$py/pacstrap/main.py" \
     || warn "astroos-grub-theme is not in the GRUB package set in pacstrap/main.py"

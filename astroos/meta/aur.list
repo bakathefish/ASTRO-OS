@@ -119,3 +119,16 @@ python-zxing-cpp         # normcap
 #   this lane: a name here that the D7 liveness check cannot resolve hard-fails
 #   the preflight for the whole scope. If the ISO still needs it, it belongs in
 #   the local lane (astroos/pkgs/), built from the KDE upstream.
+
+# Bootloader helpers the installer's pacstrap module and its
+# bootloader-post-setup script add in code, per bootloader and filesystem
+# choice (usr/lib/calamares/modules/pacstrap/main.py), found 2026-09-06 when
+# the first install on the independent scope died in pacstrap: "target not
+# found: limine-entry-tool, limine-snapper-sync". All five were served by
+# [cachyos] and are on the AUR under these names; the audit's resolver now
+# runs every choice's set, not only the default one.
+limine-entry-tool        # Limine choice: writes the boot entries (Zesko, gitlab.com/Zesko/limine-entry-tool)
+limine-mkinitcpio-hook   # bootloader-post-setup swaps entry-tool for this hook after the first entries exist
+limine-snapper-sync      # btrfs + Limine: snapshot boot entries (Zesko)
+grub-hook                # GRUB choice: regenerates grub.cfg on kernel updates (runnytu)
+systemd-boot-manager-git # systemd-boot choice: sdboot-manage; provides the systemd-boot-manager name main.py asks for (no release package on the AUR)
