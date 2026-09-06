@@ -1,4 +1,12 @@
 {
+    // The logo is 32 columns wide (branding/assetgen.py), so an info line
+    // longer than about 60 characters wraps to column 0 and lands on top of
+    // it. Two modules produce values long enough to do that, and both are
+    // trimmed rather than dropped:
+    //   host  {name} alone, without the DMI version and sku strings that a
+    //         firmware writes in full (a QEMU guest reports 76 characters)
+    //   disk  read-only mounts hidden, which on the live ISO is the 7 GiB
+    //         iso9660 medium mounted at /run/archiso/bootmnt
     "logo": {
         "type": "file-raw",
         "source": "/etc/fastfetch/astroos-logo.ansi",
@@ -8,7 +16,7 @@
         "title",
         "separator",
         "os",
-        "host",
+        { "type": "host", "format": "{name}" },
         "kernel",
         "uptime",
         "packages",
@@ -20,7 +28,7 @@
         "cpu",
         "gpu",
         "memory",
-        "disk",
+        { "type": "disk", "showReadOnly": false },
         "break",
         "colors"
     ]
