@@ -478,7 +478,7 @@ stage_audit() {
   # A missing python3 is a finding, not a skip: unchecked is unproven.
   local pcheck="$here/branding/palette-check.py"
   local pf pmiss="" pfiles=()
-  for pf in usr/share/color-schemes/AstroOS.colors \
+  for pf in usr/share/color-schemes/AstroOSDark.colors \n            usr/share/color-schemes/AstroOSLight.colors \
             usr/share/konsole/AstroOS.colorscheme \
             usr/share/plasma/look-and-feel/org.astroos.desktop/contents/defaults \
             usr/share/plasma/look-and-feel/org.astroos.desktop/contents/splash/Splash.qml \
