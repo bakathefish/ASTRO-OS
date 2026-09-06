@@ -36,9 +36,9 @@
 cat >&2 <<'EOF'
 removeun-online: not available on AstroOS.
   AstroOS installs online with pacstrap into an empty root, so there is no
-  live system to strip. The replaced script computed its removal list against
-  the "cachyos" package group, which does not exist here; that subtraction
-  would have kept nothing and removed nearly every installed package.
+  live system to strip. The script this replaces computed its removal list
+  against a package group that does not exist on an AstroOS system; here that
+  subtraction would have kept nothing and removed nearly everything installed.
   Offline-install cleanup lives in /usr/local/bin/removeun.
 EOF
 exit 1

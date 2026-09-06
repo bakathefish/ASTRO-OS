@@ -1,23 +1,16 @@
 #!/bin/sh
-# Minimal-delta rebrand of the skeleton configs shipped by cachyos-kde-settings
-# and cachyos-alacritty-config (run by 86-astroos-skel.hook). Every edit is an
-# idempotent sed on one line, so upstream changes to the rest of the files are
-# kept (directive 7a: configure and skin, do not fork).
-a=/etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc
-if [ -f "$a" ]; then
-  sed -i \
-    -e 's|^icon=org\.cachyos\.hello$|icon=astroos-logo|' \
-    -e 's|^Image=/usr/share/wallpapers/cachyos-wallpapers/.*|Image=/usr/share/wallpapers/AstroOS/contents/images/3840x2160.png|' \
-    -e 's|^PreviewImage=/usr/share/wallpapers/cachyos-wallpapers/.*|PreviewImage=/usr/share/wallpapers/AstroOS/contents/images/3840x2160.png|' \
-    "$a"
-fi
-t=/etc/skel/.config/alacritty/alacritty.toml
-if [ -f "$t" ]; then
-  sed -i 's|^title = "Alacritty@CachyOS"|title = "Alacritty@AstroOS"|' "$t"
-fi
-# The installer gives users bash (users.conf shell: /bin/bash) and CachyOS
-# greets only in fish, so the AstroOS fastfetch greeting goes into the bash
-# skeleton too: every new interactive terminal shows the logo, like fish.
+# Put the AstroOS terminal greeting into the bash skeleton (run by
+# 86-astroos-skel.hook). The installer gives users bash (users.conf shell:
+# /bin/bash) and only fish ships a greeting of its own, so without this a new
+# user's first terminal is bare where a fish user gets the AstroOS logo.
+#
+# /etc/skel/.bashrc is owned by the bash package, so this appends rather than
+# replaces, and the grep guard makes the append idempotent across upgrades.
+#
+# The Kickoff icon, the default wallpaper and the Alacritty window title used to
+# be sed'd here too, back when those skeleton files came from cachyos-kde-settings
+# and cachyos-alacritty-config. astroos-kde-settings ships them branded now and
+# nothing in AstroOS installs an Alacritty config, so those edits are gone.
 b=/etc/skel/.bashrc
 if [ -f "$b" ] && ! grep -q 'AstroOS terminal greeting' "$b"; then
   printf '\n# AstroOS terminal greeting (fastfetch with the AstroOS logo); delete to disable\n[[ $- == *i* ]] && command -v fastfetch >/dev/null 2>&1 && fastfetch\n' >> "$b"

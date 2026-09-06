@@ -14,7 +14,7 @@
 # cachyos-hooks#tag=2026.02.05. We own the bytes instead, one file per install
 # path under files/, so the build pulls nothing from a CachyOS remote.
 # update-initramfs is byte-for-byte the upstream blob (it carries no
-# distro-identity string); the hooks and the two libalpm scripts differ from
+# distro-identity string); the two hooks and the one libalpm script differ from
 # upstream only in the AstroOS names, listed in each file's header.
 #
 # Not packaged: upstream's PKGBUILD at this pkgver still installs
@@ -23,22 +23,26 @@
 # there is nothing to vendor. Nvidia now reaches the initramfs through
 # mkinitcpio's own hooks.
 #
-# Overlap with astroos-branding, which lands on the same installed system:
-#   - /etc/pacman.d/hooks/{os-release,lsb-release}.hook are /dev/null symlinks
-#     there, which mask the same-named hooks this package ships. The identity
-#     is then re-asserted by zz-astroos-identity.hook, which writes the same
-#     values, so the result is unchanged.
-#   - /etc/pacman.d/hooks/astroos-reboot-required.hook there overrides this
-#     package's copy in /usr/share/libalpm/hooks (a hook of the same name in
-#     the HookDir wins), so exactly one reboot notification fires.
-#   - astroos-branding.hook here sorts before zz-astroos-identity.hook, which
-#     runs last and copies the staged identity files over the sed result. Both
-#     write the same values, so the two never disagree.
+# Also not packaged, and this one is a deliberate split rather than an upstream
+# accident: the identity half of cachyos-hooks (cachyos-branding.hook,
+# os-release.hook, lsb-release.hook and the cachyos-branding script, which sed
+# the distro name into /etc/os-release, /etc/lsb-release and /etc/issue after a
+# filesystem or lsb-release upgrade). Those hooks were vendored here first and
+# then removed, because astroos-branding already owns AstroOS identity end to
+# end: it stages the finished files under /usr/share/astroos/branding and copies
+# them into place from zz-astroos-identity.hook. Copying a staged file cannot
+# drift from the text we ship the way a sed expression can, and one owner per
+# job means the two packages can never write /etc/os-release in the same
+# transaction. This package keeps the machinery half: the reboot-recommended
+# notification and the plymouth initrd shim. Every path it installs lives under
+# /usr/share/libalpm or /usr/bin, and astroos-branding installs none of those.
 
 pkgname=astroos-hooks
 pkgver=2026.02.05
-pkgrel=1
-pkgdesc='AstroOS libalpm hooks'
+# pkgrel 2: the identity hooks and their script moved out (see above). Nothing
+# under files/ may change without this number going up.
+pkgrel=2
+pkgdesc='AstroOS libalpm hooks: reboot-recommended notification and the plymouth initramfs shim'
 groups=('astroos')
 depends=('bash' 'systemd')
 arch=('any')
@@ -52,14 +56,11 @@ package() {
   local f="$startdir/files" n
   # explicit modes: this tree can be checked out on Windows, where the exec bit
   # does not survive (astroos-branding normalises them for the same reason)
-  for n in astroos-branding astroos-plymouth-initramfs astroos-reboot-required \
-           lsb-release os-release; do
+  for n in astroos-plymouth-initramfs astroos-reboot-required; do
     install -Dm644 "$f/usr/share/libalpm/hooks/$n.hook" \
       "$pkgdir/usr/share/libalpm/hooks/$n.hook"
   done
-  for n in astroos-branding astroos-reboot-required; do
-    install -Dm755 "$f/usr/share/libalpm/scripts/$n" \
-      "$pkgdir/usr/share/libalpm/scripts/$n"
-  done
+  install -Dm755 "$f/usr/share/libalpm/scripts/astroos-reboot-required" \
+    "$pkgdir/usr/share/libalpm/scripts/astroos-reboot-required"
   install -Dm755 "$f/usr/bin/update-initramfs" "$pkgdir/usr/bin/update-initramfs"
 }

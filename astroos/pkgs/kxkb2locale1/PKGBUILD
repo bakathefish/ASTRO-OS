@@ -1,0 +1,86 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Contributor: Alessandro Astone <aleasto@kde.org>
+#
+# kxkb2locale1 keeps its upstream name: it is a third-party KDE tool, not an
+# AstroOS identity string. Upstream is KDE Invent, MIT, Copyright (c) 2025
+# Alessandro Astone; the LICENSE file upstream ships is installed by package().
+#
+# Local lane rather than the AUR lane: checked 2026-09-06, this package exists
+# in neither the AUR nor Arch (meta/aur.list records that search). What the ISO
+# used to take was CachyOS's own VCS build of it, and [cachyos] is gone.
+#
+# PIN. Tag v0.1 is commit 125c1057740927738713b2dd649daf58d59bc0ca (2025-02-08),
+# the only tag upstream has, and it matches the CMake project VERSION. master is
+# exactly one commit ahead (5ccdb2d9b7e277e2873740f130787cbb296a80dd, "Fix README
+# typo"); that delta is one word in README.md, a file CMakeLists.txt does not
+# install, so the two commits build identical trees. A git+#commit= source is
+# used rather than the GitLab archive tarball because GitLab gives no guarantee
+# that a regenerated archive stays byte-identical, whereas git verifies the
+# commit id itself. Same pin style as linux-astroos's astroos-zfs source.
+# Independent cross-check, fetched and hashed 2026-09-06: the v0.1 archive at
+#   https://invent.kde.org/aleasto/kxkb2locale1/-/archive/v0.1/kxkb2locale1-v0.1.tar.gz
+# is sha256 21f1e7b123c905b5f5435569bb089e57519e50080b220df892880bb22dbda9ac
+# and unpacks to the same tree as this commit.
+#
+# NO EQUIVALENT OF CachyOS's remove-env-check.patch, deliberately. main.cpp has
+# two guards; that patch deletes only the first, the one reading plasma-welcomerc
+# [General] LiveEnvironment and exiting when false. AstroOS already sets
+# LiveEnvironment=true in overlay/airootfs/etc/skel/.config/plasma-welcomerc, so
+# the guard passes in our live session and there is nothing to remove. It also
+# earns its place: this package installs a system-wide /etc/xdg/autostart entry
+# that the installer copies onto the target, and this guard is what stops a
+# daemon that rewrites kxkbrc and locale1 from autostarting on every installed
+# AstroOS desktop.
+#
+# The second guard, which upstream and CachyOS both keep, reads kwinrc [Wayland]
+# FollowLocale1 and exits when false. It mirrors KWin exactly: kwin's
+# src/main_wayland.cpp reads that same key, or takes --locale1 on its command
+# line. Nothing in this tree sets it for the user session yet. --locale1 reaches
+# only the SDDM greeter's compositor, via astroos-kde-settings
+# sddm.conf.d/zz-wayland.conf. Until FollowLocale1=true reaches a kwinrc that the
+# live Plasma session reads, this daemon logs "KWin is not configured to use
+# locale1" and exits. That key belongs in the live overlay skel, not in the
+# packaged astroos-kde-settings skel: from the packaged skel it would also reach
+# installed systems, where the LiveEnvironment guard correctly keeps this daemon
+# off, leaving KWin following locale1 with nothing syncing the Plasma keyboard
+# KCM to it.
+
+pkgname=kxkb2locale1
+_commit=125c1057740927738713b2dd649daf58d59bc0ca  # tag v0.1
+pkgver=0.1
+pkgrel=1
+pkgdesc="Daemon that watches the KDE keyboard configuration and applies it to org.freedesktop.locale1"
+arch=('x86_64')
+url="https://invent.kde.org/aleasto/kxkb2locale1"
+license=('MIT')
+# Read off CMakeLists.txt at the pinned commit: Qt6 Core and DBus (qt6-base,
+# which also carries the moc and qdbusxml2cpp this build runs) plus KF6 Config
+# (kconfig, linked as KF6::ConfigCore); ECM 6.0 for KDEInstallDirs,
+# KDECMakeSettings and KDECompilerSettings. git is a makedepend because the
+# source is a git URL.
+depends=('qt6-base' 'kconfig')
+makedepends=('git' 'cmake' 'extra-cmake-modules')
+source=("$pkgname::git+https://invent.kde.org/aleasto/kxkb2locale1.git#commit=$_commit")
+# The pinned commit id is itself the checksum; the PIN block above records the
+# archive sha256 that cross-checks it.
+sha256sums=('SKIP')
+
+build() {
+  cmake -B build -S "$pkgname" \
+    -DCMAKE_BUILD_TYPE='None' \
+    -DCMAKE_INSTALL_PREFIX='/usr' \
+    -Wno-dev
+  cmake --build build
+}
+
+package() {
+  # With prefix /usr, ECM's KDEInstallDirs puts the three installed files at:
+  #   /usr/bin/kxkb2locale1
+  #   /usr/share/applications/kxkb2locale1.desktop      (NoDisplay, OnlyShowIn=KDE)
+  #   /etc/xdg/autostart/kxkb2locale1.desktop
+  # Upstream ships no systemd unit; the XDG autostart entry is how it starts.
+  DESTDIR="$pkgdir" cmake --install build
+  # Upstream ships LICENSE but never installs it, and MIT is not one of the
+  # texts in /usr/share/licenses/common.
+  install -Dm644 "$srcdir/$pkgname/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

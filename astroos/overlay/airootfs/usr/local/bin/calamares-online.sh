@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # AstroOS live installer launcher. Replaces the CachyOS-Live-ISO copy (same
 # path, unowned): identical keyring refresh, but the installer package is NOT
-# re-downloaded at launch (the ISO ships the tested cachyos-calamares-next and
-# the astroos-calamares hook has already re-pointed its configuration; only
-# astroos-calamares itself is refreshed from the repo, which re-runs that
-# hook), and the AstroOS + BlackArch keyrings are populated alongside Arch and
-# CachyOS.
+# re-downloaded at launch (the ISO ships the tested astroos-calamares-installer
+# build and the astroos-calamares hook has already re-pointed its
+# configuration; only astroos-calamares itself is refreshed from [astroos],
+# which re-runs that hook), and the keyrings populated are AstroOS's own plus
+# Arch, and BlackArch when the ISO carries it.
 # Launched by plasma-welcome's Install button and the "Install AstroOS" menu
 # entry (usr/share/applications/astroos-install.desktop).
 
@@ -13,9 +13,13 @@ main() {
     # Recreate the keyring first: Arch re-signs archlinux-keyring often enough
     # that a stale live keyring fails the installation (upstream rationale).
     sudo rm -rf /etc/pacman.d/gnupg
-    sudo pacman -Sy --noconfirm archlinux-keyring cachyos-keyring
+    sudo pacman -Sy --noconfirm archlinux-keyring astroos-keyring
     sudo pacman-key --init
-    local kr=(archlinux cachyos)
+    # pacman-key rejects the WHOLE populate call when one named keyring file
+    # is missing, which would cost us the Arch keys too, so name only the ones
+    # that are there: astroos.gpg ships with astroos-keyring and is always
+    # present, blackarch.gpg only on a BlackArch build.
+    local kr=(archlinux)
     [ -f /usr/share/pacman/keyrings/astroos.gpg ] && kr+=(astroos)
     [ -f /usr/share/pacman/keyrings/blackarch.gpg ] && kr+=(blackarch)
     sudo pacman-key --populate "${kr[@]}"

@@ -1,12 +1,12 @@
-# Re-point the CachyOS Calamares configuration at AstroOS after every
-# install/upgrade of the installer package (and of this one). The installer
-# package owns its whole configuration tree, so this is the only way to change
-# it without forking the package (R4 branding survey section 0).
+# Re-point the Calamares configuration at AstroOS after every install/upgrade
+# of the installer package (and of this one). astroos-calamares-installer owns
+# its whole configuration tree, so this is the only way to change it without
+# forking the package (R4 branding survey section 0).
 [Trigger]
 Operation = Install
 Operation = Upgrade
 Type = Package
-Target = cachyos-calamares-next
+Target = astroos-calamares-installer
 Target = astroos-calamares
 
 [Action]

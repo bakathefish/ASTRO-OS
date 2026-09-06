@@ -64,7 +64,8 @@ local_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/PKGBUILD" ]] && 
 # kernels: base, headers, zfs, nvidia-open from a single build). They are real
 # db entries, so the hosted-db comparison must expect them; they are not build
 # units, so the "every scope package is installed" audit does not demand them.
-split_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/splits" ]] && tr -d '' < "$d/splits" | grep -vE '^\s*(#|$)' | awk '{print $1}'; done; return 0; }
+split_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/splits" ]] && tr -d '
+' < "$d/splits" | grep -vE '^\s*(#|$)' | awk '{print $1}'; done; return 0; }
 scope_names() { { aur_names; local_names; } | sort -u; }
 repo_names()  { { aur_names; local_names; split_names; } | sort -u; }
 db_names()    { bsdtar -tf "$1" | awk -F/ '$2=="desc"{print $1}' | sed 's/-[^-]*-[^-]*$//' | sort -u; }
@@ -213,6 +214,7 @@ stage_audit() {
     usr/share/refind/icons/os_astroos.png \
     usr/share/sddm/themes/breeze/theme.conf.user \
     usr/lib/plasmalogin/plasmalogin.conf.d usr/share/doc/astroos \
+    usr/share/libalpm/hooks usr/lib/calamares/modules/pacstrap \
     usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override \
     >/dev/null 2>"$a/unsquash.err" || true
   local r="$a/root"
@@ -231,12 +233,31 @@ stage_audit() {
   [[ -s "$r/etc/fastfetch/astroos-logo.ansi" ]] && ok "fastfetch ANSI logo shipped" || bad "fastfetch logo missing"
   [[ -x "$r/usr/bin/astroos-doctor" ]] && ok "astroos-doctor executable (packaged, /usr/bin)" || bad "astroos-doctor missing or not executable"
   [[ -f "$r/etc/pacman.d/hooks/zz-astroos-identity.hook" ]] && ok "identity hook shipped" || bad "identity hook missing"
+  # The /dev/null masks that once silenced cachyos-hooks went with that
+  # package. What must hold now: branding's identity hooks live under
+  # /etc/pacman.d/hooks, astroos-hooks' machinery under /usr/share/libalpm/hooks,
+  # and no hook anywhere carries a CachyOS name, masked or real.
   local h
-  for h in cachyos-branding.hook lsb-release.hook os-release.hook cachyos-reboot-required.hook; do
-    [[ "$(readlink "$r/etc/pacman.d/hooks/$h" 2>/dev/null)" == "/dev/null" ]] && ok "$h masked" || bad "$h NOT masked"
+  for h in astroos-reboot-required.hook astroos-plymouth-initramfs.hook; do
+    [[ -f "$r/usr/share/libalpm/hooks/$h" ]] && ok "$h shipped by astroos-hooks" || bad "$h missing from usr/share/libalpm/hooks"
   done
+  { ls "$r/etc/pacman.d/hooks/" "$r/usr/share/libalpm/hooks/" 2>/dev/null | grep -qi cachy; } \
+    && bad "a CachyOS-named hook survives: $(ls "$r/etc/pacman.d/hooks/" "$r/usr/share/libalpm/hooks/" 2>/dev/null | grep -i cachy | tr '\n' ' ')" \
+    || ok "no CachyOS-named hook in either hook directory"
   [[ -f "$r/usr/share/applications/cachyos-hello.desktop" ]] && bad "cachyos-hello still on the ISO" || ok "cachyos-hello gone"
   [[ -f "$r/usr/share/applications/astroos-install.desktop" ]] && ok "Install AstroOS launcher shipped" || bad "astroos-install.desktop missing"
+  # Installer configuration AFTER apply.sh has run at pacstrap time. The old
+  # rewrite touched capitalised titles only, so the hidden "required"
+  # netinstall group and pacstrap's base list kept lowercase cachyos package
+  # names, and a target with no [cachyos] repository aborted on them. The
+  # positive control comes first: an absent file would pass every absence
+  # check below vacuously.
+  [[ -s "$r/etc/calamares/modules/netinstall.yaml" ]] && ok "netinstall.yaml extracted (positive control)" || bad "netinstall.yaml missing from the image"
+  grep -qi cachy "$r/etc/calamares/modules/netinstall.yaml" 2>/dev/null && bad "netinstall.yaml still names a CachyOS package: $(grep -i cachy "$r/etc/calamares/modules/netinstall.yaml" | head -3 | tr -s ' \n' ' ')" || ok "netinstall.yaml carries no cachy name"
+  grep -qi cachy "$r/etc/calamares/modules/pacstrap.conf" 2>/dev/null && bad "pacstrap.conf still names a CachyOS package" || ok "pacstrap.conf carries no cachy name"
+  grep -q cachyos "$r/etc/calamares/modules/shellprocess_initialize_pacman.conf" 2>/dev/null && bad "shellprocess still copies a cachyos mirrorlist (install aborts on the missing file)" || ok "shellprocess copies the AstroOS mirrorlists"
+  grep -q 'linux-astroos' "$r/usr/lib/calamares/modules/pacstrap/main.py" 2>/dev/null && ok "pacstrap module installs linux-astroos" || bad "pacstrap module does not name linux-astroos"
+  grep -q 'astroos-rate-mirrors' "$r/etc/calamares/scripts/update-mirrorlist" 2>/dev/null && ok "update-mirrorlist calls astroos-rate-mirrors" || bad "update-mirrorlist still calls the CachyOS tool (exit 127 aborts the install)"
   # plasma-welcome looks the value up with KService::serviceByDesktopName: the desktop file NAME without the suffix.
   # "astroos-install.desktop" rendered an empty icon whose click did nothing
   # (2026-09-05 E2E), so the check pins the exact value and the file it names.

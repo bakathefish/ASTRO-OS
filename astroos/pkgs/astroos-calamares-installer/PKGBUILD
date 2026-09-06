@@ -37,7 +37,7 @@ _commit=ce54421cf0a08008ccda59a4e5f2f4747ae762be
 pkgdesc='Distribution-independent installer framework (AstroOS build of the CachyOS Calamares fork)'
 arch=('x86_64')
 license=(GPL-3.0-or-later)
-url="https://github.com/CachyOS/cachyos-calamares"
+url="https://github.com/bakathefish/astroos-calamares-installer-src"
 provides=('cachyos-calamares-next' 'calamares')
 conflicts=('cachyos-calamares-next' 'calamares')
 replaces=('cachyos-calamares-next')
@@ -76,6 +76,7 @@ depends=(
 # CMakeModules/ExtendedVersion.cmake is the only caller and it is reached only
 # when CALAMARES_RELEASE_MODE is OFF (it is ON) and .git/HEAD exists.
 makedepends=(
+  git
   boost
   cmake
   doxygen
@@ -87,8 +88,15 @@ makedepends=(
   qt6-tools
 )
 _srcname="cachyos-calamares-${_commit}"
-source=("${pkgname}-${_commit}.tar.gz::${url}/archive/${_commit}.tar.gz")
-sha256sums=('6b4b721f08f1eea6743fe57a4f01e4bb4b343cf412eb853a30966f8b18741b47')
+# The source is our full-history mirror of CachyOS/cachyos-calamares, pinned
+# by commit, so a build reaches no CachyOS host. The commit id is the
+# integrity check for a git source (a regenerated archive tarball carries no
+# such guarantee), and the name:: prefix keeps the checkout directory that
+# prepare(), build() and package() cd into. For the record, GitHub's archive
+# of this same commit from upstream hashed to sha256
+# 6b4b721f08f1eea6743fe57a4f01e4bb4b343cf412eb853a30966f8b18741b47.
+source=("${_srcname}::git+${url}.git#commit=${_commit}")
+sha256sums=('SKIP')
 options=('!emptydirs')
 
 prepare() {

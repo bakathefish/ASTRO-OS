@@ -118,12 +118,18 @@ chk "[astroos] provides the installed linux-astroos" astroos_owns_kernel
 chk "linux-astroos packager is not CachyOS" bash -c '! pacman -Qi linux-astroos 2>/dev/null | sed -n "s/^Packager *: *//p" | grep -qi cachy'
 
 echo "== hooks"
-for h in zz-astroos-identity.hook 85-astroos-plymouth-watermark.hook 86-astroos-skel.hook astroos-reboot-required.hook; do
+# branding owns identity (hooks under /etc/pacman.d/hooks); astroos-hooks owns
+# the reboot and plymouth machinery (hooks under /usr/share/libalpm/hooks).
+# The /dev/null masks that once silenced cachyos-hooks are gone with that
+# package: there is nothing left to silence, and a leftover mask named
+# os-release.hook would suppress a hook of our own.
+for h in zz-astroos-identity.hook 85-astroos-plymouth-watermark.hook 86-astroos-skel.hook; do
   chk "hook present: $h" test -f "/etc/pacman.d/hooks/$h"
 done
-for h in cachyos-branding.hook lsb-release.hook os-release.hook cachyos-reboot-required.hook; do
-  chk "cachyos hook masked: $h" bash -c "[[ \$(readlink /etc/pacman.d/hooks/$h) == /dev/null ]]"
+for h in astroos-reboot-required.hook astroos-plymouth-initramfs.hook; do
+  chk "hook present: $h" test -f "/usr/share/libalpm/hooks/$h"
 done
+chk "no CachyOS hook, masked or real" bash -c '! ls /etc/pacman.d/hooks/ /usr/share/libalpm/hooks/ 2>/dev/null | grep -qi cachy'
 
 echo "== services"
 chk "graphical.target active"         systemctl is-active graphical.target

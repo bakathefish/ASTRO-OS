@@ -8,11 +8,22 @@
 # here; the installer config (astroos-calamares) lists this package in
 # pacstrap basePackages. The live ISO gets it from the [astroos] repo too.
 #
-# Package-owned upstream files (os-release/lsb-release/issue/motd, the KDE and
-# Alacritty skeleton configs, plymouth's watermark) are never shipped twice:
-# alpm PostTransaction hooks re-assert them after every install/upgrade of the
-# owning package. Masks (same-name /dev/null symlinks in /etc/pacman.d/hooks)
-# silence the CachyOS identity hooks; that is the documented libalpm override.
+# Package-owned upstream files (os-release/lsb-release/issue/motd, plymouth's
+# watermark, the bash skeleton) are never shipped twice: another package owns
+# each of those paths, so alpm PostTransaction hooks re-assert AstroOS content
+# after every install/upgrade of the owning package instead.
+#
+# Split of responsibility with astroos-hooks, which lands on the same system:
+# this package owns identity, that one owns machinery. Identity means
+# os-release, lsb-release, issue and motd, staged under
+# /usr/share/astroos/branding and copied into place by zz-astroos-identity.hook;
+# machinery means the reboot-recommended notification and the plymouth initrd
+# shim. Nothing is shared: every hook here lives in
+# /etc/pacman.d/hooks and every hook there in /usr/share/libalpm/hooks, and no
+# two of them carry the same name, so neither can silently override the other.
+# Both halves used to exist twice, from the period when astroos-hooks was a
+# fresh fork of cachyos-hooks and this package defended against the CachyOS
+# original; the duplicates were removed when the CachyOS dependency was cut.
 #
 # Login screen (E2E, 2026-09-05): the installer enables SDDM (astroos-core.list
 # adds sddm and Calamares picks it; plasma-login-manager is installed but
@@ -59,10 +70,11 @@ package() {
   # greeter background: the planet clear of the clock, avatar and password field
   install -Dm644 "$a/login-background.png"  "$pkgdir/usr/share/astroos/branding/login-background.png"
   install -Dm644 "$a/splash-1920.png"       "$pkgdir/usr/share/astroos/branding/limine-splash.png"
-
-  # masks for the cachyos-hooks identity/notification hooks (R4 survey rows 18-20)
-  local h
-  for h in cachyos-branding.hook lsb-release.hook os-release.hook cachyos-reboot-required.hook; do
-    ln -s /dev/null "$pkgdir/etc/pacman.d/hooks/$h"
-  done
+  # No hook masks here any more. Four /dev/null symlinks used to sit in
+  # /etc/pacman.d/hooks silencing cachyos-hooks' identity and notification hooks
+  # (R4 survey rows 18-20). No cachyos-* package reaches an AstroOS system now,
+  # so there is nothing left to silence, and two of those mask names
+  # (os-release.hook, lsb-release.hook) are names AstroOS could ship itself: a
+  # mask in the HookDir wins over /usr/share/libalpm/hooks, so leaving them
+  # would have suppressed our own hooks rather than someone else's.
 }

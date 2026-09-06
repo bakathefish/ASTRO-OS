@@ -1,18 +1,22 @@
-# cachyos-kde-settings and cachyos-alacritty-config own the skeleton configs
-# that carry the last CachyOS surfaces a user sees (Kickoff icon, default
-# wallpaper, Alacritty window title). Neither file is in a backup array, so
-# AstroOS cannot ship them; instead this hook re-applies a minimal, idempotent
-# sed after every install/upgrade of the owner (R4 survey rows 6, 7, 13).
+# The bash skeleton is the one login shell whose greeting nobody packages.
+# /etc/skel/.bashrc belongs to the bash package and is not in a backup array, so
+# AstroOS cannot ship it; this hook appends the fastfetch greeting after every
+# install/upgrade of bash instead. The append is guarded by a grep, so running
+# it twice adds nothing.
+#
+# It used to do more: while the skeleton KDE and Alacritty configs came from
+# cachyos-kde-settings and cachyos-alacritty-config, it also sed'd the Kickoff
+# icon and the default wallpaper into them (R4 survey rows 6, 7, 13).
+# astroos-kde-settings now ships those files already branded and no AstroOS
+# profile carries an Alacritty config, so only the bash half is left.
 [Trigger]
 Operation = Install
 Operation = Upgrade
 Type = Package
-Target = cachyos-kde-settings
-Target = cachyos-alacritty-config
 Target = bash
 Target = astroos-branding
 
 [Action]
-Description = AstroOS: rebrand the KDE, Alacritty and bash skeleton configs
+Description = AstroOS: add the terminal greeting to the bash skeleton
 When = PostTransaction
 Exec = /usr/share/astroos/bin/astroos-rebrand-skel

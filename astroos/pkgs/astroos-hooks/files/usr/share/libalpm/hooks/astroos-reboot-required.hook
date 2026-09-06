@@ -3,11 +3,14 @@
 # cachyos-hooks' cachyos-reboot-required.hook. Target list is upstream's apart
 # from linux-cachyos* -> linux-astroos* (which covers linux-astroos-lts and the
 # -headers, -nvidia-open and -zfs suffixes). linux-cacule* is the CacULE
-# scheduler kernel, a third-party name, so it is left alone.
+# scheduler kernel, a third-party name, so it is left alone. The Description is
+# the AstroOS one, so the pacman transaction line names the distro running it.
 #
-# astroos-branding ships /etc/pacman.d/hooks/astroos-reboot-required.hook, and a
-# hook of the same name in the pacman HookDir overrides this one: on a system
-# with both packages only one notification fires, from that copy.
+# This is the only reboot notification AstroOS ships. astroos-branding used to
+# carry a same-named copy under /etc/pacman.d/hooks, which overrode this one
+# while cachyos-hooks was still in the picture; that copy is gone, and its
+# AstroOS wording lives on in the Description below and in the script's
+# notification strings.
 [Trigger]
 Operation = Upgrade
 Type = Package
@@ -43,7 +46,7 @@ Target = dracut*
 Target = winesync-dkms
 
 [Action]
-Description = Check if user should be informed about rebooting after certain system package upgrades.
+Description = AstroOS: check whether a reboot is recommended after this upgrade
 When = PostTransaction
 NeedsTargets
 Exec = /usr/share/libalpm/scripts/astroos-reboot-required

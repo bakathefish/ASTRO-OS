@@ -1,20 +1,30 @@
-# AstroOS distro identity enforcement.
-# cachyos-hooks ships /usr/share/libalpm/hooks/{cachyos-branding,os-release,
-# lsb-release}.hook whose script rewrites /etc/os-release + /etc/lsb-release to
-# CachyOS on every trigger (this clobbered the pre-placed identity in ISO build
-# 13). Those hooks are masked by same-name /dev/null symlinks shipped beside
-# this file; this hook is the enforcement layer: named zz- so it sorts after
-# every stock hook and re-asserts AstroOS identity last. It runs at pacstrap
-# time for installed systems (filesystem + this package land in one
-# transaction) and again after every relevant upgrade.
+# AstroOS distro identity enforcement, and the only thing on the system that
+# writes /etc/os-release, /etc/lsb-release, /etc/issue and /etc/motd.
+#
+# Why it is named zz-: the files it owns belong to other packages (filesystem
+# owns os-release and issue, lsb-release owns lsb-release), so pacman restores
+# the upstream text on every upgrade of the owner and the identity has to be
+# re-asserted afterwards. The zz- prefix sorts this hook after every stock hook
+# in the directory, so nothing runs after it and undoes the result.
+#
+# Historical note, because it is the reason this design exists rather than a
+# plain drop-in file: while AstroOS was built on CachyOS packages, cachyos-hooks
+# shipped {cachyos-branding,os-release,lsb-release}.hook, whose script sed'd the
+# identity back to CachyOS on every trigger. That clobbered the pre-placed
+# identity in ISO build 13. Those hooks are gone with the package, and the
+# same-named /dev/null masks that used to sit beside this file went with them:
+# the hook names they masked are now names AstroOS itself could ship, so leaving
+# the masks in place would have silenced our own hooks.
+#
+# It runs at pacstrap time for installed systems (filesystem and this package
+# land in one transaction) and again after every relevant upgrade.
 [Trigger]
 Operation = Install
 Operation = Upgrade
 Type = Package
 Target = filesystem
-Target = cachyos-hooks
-Target = cachyos-settings
 Target = lsb-release
+Target = astroos-settings
 Target = astroos-branding
 
 [Action]

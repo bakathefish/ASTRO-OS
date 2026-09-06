@@ -1,7 +1,7 @@
 #!/bin/sh
 # AstroOS identity enforcement, run by zz-astroos-identity.hook after every
-# install/upgrade of filesystem, cachyos-hooks, cachyos-settings, lsb-release
-# or astroos-branding. Copies the staged identity files over the package-owned
+# install/upgrade of filesystem, lsb-release, astroos-settings or
+# astroos-branding. Copies the staged identity files over the package-owned
 # ones (none of them can be shipped by another package without a conflict).
 b=/usr/share/astroos/branding
 cp "$b/os-release" /etc/os-release
@@ -10,8 +10,12 @@ cp "$b/lsb-release" /etc/lsb-release
 cp "$b/issue" /etc/issue
 cp "$b/issue" /usr/share/factory/etc/issue 2>/dev/null || true
 cp "$b/motd" /etc/motd
-# CachyOS leftovers nothing needs: the live profile's release file and the
-# login-screen logo from cachyos-settings (a gschema override beside this
-# package points GNOME's login screen at the AstroOS logo instead)
+# Housekeeping for systems installed before AstroOS stopped shipping CachyOS
+# packages: no current package creates either path, so on a fresh install this
+# removes nothing, but a machine upgraded across the cut can still carry the old
+# release file and the login-screen logo that came with cachyos-settings. A
+# gschema override beside this package already points GNOME's login screen at
+# the AstroOS logo. astroos/scripts/e2e/verify-installed.sh asserts both paths
+# are absent, so keep this line until no supported system predates the cut.
 rm -f /etc/cachyos-release /usr/share/icons/cachyos.svg
 exit 0

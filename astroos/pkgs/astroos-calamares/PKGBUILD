@@ -1,13 +1,16 @@
 # Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
 # Local lane package (see astroos-keyring/PKGBUILD for the version scheme).
 #
-# The AstroOS installer is cachyos-calamares-next, re-pointed: that package
-# owns every file under /etc/calamares and /usr/share/calamares (no backup
-# array), so AstroOS never forks it. This package ships (a) its own branding
-# component beside upstream's (an unowned directory), (b) the AstroOS netinstall
-# groups generated from astroos/meta at build time, and (c) an alpm hook that
-# applies targeted, idempotent seds to the upstream configuration after every
-# install/upgrade of cachyos-calamares-next (R4 branding survey sections 0/2).
+# The AstroOS installer is astroos-calamares-installer, re-pointed: that
+# package owns every file under /etc/calamares and /usr/share/calamares (no
+# backup array), so AstroOS never forks its configuration. It was
+# cachyos-calamares-next until AstroOS started building the Calamares fork
+# itself; the mechanism is unchanged, only the trigger package's name.
+# This package ships (a) its own branding component beside upstream's (an
+# unowned directory), (b) the AstroOS netinstall groups generated from
+# astroos/meta at build time, and (c) an alpm hook that applies targeted,
+# idempotent seds to the shipped configuration after every install/upgrade of
+# astroos-calamares-installer (R4 branding survey sections 0/2).
 # Live-ISO only: shellprocess_cleanup_calamares removes /etc/calamares from
 # installed systems and the installer package is not part of the target.
 pkgname=astroos-calamares
@@ -18,7 +21,7 @@ arch=(any)
 url="https://github.com/bakathefish/ASTRO-OS"
 license=(GPL-3.0-or-later CC-BY-SA-4.0)
 depends=(bash sed)
-optdepends=('cachyos-calamares-next: the installer this configuration applies to')
+optdepends=('astroos-calamares-installer: the installer this configuration applies to')
 
 pkgver() { cat "$startdir/VERSION"; }
 
@@ -58,7 +61,8 @@ package() {
   done
 
   # AstroOS netinstall groups: what an installed AstroOS gets on top of the
-  # CachyOS KDE base. The hidden group carries identity + tools + keyring.
+  # KDE base the upstream groups install. The hidden group carries identity +
+  # tools + keyring.
   {
     printf -- '- name: "AstroOS (hidden)"\n  description: "AstroOS identity, tools and repository trust"\n  hidden: true\n  selected: true\n  critical: true\n  packages:\n     - astroos-keyring\n     - astroos-branding\n     - astroos-tools\n'
     _group "AstroOS core additions"  "Everyday base: kernels, desktop apps, dev toolchain, performance daemons" false "$m/astroos-core.list"
