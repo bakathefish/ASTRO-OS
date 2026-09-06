@@ -217,7 +217,7 @@ stage_audit() {
     usr/share/konsole/AstroOS.colorscheme usr/share/konsole/AstroOS.profile \
     usr/share/grub/themes/astroos var/lib/sddm/.config \
     etc/skel/.config/kdeglobals etc/skel/.config/kdedefaults \
-    etc/skel/.config/konsolerc etc/skel/.config/kscreenlockerrc \
+    etc/skel/.config/konsolerc etc/xdg/kscreenlockerrc \
     usr/share/libalpm/hooks usr/lib/calamares/modules/pacstrap \
     usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override \
     >/dev/null 2>"$a/unsquash.err" || true
@@ -445,6 +445,10 @@ stage_audit() {
   [[ -s "$r/usr/share/konsole/AstroOS.profile" ]] && ok "Konsole AstroOS profile shipped" || bad "usr/share/konsole/AstroOS.profile missing"
   grep -q '^DefaultProfile=AstroOS.profile$' "$sk/konsolerc" 2>/dev/null \
     && ok "skel konsolerc opens the AstroOS profile" || bad "skel konsolerc does not set DefaultProfile=AstroOS.profile"
+  # the lock-screen background is a system default under /etc/xdg (the live
+  # profile owns the skel kscreenlockerrc, see astroos-kde-settings)
+  grep -q '^Image=/usr/share/astroos/branding/login-background.png$' "$r/etc/xdg/kscreenlockerrc" 2>/dev/null \
+    && ok "lock screen default background is the AstroOS greeter image (etc/xdg/kscreenlockerrc)" || bad "etc/xdg/kscreenlockerrc does not set the AstroOS lock-screen background"
   local pt="$r/usr/share/plymouth/themes/astroos"
   [[ -s "$pt/astroos.plymouth" ]] && ok "Plymouth theme astroos.plymouth shipped" || bad "astroos.plymouth missing from the image"
   [[ -s "$pt/watermark.png" ]] && ok "Plymouth theme carries the watermark" || bad "watermark.png missing from the astroos Plymouth theme"

@@ -64,9 +64,14 @@
 #   etc/skel/.config/konsolerc
 #         DefaultProfile=AstroOS.profile, the Konsole profile astroos-theme
 #         ships, which names the AstroOS Konsole colour scheme.
-#   etc/skel/.config/kscreenlockerrc
+#   etc/xdg/kscreenlockerrc
 #         the lock screen draws the greeter background astroos-branding
-#         installs. The key path is derived in the file itself.
+#         installs. A system default through the XDG cascade rather than a
+#         skeleton file, for two reasons the file itself spells out: it then
+#         applies to every user including the live one, and the live profile
+#         ships its own skel kscreenlockerrc (autolock off for the live
+#         session), which archiso copies before pacstrap, so a package owning
+#         that skel path fails the ISO build on a file conflict (2026-09-06).
 # The three files under kdedefaults/ are defaults rather than settings:
 # startplasma prepends ~/.config/kdedefaults to XDG_CONFIG_DIRS
 # (plasma-workspace startkde/startplasma.cpp), so a value the user changes

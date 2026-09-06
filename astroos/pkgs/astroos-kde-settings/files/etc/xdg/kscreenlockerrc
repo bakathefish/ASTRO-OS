@@ -2,6 +2,16 @@
 # stack the clock, the avatar and the password field down the middle, and the
 # desktop wallpaper puts the planet exactly there.
 #
+# Shipped as the system default under /etc/xdg rather than in /etc/skel:
+# KConfig reads kscreenlockerrc through the XDG cascade (~/.config first, then
+# /etc/xdg), so this applies to every user, the live one included, and a user
+# who picks another image in System Settings overrides it in ~/.config. It also
+# cannot collide with the live profile, which ships its own
+# etc/skel/.config/kscreenlockerrc (Autolock=false, LockOnResume=false for the
+# live session); archiso copies the profile's files before pacstrap, so a
+# package that owned that skel path would fail the ISO build on it
+# (2026-09-06).
+#
 # Key path, read off the greeter: kscreenlocker greeter/greeterapp.cpp builds
 # the group Greeter / Wallpaper / <wallpaper plugin id> from kscreenlockerrc
 # and hands it to the wallpaper package's config/main.xml, whose General group

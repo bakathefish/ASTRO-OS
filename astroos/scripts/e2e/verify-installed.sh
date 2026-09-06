@@ -63,7 +63,7 @@ chk "look-and-feel org.astroos.desktop installed" test -f /usr/share/plasma/look
 chk "Konsole colour scheme installed"         test -f /usr/share/konsole/AstroOS.colorscheme
 chk "Konsole AstroOS profile installed"       test -f /usr/share/konsole/AstroOS.profile
 chk "konsolerc opens the AstroOS profile"     grep -qx 'DefaultProfile=AstroOS.profile' "$HOME/.config/konsolerc"
-chk "lock screen uses the AstroOS background" grep -q 'login-background.png' "$HOME/.config/kscreenlockerrc"
+chk "lock screen uses the AstroOS background (system default)" grep -qx 'Image=/usr/share/astroos/branding/login-background.png' /etc/xdg/kscreenlockerrc
 # plymouth itself is optional on a minimal install; where it is installed, the
 # theme it boots must be ours, whatever set it last (the .install or calamares)
 if command -v plymouth-set-default-theme >/dev/null 2>&1; then
