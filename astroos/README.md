@@ -38,7 +38,9 @@ astroos/
 │   │                            the former [cachyos] packages, rebuilt from the bakathefish mirrors under AstroOS names (R5)
 │   ├── linux-astroos, linux-astroos-lts  the kernels (headers, zfs and nvidia-open splits), -astroos in uname -r (R5)
 │   └── astroos-zenbook-duo      ASUS Zenbook Duo profile (DMI-gated; zakstam/zenbook-duo-linux runtime)
-├── aur-patches/<pkg>/*.sh     tracked PKGBUILD fixes for stale AUR recipes, recorded in aur-map.lock (R3 D6)
+├── aur-patches/<pkg>/*.sh     tracked PKGBUILD fixes for stale AUR recipes, recorded in aur-map.lock (R3 D6);
+│   └── <pkg>/keys/pgp/*.asc   the upstream source-signing keys a recipe's validpgpkeys names, vendored so the
+│                              lane verifies the signature instead of skipping it (zfs-utils: the OpenZFS release keys)
 ├── overlay/airootfs/          LIVE-SESSION-ONLY files: hostname, live os-release/issue,
 │                              plasma-welcome install button, installer launcher, smoke unit
 ├── branding/                  logo.py (procedural planet, PNG + SVG) + assetgen.py + fonts/ (OFL); out/ = icons, splashes, wallpaper (+preview), watermark,

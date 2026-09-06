@@ -293,6 +293,24 @@ build_aur() {
           basename "$f" >> /work/PATCHES
         done
       fi
+      # Upstream source-signing keys named by the recipe validpgpkeys, vendored
+      # per package under aur-patches/<pkg>/keys/pgp/<fingerprint>.asc, the
+      # shape pkgs/<name>/keys/pgp has for local packages. Imported into the
+      # builder keyring so makepkg verifies the .asc, rather than the build
+      # skipping the check or trusting whatever a keyserver hands out at build
+      # time (zfs-utils, 2026-09-06: "unknown public key 6AD860EED4598027").
+      # Recorded in aur-map.lock beside the patches. No apostrophe in this
+      # block: it sits inside the single-quoted container script.
+      touch /work/KEYS
+      if [[ -d /patches/$p/keys/pgp ]]; then
+        install -d -m700 -o builder -g builder /home/builder/.gnupg
+        for k in /patches/$p/keys/pgp/*.asc; do
+          [[ -e "$k" ]] || continue
+          su builder -c "gpg --batch --quiet --import $k"
+          basename "$k" .asc >> /work/KEYS
+        done
+        echo ">> imported vendored PGP keys for $p: $(tr "\n" " " < /work/KEYS)"
+      fi
       chown -R builder:builder pkg
       cd pkg
       export MAKEFLAGS="-j$(nproc)"
@@ -352,11 +370,13 @@ build_aur() {
         --arg epoch "$(date +%s)" \
         --rawfile src /tmp/aur-build-$p/SRCINFO_SOURCES \
         --rawfile pat /tmp/aur-build-$p/PATCHES \
+        --rawfile keys /tmp/aur-build-$p/KEYS \
         --rawfile vcs /tmp/aur-build-$p/VCS_COMMITS \
         '{name:$name, source:"aur", aur_package_base:$base, aur_commit:$commit, pkgver:$pkgver, build_epoch:($epoch|tonumber),
           vcs_commits:($vcs|split("\n")|map(select(length>0))),
           srcinfo_sources_prepatch:($src|split("\n")|map(select(length>0))),
-          patches:($pat|split("\n")|map(select(length>0)))}' > "$locks/$p.json"
+          patches:($pat|split("\n")|map(select(length>0))),
+          pgp_keys:($keys|split("\n")|map(select(length>0)))}' > "$locks/$p.json"
   podman unshare rm -rf /tmp/aur-build-$p
   smoke_check "$p"
 }
