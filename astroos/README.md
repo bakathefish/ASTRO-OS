@@ -22,18 +22,29 @@ astroos/
 │   └── blackarch.list           packages from [blackarch]; appended only with ASTROOS_WITH_BLACKARCH=1
 ├── pkgs/<name>/               AstroOS's OWN packages, built into the [astroos] repo next to the AUR scope
 │   ├── astroos-keyring          pacman keyring trio (astroos.gpg, astroos-trusted, astroos-revoked) + populate on install
-│   ├── astroos-branding         identity files, icons, wallpaper (desktop, SDDM and plasmalogin greeters),
-│   │                            plymouth watermark, fastfetch/fish drop-ins, alpm hooks that re-assert
-│   │                            identity and mask CachyOS's identity hooks
+│   ├── astroos-branding         identity files, icons, wallpaper (desktop, SDDM and plasmalogin greeters) and the
+│   │                            greeters' colour-scheme config, the watermark asset, fastfetch/fish drop-ins,
+│   │                            alpm hooks that re-assert identity
+│   ├── astroos-theme            the colour scheme: AstroOS.colors, look-and-feel org.astroos.desktop (+ login splash),
+│   │                            Konsole scheme and profile, the astroos Plymouth boot theme (R5.1)
+│   ├── astroos-grub-theme       the GRUB menu of an installed system; the live UEFI menu gets the same theme.txt
+│   │                            from container-build.sh
 │   ├── astroos-tools            astroos-doctor, astroos-cuda-setup, astroos-hacking-heavy
-│   ├── astroos-calamares        installer branding component + the hook that re-points cachyos-calamares-next
+│   ├── astroos-calamares        installer branding component + the hook that re-points astroos-calamares-installer's config
+│   ├── astroos-calamares-installer  the Calamares fork itself, built from the bakathefish mirror
 │   ├── astroos-calamares-boost-compat  the three boost 1.91 runtime libs the installer still links (live ISO only, temporary)
+│   ├── astroos-hooks, -settings, -kde-settings, -fish-config, -rate-mirrors, -chroot, -chwd,
+│   │   astroos-mirrorlist, -v3-mirrorlist, -v4-mirrorlist, kxkb2locale1
+│   │                            the former [cachyos] packages, rebuilt from the bakathefish mirrors under AstroOS names (R5)
+│   ├── linux-astroos, linux-astroos-lts  the kernels (headers, zfs and nvidia-open splits), -astroos in uname -r (R5)
 │   └── astroos-zenbook-duo      ASUS Zenbook Duo profile (DMI-gated; zakstam/zenbook-duo-linux runtime)
 ├── aur-patches/<pkg>/*.sh     tracked PKGBUILD fixes for stale AUR recipes, recorded in aur-map.lock (R3 D6)
-├── overlay/airootfs/          LIVE-SESSION-ONLY files: hostname, live os-release/issue, plymouthd.conf,
+├── overlay/airootfs/          LIVE-SESSION-ONLY files: hostname, live os-release/issue,
 │                              plasma-welcome install button, installer launcher, smoke unit
 ├── branding/                  logo.py (procedural planet, PNG + SVG) + assetgen.py + fonts/ (OFL); out/ = icons, splashes, wallpaper (+preview), watermark,
-│                              ANSI logo, calamares/ (logo, icon, welcome, three slides)
+│                              ANSI logo, calamares/ (logo, icon, welcome, three slides);
+│                              palette.py = the one colour table every themed file is drawn from, palette-check.py proves it
+│                              (CI and the forge audit), PALETTE.md maps each surface of the OS to the package that owns it
 ├── releases/<date>/           promotion + release manifests written by forge-remote.sh (R3 D5)
 ├── KEYS.md                    repo signing key: generation, backup, client trust path, rotation
 └── scripts/
@@ -129,6 +140,13 @@ Preflights on every run: scope count equals `ASTROOS_AUR_SCOPE`, every AUR name 
 bash astroos/scripts/gen-packages.sh                 # after editing meta/
 bash astroos/scripts/build-aur-repo.sh preflight     # scope + liveness + migration (needs podman)
 python astroos/branding/assetgen.py astroos/branding/out   # after a change to logo.py, assetgen.py or the slide texts
+python astroos/branding/palette-check.py astroos/pkgs/astroos-theme/files astroos/pkgs/astroos-grub-theme/files \
+  astroos/pkgs/astroos-branding/files astroos/pkgs/astroos-kde-settings/files \
+  astroos/pkgs/astroos-calamares/files/usr/share/calamares/branding/astroos \
+  astroos/pkgs/astroos-calamares/files/usr/share/astroos/calamares/apply.sh \
+  astroos/pkgs/astroos-fish-config/files                    # after touching any colour: the CI target list
+python astroos/pkgs/astroos-grub-theme/gen-assets.py        # after a palette change: redraws the GRUB menu images (Pillow)
+python astroos/pkgs/astroos-theme/gen-previews.py           # same, for the global theme's preview images
 ```
 
 On the VM, one local package at a time: `bash astroos/scripts/build-aur-repo.sh local astroos-branding`.
