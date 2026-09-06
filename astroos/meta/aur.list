@@ -37,7 +37,7 @@ veusz
 quarto-cli
 
 # Left the CachyOS repos with them 2026-09-06: [cachyos] is deleted from every
-# pacman.conf, and these six are not in Arch core/extra/multilib and are not
+# pacman.conf, and these eight are not in Arch core/extra/multilib and are not
 # CachyOS-branded, so they keep their upstream names and build here instead.
 # None of them pulls an AUR-only dependency: the transitive block below is unchanged.
 paru              # AUR helper. makedepends cargo (extra/rust provides it); depends git,
@@ -68,6 +68,17 @@ fish-autopair     # hard depends of astroos-fish-config: auto-closes brackets an
 fish-pure-prompt  # hard depends of astroos-fish-config: the pure prompt the shipped
                   # config loads (its colours come from the AstroOS palette).
                   # 4.18.0-1, arch any, depends fish, no makedepends. Same provenance.
+zotero-bin        # the reference manager of astroos-research.list, which named it as
+                  # "zotero": that name is served by [cachyos] only, so the first ISO
+                  # build without [cachyos] failed at pacstrap on it. The -bin package
+                  # repacks the upstream release (10.0.1-1, provides zotero, depends
+                  # alsa-lib gtk3 nss, no makedepends); AUR "zotero" builds from source
+                  # with npm and is not worth a container hour for the same binary.
+localsend-bin     # the AirDrop equivalent of astroos-continuity.list ("localsend"),
+                  # same story: [cachyos]-only under that name, pacstrap failed on it.
+                  # 1.18.0-1, provides localsend, depends fuse2 xdg-user-dirs
+                  # libayatana-appindicator, no makedepends. AUR "localsend" builds
+                  # with fvm, an AUR-only makedepends, which the scope rules exclude.
 
 # Transitive AUR dependencies of the packages above (council R3.1 P2,
 # explicit allowlist, measured closure 2026-08-25; consumer in parens)

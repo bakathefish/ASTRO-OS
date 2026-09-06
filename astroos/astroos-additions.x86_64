@@ -78,7 +78,6 @@ redshift
 gammastep
 
 # --- astroos-continuity ---
-localsend
 input-leap
 syncthing
 krfb
@@ -134,7 +133,6 @@ texlive-latexextra
 texlive-mathscience
 texlive-publishers
 texlive-bibtexextra
-zotero
 pandoc-cli
 postgresql
 sqlite

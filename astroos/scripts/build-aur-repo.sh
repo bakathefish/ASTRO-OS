@@ -52,7 +52,10 @@ IMG="${ASTROOS_BUILDER_IMAGE:-docker.io/archlinux:base-devel}"
 # 38 the same day: fish-autopair and fish-pure-prompt, hard depends of
 # astroos-fish-config that [cachyos] used to serve and Arch does not carry
 # (the first scope-36 run failed that package on both names).
-SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-38}"
+# 40 the same day: zotero-bin and localsend-bin, for the "zotero" and
+# "localsend" entries of the meta lists that only [cachyos] ever served (the
+# first ISO build without [cachyos] failed at pacstrap on exactly those two).
+SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-40}"
 cmd="${1:-build}"
 arg="${2:-}"
 

@@ -1,7 +1,8 @@
 # astroos-continuity: AirDrop-style sharing, phone mirroring, machine-to-machine
 
 # AirDrop-equivalents (default)
-localsend
+# localsend: not in Arch; [cachyos] used to serve it. Built by the AUR lane as
+# localsend-bin (aur.list), which reaches the ISO from [astroos] automatically.
 kdeconnect
 
 # Machine-to-machine (beat macOS: Universal Control / Sidecar / content sync)
