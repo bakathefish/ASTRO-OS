@@ -300,6 +300,9 @@ stage_audit() {
   # passes for the wrong reason: astroos-logo.svg is the positive control that
   # proves usr/share/icons was extracted at all
   [[ -f "$r/usr/share/icons/hicolor/scalable/apps/astroos-logo.svg" ]] && ok "scalable astroos-logo.svg shipped" || bad "astroos-logo.svg missing"
+  # Qt's SVG engine (Plasma's icon loader) implements neither, and draws the
+  # shape unclipped rather than failing: R4.4, arcs across the planet's face
+  grep -qE 'clip-path|clipPath|<filter|feGaussian' "$r/usr/share/icons/hicolor/scalable/apps/astroos-logo.svg" 2>/dev/null     && bad "the scalable logo uses SVG features Qt ignores" || ok "scalable logo stays inside what Qt renders"
   [[ -e "$r/etc/cachyos-release" ]] && bad "/etc/cachyos-release survives on the live ISO" || ok "no /etc/cachyos-release"
   [[ -e "$r/usr/share/icons/cachyos.svg" ]] && bad "CachyOS icon file survives" || ok "no CachyOS icon file"
   [[ -f "$r/usr/share/refind/icons/os_astroos.png" ]] && ok "rEFInd OS icon shipped" || bad "rEFInd OS icon missing"
