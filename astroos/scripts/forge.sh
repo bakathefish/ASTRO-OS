@@ -311,7 +311,7 @@ stage_audit() {
     && ok "GNOME login logo override shipped" || bad "GNOME login logo override missing"
   grep -q '^AstroOS rolling' "$r/etc/astroos-release" 2>/dev/null && ok "/etc/astroos-release shipped" || bad "/etc/astroos-release missing"
   # house style: no em dash in anything we print (owner directive, 2026-09-06)
-  LC_ALL=C grep -rql $'\xe2\x80\x94' "$r/etc/astroos-release" "$r/etc/motd" "$r/etc/issue" "$r/usr/share/astroos/branding" 2>/dev/null | grep -q . \
+  LC_ALL=C grep -rl $'\xe2\x80\x94' "$r/etc/astroos-release" "$r/etc/motd" "$r/etc/issue" "$r/usr/share/astroos/branding" 2>/dev/null | grep -q . \
     && bad "em dash in the shipped identity text" || ok "no em dash in the shipped identity text"
   # our own prose, read on the installed system; code under usr/share/astroos is
   # exempt because apply.sh carries the string as a sed pattern
