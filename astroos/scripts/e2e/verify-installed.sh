@@ -90,7 +90,10 @@ chk "zero cachy* packages installed"  bash -c '! pacman -Qq 2>/dev/null | grep -
 
 echo "== kernel"
 echo "     uname -r: $(uname -r)"
-chk "kernel release ends in -astroos" bash -c '[[ $(uname -r) == *-astroos ]]'
+# Two flavours ship, and they must carry different localversion suffixes or
+# their module trees would collide: the main kernel ends -astroos, the LTS one
+# ends -astroos-lts. Match both, so booting LTS does not fail a passing system.
+chk "kernel release carries -astroos" bash -c '[[ $(uname -r) == *-astroos || $(uname -r) == *-astroos-lts ]]'
 chk "kernel release has no cachyos"   bash -c '[[ $(uname -r) != *cachyos* ]]'
 # a rename that drops the localversion suffix leaves the modules in a directory
 # the running kernel never looks in, and every module silently disappears;

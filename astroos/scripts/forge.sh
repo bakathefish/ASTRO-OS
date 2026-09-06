@@ -60,7 +60,13 @@ mark() { echo "$(ts) $1 $2" >> "$status"; }
 die()  { say "!! $*"; exit 1; }
 aur_names()   { tr -d '\r' < "$here/meta/aur.list" | grep -vE '^\s*(#|$)' | awk '{print $1}'; }
 local_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/PKGBUILD" ]] && basename "$d"; done; return 0; }
+# A pkgs/<name>/splits file names the extra pkgnames one PKGBUILD produces (the
+# kernels: base, headers, zfs, nvidia-open from a single build). They are real
+# db entries, so the hosted-db comparison must expect them; they are not build
+# units, so the "every scope package is installed" audit does not demand them.
+split_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/splits" ]] && tr -d '' < "$d/splits" | grep -vE '^\s*(#|$)' | awk '{print $1}'; done; return 0; }
 scope_names() { { aur_names; local_names; } | sort -u; }
+repo_names()  { { aur_names; local_names; split_names; } | sort -u; }
 db_names()    { bsdtar -tf "$1" | awk -F/ '$2=="desc"{print $1}' | sed 's/-[^-]*-[^-]*$//' | sort -u; }
 latest_iso()  { ls -1t "$out"/*.iso 2>/dev/null | head -1; }
 fpr_expect()  { tr -d ' \r\n' < "$here/branding/REPO_FINGERPRINT"; }
@@ -116,12 +122,12 @@ stage_verify() {
   say "verify: db, files and lock signatures OK against the shipped keyring $fpr"
   # 2. name set == aur.list ∪ pkgs/, the same D4 check container-build.sh performs
   local want have
-  want=$(scope_names); have=$(db_names "$v/astroos.db")
+  want=$(repo_names); have=$(db_names "$v/astroos.db")
   if [[ "$want" != "$have" ]]; then
     diff <(echo "$want") <(echo "$have") | tee -a "$log" || true
     die "hosted db name set != aur.list ∪ pkgs/ (D4)"
   fi
-  say "verify: hosted db carries exactly the $(echo "$have" | wc -l) scope names ($(aur_names | wc -l) AUR + $(local_names | wc -l) local)"
+  say "verify: hosted db carries exactly the $(echo "$have" | wc -l) names ($(aur_names | wc -l) AUR + $(local_names | wc -l) local + $(split_names | wc -l) split)"
   # 3. a fresh client trusts the key through the SHIPPED trust path (keyring
   #    trio + pacman-key --populate, what pacman-init.service does on the live
   #    ISO; review M3), resolves every name and installs real packages under

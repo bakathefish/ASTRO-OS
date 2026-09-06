@@ -271,6 +271,16 @@ if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
     [[ -f "$d/splits" ]] && tr -d '\r' < "$d/splits" | grep -vE '^\s*(#|$)' | awk '{print $1}'
   done)
   mapfile -t scope < <(printf '%s\n' "${aur_scope[@]}" "${local_scope[@]}" | sort -u)
+  # What the ISO installs is a narrower set than what the db carries: the AUR
+  # scope plus the build units, not their splits. The split names the medium
+  # needs (linux-astroos-zfs, -nvidia-open and the LTS pair) already reach the
+  # list through the rename table above, because upstream's list named them.
+  # The headers packages do not, and must not: they are in the repo for DKMS
+  # on installed systems, and adding two of them to a medium that sits under
+  # 200 MiB from its size gate would trade real margin for nothing a live
+  # session uses.
+  mapfile -t local_units < <(for d in /build/astroos/pkgs/*/; do [[ -f "$d/PKGBUILD" ]] && basename "$d"; done)
+  mapfile -t install_scope < <(printf '%s\n' "${aur_scope[@]}" "${local_units[@]}" | sort -u)
   curl -sfL "https://astroosrepo.blob.core.windows.net/repo/astroos/x86_64/astroos.db.tar.zst" -o /tmp/astroos.db.tar.zst \
     || { echo "!! [astroos] repo db unreachable" >&2; exit 1; }
   # every db entry is a <name-ver-rel>/desc member; keying on "desc" does not
@@ -289,8 +299,8 @@ if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
     [[ -f "$c" ]] || { echo "!! missing pacman configuration $c" >&2; exit 1; }
     grep -q '^\[astroos\]' "$c" || printf '%s\n' "$repo_section" >> "$c"
   done
-  printf '%s\n' "${scope[@]}" >> "$prof/packages_desktop.x86_64"
-  echo ">> [astroos] enabled in build, live and installed pacman.conf: +${#scope[@]} prebuilt packages"
+  printf '%s\n' "${install_scope[@]}" >> "$prof/packages_desktop.x86_64"
+  echo ">> [astroos] enabled in build, live and installed pacman.conf: +${#install_scope[@]} prebuilt packages on the medium (${#scope[@]} in the db)"
 fi
 
 # --- AstroOS delta 2d: [blackarch] repo (spec §3a Phase 2, council R4) ------
