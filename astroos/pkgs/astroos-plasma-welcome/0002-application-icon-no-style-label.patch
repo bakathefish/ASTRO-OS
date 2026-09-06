@@ -1,0 +1,45 @@
+--- a/src/public/qml/ApplicationIcon.qml
++++ b/src/public/qml/ApplicationIcon.qml
+@@ -20,8 +20,16 @@
+     required property var application
+     required property int size
+ 
+-    icon.name: application.icon ?? "unknown"
+-    text: application.name ?? ""
++    // The org.kde.desktop style paints a ToolButton's icon and text through
++    // QStyle in its background item, underneath any custom contentItem, so
++    // the small "[icon] name" label showed through the large icon below as a
++    // second, offset copy of the logo. Keep the button's own icon and text
++    // empty and draw both in the content item only.
++    display: QQC2.AbstractButton.IconOnly
++    icon.name: ""
++    text: ""
++
++    Accessible.name: application.name ?? ""
+ 
+     onClicked: Welcome.Utils.launchApp(application.desktopName)
+ 
+@@ -31,13 +39,13 @@
+         Kirigami.Icon {
+             Layout.preferredWidth: root.size
+             Layout.preferredHeight: root.size
+-            source: root.icon.name
++            source: root.application.icon ?? "unknown"
+         }
+ 
+         Kirigami.Heading {
+             Layout.alignment: Qt.AlignHCenter
+             Layout.bottomMargin: Kirigami.Units.gridUnit
+-            text: root.text
++            text: root.application.name ?? ""
+             wrapMode: Text.WordWrap
+             level: 3
+         }
+@@ -45,6 +53,6 @@
+     }
+ 
+     QQC2.ToolTip.visible: hovered
+-    QQC2.ToolTip.text: i18nc("@action:button", "Launch %1 now", text)
++    QQC2.ToolTip.text: i18nc("@action:button", "Launch %1 now", root.application.name ?? "")
+     QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+ }

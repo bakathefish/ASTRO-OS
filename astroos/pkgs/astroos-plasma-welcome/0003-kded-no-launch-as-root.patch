@@ -1,0 +1,27 @@
+--- a/src/kded/daemon.cpp
++++ b/src/kded/daemon.cpp
+@@ -15,6 +15,7 @@
+ #include "welcome_kded_debug.h"
+ 
+ #include "daemon.h"
++#include <unistd.h>
+ 
+ K_PLUGIN_CLASS_WITH_JSON(PlasmaWelcomeDaemon, "kded_plasma-welcome.json")
+ 
+@@ -24,6 +25,16 @@
+     , m_currentVersion(QVersionNumber::fromString(QString::fromLatin1(PLASMA_WELCOME_VERSION_STRING)))
+     , m_previousVersion(QVersionNumber::fromString(m_config.readEntry("LastSeenVersion", QString::fromLatin1(PLASMA_WELCOME_VERSION_STRING))))
+ {
++    if (getuid() == 0) {
++        // A root session bus activates kded6 too (an installer or any
++        // pkexec'd tool that talks to the session bus), and that kded
++        // loads this module as root: it must not open a second Welcome
++        // Center over the user's session (Calamares did, mid-install,
++        // AstroOS 2026-09-06). Nothing below is meaningful for root.
++        qCInfo(WELCOME_KDED_LOG) << "Not launching Welcome Center from a root kded";
++        return;
++    }
++
+     qCDebug(WELCOME_KDED_LOG) << "Current version is" << m_currentVersion << "and previous version is" << m_previousVersion;
+ 
+     if (m_config.readEntry("LiveEnvironment", false)) {

@@ -9,7 +9,22 @@
 # with a faint wordmark through it (2026-09-06 screenshot: "two AstroOS logos
 # on top of each other"). The QML is compiled into the binary, so no file on
 # disk can override it; the patch removes the blurred copy and the
-# QtQuick.Effects import that only served it. Nothing else changes.
+# QtQuick.Effects import that only served it.
+#
+# Two more patches, same day, same screenshots:
+# 0002: the "Install" button on that page (src/public/qml/ApplicationIcon.qml)
+#   is a ToolButton with a custom content item. The org.kde.desktop style
+#   paints a ToolButton's own icon and text through QStyle in its background,
+#   underneath any content item, so a small "[icon] Install AstroOS" label
+#   showed through the large icon as a second, offset planet. The button now
+#   carries no icon or text of its own; the content item draws both.
+# 0003: Calamares runs as root through pkexec and talks to the session bus,
+#   which starts a root session bus, which activates a root kded6, which loads
+#   this module, which (LiveEnvironment=true in the system plasma-welcomerc)
+#   opened a second Welcome Center over the user's session halfway through the
+#   installation (journal: dbus-daemon "[session uid=0]" then
+#   plasma-welcome "Failed to register with host portal"). The kded module
+#   now does nothing when it runs as root. Nothing else changes.
 #
 # provides/conflicts/replaces plasma-welcome: plasma-meta depends on
 # plasma-welcome by name, and libalpm resolves a dependency from the target
@@ -62,13 +77,19 @@ conflicts=(plasma-welcome)
 replaces=(plasma-welcome)
 _dirver=$(echo $pkgver | cut -d. -f1-3)
 source=("https://download.kde.org/stable/plasma/$_dirver/plasma-welcome-$pkgver.tar.xz"{,.sig}
-        0001-live-page-no-blurred-second-logo.patch)
+        0001-live-page-no-blurred-second-logo.patch
+        0002-application-icon-no-style-label.patch
+        0003-kded-no-launch-as-root.patch)
 sha256sums=('d9862440a16820ca00abb22363be57e9b156adc76db692d4d04cabd3e862ab3d'
             'SKIP'
-            '7ce1ac47e4adcdc554f8e7d38452adeeb8ae7b5a390ce197ccbab0d63ee504b3')
+            '7ce1ac47e4adcdc554f8e7d38452adeeb8ae7b5a390ce197ccbab0d63ee504b3'
+            '4080942c6aa8829fd8772610de91e6bdeafc2bb589971cbefc57bd933f6ec03b'
+            '83bbbff7a6888b8f9e929e44c16ee20056c87b5745e68186a271a8a45c65cf01')
 b2sums=('9895c3e6028177333114f823f18ef8d27e6de28ad5735cdd779a0345756e52b3a62e2833e30f98abdb0193e1d3262a932b64d68cc12aa5c11094049009dd4a4a'
         'SKIP'
-        '643b5a843d2ac8535acc30f2b99bb78ada25815ed5a5551df6122422dd99f76d7a1386c4ce9e30c99eed5568fb30bc831751c52d389bfe72f736698a0d85edb2')
+        '643b5a843d2ac8535acc30f2b99bb78ada25815ed5a5551df6122422dd99f76d7a1386c4ce9e30c99eed5568fb30bc831751c52d389bfe72f736698a0d85edb2'
+        '230c1c5f4ff72d52988b9ab9d49716ab88539f825434230fcd75a7bb0913700c64c9be1b377eb467a4607e79942994a4007d16778d0684a6085c2fdc310da68d'
+        '4e3e6d8734790dcc60d01ce8b03928b8a77c9489403cdf198411b536a4552b15c09fc5884a530df62170389e7ef39c13186cd40350691424a6deca364e4e22cf')
 validpgpkeys=('0AAC775BB6437A8D9AF7A3ACFE0784117FBCE11D') # Bhushan Shah <bshah@kde.org>
 
 prepare() {
@@ -78,6 +99,18 @@ prepare() {
   # the live page, and no effects import left to draw one with
   if grep -q 'Welcome.Distro.logo\|QtQuick.Effects' src/qml/pages/Live.qml; then
     echo "astroos-plasma-welcome: Live.qml still draws the blurred distro logo" >&2
+    return 1
+  fi
+  patch -Np1 -i "$srcdir/0002-application-icon-no-style-label.patch"
+  # the button must not hand the style an icon or a text to paint
+  if ! grep -q 'display: QQC2.AbstractButton.IconOnly' src/public/qml/ApplicationIcon.qml \
+     || grep -q 'icon.name: application.icon' src/public/qml/ApplicationIcon.qml; then
+    echo "astroos-plasma-welcome: ApplicationIcon.qml still lets the style paint a label" >&2
+    return 1
+  fi
+  patch -Np1 -i "$srcdir/0003-kded-no-launch-as-root.patch"
+  if ! grep -q 'getuid() == 0' src/kded/daemon.cpp; then
+    echo "astroos-plasma-welcome: daemon.cpp lacks the root guard" >&2
     return 1
   fi
 }
