@@ -127,8 +127,14 @@ python-zxing-cpp         # normcap
 # found: limine-entry-tool, limine-snapper-sync". All five were served by
 # [cachyos] and are on the AUR under these names; the audit's resolver now
 # runs every choice's set, not only the default one.
-limine-entry-tool        # Limine choice: writes the boot entries (Zesko, gitlab.com/Zesko/limine-entry-tool)
-limine-mkinitcpio-hook   # bootloader-post-setup swaps entry-tool for this hook after the first entries exist
-limine-snapper-sync      # btrfs + Limine: snapshot boot entries (Zesko)
-grub-hook                # GRUB choice: regenerates grub.cfg on kernel updates (runnytu)
-systemd-boot-manager-git # systemd-boot choice: sdboot-manage; provides the systemd-boot-manager name main.py asks for (no release package on the AUR)
+#
+# The second field "repo-only" keeps a name in the repo db (the scope count and
+# D4 still include it) but off the live medium. These five carry pacman hooks
+# that expect a mounted ESP; installed into the airootfs they failed the ISO's
+# initramfs build (run 11, 2026-09-06). container-build.sh drops them from the
+# medium's package list and forge.sh's audit asserts they are absent.
+limine-entry-tool        repo-only  # Limine choice: writes the boot entries (Zesko, gitlab.com/Zesko/limine-entry-tool)
+limine-mkinitcpio-hook   repo-only  # bootloader-post-setup swaps entry-tool for this hook after the first entries exist
+limine-snapper-sync      repo-only  # btrfs + Limine: snapshot boot entries (Zesko)
+grub-hook                repo-only  # GRUB choice: regenerates grub.cfg on kernel updates (runnytu)
+systemd-boot-manager-git repo-only  # systemd-boot choice: sdboot-manage; provides the systemd-boot-manager name main.py asks for (no release package on the AUR)

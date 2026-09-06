@@ -59,13 +59,20 @@ say()  { echo "[$(ts)] $*" | tee -a "$log"; }
 mark() { echo "$(ts) $1 $2" >> "$status"; }
 die()  { say "!! $*"; exit 1; }
 aur_names()   { tr -d '\r' < "$here/meta/aur.list" | grep -vE '^\s*(#|$)' | awk '{print $1}'; }
+# A second field "repo-only" on an aur.list line keeps the name in the repo db
+# (D4 and the scope count include it) but off the live medium: the bootloader
+# helpers' pacman hooks expect a mounted ESP and, installed into the airootfs,
+# failed run 11's initramfs build (2026-09-06). container-build.sh applies the
+# same filter when it appends the scope to the medium's package list.
+aur_iso_names() { tr -d '\r' < "$here/meta/aur.list" | grep -vE '^\s*(#|$)' | awk '$2 != "repo-only" {print $1}'; }
+aur_repo_only() { tr -d '\r' < "$here/meta/aur.list" | grep -vE '^\s*(#|$)' | awk '$2 == "repo-only" {print $1}'; }
 local_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/PKGBUILD" ]] && basename "$d"; done; return 0; }
 # A pkgs/<name>/splits file names the extra pkgnames one PKGBUILD produces (the
 # kernels: base, headers, zfs, nvidia-open from a single build). They are real
 # db entries, so the hosted-db comparison must expect them; they are not build
 # units, so the "every scope package is installed" audit does not demand them.
 split_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/splits" ]] && tr -d '\r' < "$d/splits" | grep -vE '^\s*(#|$)' | awk '{print $1}'; done; return 0; }
-scope_names() { { aur_names; local_names; } | sort -u; }
+medium_names() { { aur_iso_names; local_names; } | sort -u; }
 repo_names()  { { aur_names; local_names; split_names; } | sort -u; }
 db_names()    { bsdtar -tf "$1" | awk -F/ '$2=="desc"{print $1}' | sed 's/-[^-]*-[^-]*$//' | sort -u; }
 latest_iso()  { ls -1t "$out"/*.iso 2>/dev/null | head -1; }
@@ -509,8 +516,15 @@ stage_audit() {
   echo "  installed packages: $n_inst" | tee -a "$rep"
   local missing=()
   if [[ "$ASTROOS_WITH_AUR_REPO" == "1" ]]; then
-    while read -r p; do grep -qx "$p" "$a/installed" || missing+=("$p"); done < <(scope_names)
-    (( ${#missing[@]} == 0 )) && ok "every [astroos] scope package is installed in the image ($(scope_names | wc -l))" || bad "[astroos] packages NOT installed: ${missing[*]}"
+    while read -r p; do grep -qx "$p" "$a/installed" || missing+=("$p"); done < <(medium_names)
+    (( ${#missing[@]} == 0 )) && ok "every [astroos] medium package is installed in the image ($(medium_names | wc -l))" || bad "[astroos] packages NOT installed: ${missing[*]}"
+    # repo-only names must stay off the medium (run-11 regression guard); the
+    # tag set is asserted non-empty so an emptied list cannot pass vacuously
+    local ronly=() present=()
+    mapfile -t ronly < <(aur_repo_only)
+    (( ${#ronly[@]} > 0 )) || bad "aur.list carries no repo-only names (the bootloader helpers lost their tag?)"
+    for p in "${ronly[@]}"; do grep -qx "$p" "$a/installed" && present+=("$p"); done
+    (( ${#present[@]} == 0 )) && ok "no repo-only [astroos] package on the medium (${#ronly[@]} names kept to the installer target)" || bad "repo-only packages installed in the image: ${present[*]}"
   fi
   missing=()
   while read -r p; do grep -qx "$p" "$a/installed" || missing+=("$p"); done < <(grep -vE '^\s*(#|$)' "$here/astroos-additions.x86_64" | tr -d '\r')

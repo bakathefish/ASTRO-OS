@@ -342,7 +342,15 @@ if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
   # 200 MiB from its size gate would trade real margin for nothing a live
   # session uses.
   mapfile -t local_units < <(for d in /build/astroos/pkgs/*/; do [[ -f "$d/PKGBUILD" ]] && basename "$d"; done)
-  mapfile -t install_scope < <(printf '%s\n' "${aur_scope[@]}" "${local_units[@]}" | sort -u)
+  # An aur.list line whose second field is "repo-only" stays in the db (the
+  # installer's pacstrap module adds those names to the target per bootloader
+  # choice) but off the medium: limine-mkinitcpio-hook, grub-hook and
+  # systemd-boot-manager-git ship pacman hooks that expect a mounted ESP, and
+  # run inside the airootfs pacstrap they failed the initramfs build (run 11,
+  # 2026-09-06). forge.sh's audit applies the same filter and asserts absence.
+  mapfile -t aur_medium < <(tr -d '\r' < /build/astroos/meta/aur.list | grep -vE '^\s*(#|$)' | awk '$2 != "repo-only" {print $1}')
+  mapfile -t install_scope < <(printf '%s\n' "${aur_medium[@]}" "${local_units[@]}" | sort -u)
+  echo ">> [astroos] medium scope: ${#aur_medium[@]} of ${#aur_scope[@]} AUR names ($(( ${#aur_scope[@]} - ${#aur_medium[@]} )) repo-only) + ${#local_units[@]} local units"
   curl -sfL "https://astroosrepo.blob.core.windows.net/repo/astroos/x86_64/astroos.db.tar.zst" -o /tmp/astroos.db.tar.zst \
     || { echo "!! [astroos] repo db unreachable" >&2; exit 1; }
   # every db entry is a <name-ver-rel>/desc member; keying on "desc" does not
