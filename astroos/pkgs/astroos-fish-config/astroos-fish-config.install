@@ -1,0 +1,13 @@
+#!/bin/sh
+# Derived from the CachyOS package of the same purpose (MIT).
+#
+# Upstream printed this on post_install as well, naming a path that does not
+# exist (~/.config/fish/fish.config), and $USER is root during a pacman
+# transaction in any case. A fresh install has nothing to merge: the user is
+# created afterwards and takes config.fish from /etc/skel. Only an upgrade
+# leaves an existing home directory holding an older copy.
+
+post_upgrade() {
+  echo "==> /etc/skel/.config/fish/config.fish may have changed."
+  echo "    Merge it into ~/.config/fish/config.fish by hand."
+}

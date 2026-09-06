@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Deliberately inert on AstroOS. Replaces the CachyOS-Live-ISO script at the
+# same (unowned) path, which has no safe translation; the overlay copy wins
+# because container-build.sh copies astroos/overlay/airootfs over the base
+# profile.
+#
+# What the replaced script did, and why none of it survives the port:
+#
+#   1. It built its removal list as
+#        pacman -Qq  MINUS  ( pacman -Qqg base-devel
+#                           + pacman -Qqg cachyos
+#                           + two hardcoded keep lists )
+#      and ran `pacman -Rs` over the result, i.e. "strip this system down to
+#      base". The `cachyos` package GROUP does not exist on an AstroOS system,
+#      so that subtraction keeps nothing from it and the list becomes nearly
+#      every installed package: the desktop, the kernel, the network stack and
+#      the installer included. There is no AstroOS group to put in its place,
+#      so the computation cannot be ported, only reinvented, and a rewrite
+#      that guesses at the keep list is exactly the failure mode being avoided.
+#   2. Its `_try_v3` swapped /etc/pacman-more.conf in as /etc/pacman.conf on a
+#      x86-64-v3 capable CPU. The installer does that itself now, in
+#      shellprocess-before-online.conf, against the target root.
+#   3. Its `_pacman_fix` ran `pacman-key --populate cachyos`. AstroOS trusts
+#      one repository key, populated by shellprocess_initialize_pacman for the
+#      target and by calamares-online.sh for the live session.
+#
+# Nothing calls it. Neither Calamares sequence names it (settings_online.conf
+# and settings_offline.conf at the pinned installer commit), the live profile
+# does not either, and upstream's own `removeun` deletes it from the target as
+# a live leftover. AstroOS installs online with pacstrap into an empty root,
+# so there is no live system to prune in the first place: the target only ever
+# holds what the installer put there.
+#
+# The cleanup that IS wanted, for the offline path, lives in removeun.
+
+cat >&2 <<'EOF'
+removeun-online: not available on AstroOS.
+  AstroOS installs online with pacstrap into an empty root, so there is no
+  live system to strip. The replaced script computed its removal list against
+  the "cachyos" package group, which does not exist here; that subtraction
+  would have kept nothing and removed nearly every installed package.
+  Offline-install cleanup lives in /usr/local/bin/removeun.
+EOF
+exit 1
+
+# vim:set ft=bash sw=2 sts=2 et:

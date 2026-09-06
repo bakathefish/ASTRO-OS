@@ -1,0 +1,4 @@
+# Extra package names this PKGBUILD produces (makepkg split packages).
+linux-astroos-headers
+linux-astroos-zfs
+linux-astroos-nvidia-open

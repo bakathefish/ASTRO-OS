@@ -1,0 +1,18 @@
+# Derived from the CachyOS package of the same purpose (GPL).
+# Cadence and offset are upstream's, unchanged. RandomizedOffsetSec (systemd
+# 258 and later; Arch is on 261) picks one stable, evenly distributed offset
+# per machine instead of re-randomising every firing, so the ten day interval
+# is preserved while the fleet spreads out across it. Do not swap it for
+# RandomizedDelaySec: that would re-roll the delay on every run.
+[Unit]
+Description=Refresh the Arch Linux mirror ranking
+Wants=network-online.target
+After=network-online.target
+
+[Timer]
+OnCalendar=*-*-01,11,21 00:00:00
+RandomizedOffsetSec=10d
+Persistent=true
+
+[Install]
+WantedBy=timers.target

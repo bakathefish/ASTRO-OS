@@ -1,5 +1,11 @@
-# AstroOS base image pin. The ISO is CachyOS-Live-ISO plus the AstroOS delta
+# AstroOS base image pin. The ISO is the live-ISO profile plus the AstroOS delta
 # (astroos-additions.x86_64 + overlay/airootfs + identity seds). Owner directive
 # 7a / R1.2: lift, don't rebuild. Bump BASE_COMMIT deliberately, via council.
-BASE_REPO="https://github.com/CachyOS/CachyOS-Live-ISO.git"
+#
+# The profile is served from our own mirror, not from CachyOS. astroos-live-iso
+# is a full-history fork of CachyOS/CachyOS-Live-ISO (GPL-3.0); upstream authors
+# retain their copyright and the fork notice on its default branch says so. The
+# commit below is byte-identical to the one this pin has always named, so the
+# move changes where the bytes are served, not what they are.
+BASE_REPO="https://github.com/bakathefish/astroos-live-iso.git"
 BASE_COMMIT="4937780541814b4b0ec7c212c00fe06299f799b6"

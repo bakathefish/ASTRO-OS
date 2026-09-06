@@ -36,6 +36,26 @@ python-emcee
 veusz
 quarto-cli
 
+# Left the CachyOS repos with them 2026-09-06: [cachyos] is deleted from every
+# pacman.conf, and these three are not in Arch core/extra/multilib and are not
+# CachyOS-branded, so they keep their upstream names and build here instead.
+# None of them pulls an AUR-only dependency: the transitive block below is unchanged.
+paru              # AUR helper. makedepends cargo (extra/rust provides it); depends git,
+                  # pacman and libalpm.so>=14, and core/pacman 7.1.0 provides libalpm.so=16
+                  # (AUR HEAD 329be21 "Add support for libalpm16" covers that ABI bump).
+ckbcomp           # Calamares' keyboard module runs it to turn the chosen XKB layout into a
+                  # console keymap. Debian console-setup upstream, built from a release
+                  # tarball; depends perl, makedepends git. The name is also in the BlackArch
+                  # db, where repo order resolves it to [astroos] first (R4 review D-D).
+zfs-utils         # ZFS userspace ONLY (configure --with-config=user): no kernel dependency,
+                  # so this IS the right AUR package for a distribution kernel. It carries no
+                  # module. zfs-linux/-lts pin one exact kernel package version and would need
+                  # a rebuild at every bump, and zfs-linux-cachyos left with [cachyos]. The
+                  # module side is ours now: linux-astroos-zfs and linux-astroos-lts-zfs are
+                  # built from the same PKGBUILD as their kernels, so they are always matched,
+                  # and no DKMS is involved. This package is the userspace half of that pair,
+                  # so its version must track what those modules were built against.
+
 # Transitive AUR dependencies of the packages above (council R3.1 P2 —
 # explicit allowlist, measured closure 2026-08-25; consumer in parens)
 cdsclient                # astromatic-scamp
@@ -63,3 +83,15 @@ python-zxing-cpp         # normcap
 #   EOL GTK2 runtime is a supportability liability, not just a build risk;
 #   Stellarium (official repos, on the ISO) covers planetarium duty.
 #   Re-introduce only with a maintained dependency path.
+
+# NOT AVAILABLE FROM THE AUR (checked 2026-09-06 via RPC search by name and by
+# name-desc: zero hits for kxkb, locale1, kxkb2locale; absent from Arch too):
+# kxkb2locale1: a daemon that watches the KDE keyboard configuration and applies
+#   it to org.freedesktop.locale1, so layout switching works in a live session.
+#   Upstream is KDE Invent (https://invent.kde.org/aleasto/kxkb2locale1, MIT);
+#   what the ISO used was CachyOS's own VCS build of it, carrying a local
+#   remove-env-check.patch. depends qt6-base, kconfig; makedepends git, cmake,
+#   extra-cmake-modules (all official). No AUR name exists, so it cannot enter
+#   this lane: a name here that the D7 liveness check cannot resolve hard-fails
+#   the preflight for the whole scope. If the ISO still needs it, it belongs in
+#   the local lane (astroos/pkgs/), built from the KDE upstream.

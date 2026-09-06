@@ -44,7 +44,10 @@ IMG="${ASTROOS_BUILDER_IMAGE:-docker.io/archlinux:base-devel}"
 # 33 the same day: python-parfive's docs-only makedepends (sphinx-automodapi,
 # sphinx_contributors) left with the docs build (aur-patches/python-parfive);
 # 32: python-pytest-runner left with opendrop's check() (aur-patches/opendrop).
-SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-32}"
+# 35 on 2026-09-06: [cachyos] was deleted from every pacman.conf, and paru,
+# ckbcomp and zfs-utils are neither in Arch nor CachyOS-branded, so they keep
+# their own names and build here instead of coming from upstream's repo.
+SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-35}"
 cmd="${1:-build}"
 arg="${2:-}"
 
@@ -53,6 +56,25 @@ die() { echo "!! $*" >&2; exit 1; }
 
 # Local packages: every pkgs/<name>/PKGBUILD.
 local_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/PKGBUILD" ]] && basename "$d"; done; return 0; }
+# A PKGBUILD that produces more than one pkgname lists the extra names in
+# pkgs/<name>/splits, one per line. The kernels need it: a single
+# linux-astroos build yields the base package, headers, the ZFS module and
+# the open NVIDIA module, and the ISO installs all four, so the repo db has
+# to carry all four or the build-time D4 scope check rejects the repo.
+local_splits() {
+  local f="$here/pkgs/$1/splits"
+  [[ -f "$f" ]] || return 0
+  tr -d '\r' < "$f" | grep -vE '^\s*(#|$)' | awk '{print $1}'
+}
+# Every package NAME the local lane owns: build units plus their splits.
+local_all_names() {
+  local d n
+  for d in "$here"/pkgs/*/; do
+    [[ -f "$d/PKGBUILD" ]] || continue
+    n=$(basename "$d"); echo "$n"; local_splits "$n"
+  done
+  return 0
+}
 
 # --- keygen: one-time signing key (procedure: astroos/KEYS.md) -------------
 do_keygen() {
@@ -108,15 +130,21 @@ scope_preflight() {
   msg "migration check OK: all $n are AUR-only"
 
   mapfile -t LOCALS < <(local_names)
+  mapfile -t LOCAL_ALL < <(local_all_names)
   # one owner per name: a pkgs/ package that shares a name with an AUR scope
-  # entry would be built twice and make the D4 set ambiguous
+  # entry would be built twice and make the D4 set ambiguous. Split names count
+  # here as well, because they land in the db under their own name.
   local l
-  for l in "${LOCALS[@]}"; do
+  for l in "${LOCAL_ALL[@]}"; do
     for p in "${PKGS[@]}"; do
-      [[ "$l" == "$p" ]] && die "scope: $l is both a pkgs/ package and an aur.list name (D4: one owner per name)"
+      [[ "$l" == "$p" ]] && die "scope: $l is both a pkgs/ package name and an aur.list name (D4: one owner per name)"
     done
   done
-  msg "local packages: ${#LOCALS[@]} (${LOCALS[*]:-none})"
+  # a name may not be claimed by two pkgs/ directories either
+  local dupes
+  dupes=$(printf '%s\n' "${LOCAL_ALL[@]}" | sort | uniq -d | tr '\n' ' ')
+  [[ -z "$dupes" ]] || die "scope: package name claimed twice by pkgs/ (D4): $dupes"
+  msg "local packages: ${#LOCALS[@]} build units -> ${#LOCAL_ALL[@]} names (${LOCAL_ALL[*]:-none})"
 }
 
 # --- dependency order: topo sort over in-scope depends (RPC data) ----------
@@ -370,9 +398,13 @@ build_local() {
     msg "=== $p already built from $id, skipping ==="
     return 0
   fi
-  # one artifact per name in the db: a rebuild replaces the previous file
-  old=$(own_pkg_file "$p" || true)
-  [[ -n "$old" ]] && rm -f "$old" "$old.sig"
+  # one artifact per name in the db: a rebuild replaces the previous file,
+  # for the build unit and for every split name it owns
+  local s
+  for s in "$p" $(local_splits "$p"); do
+    old=$(own_pkg_file "$s" || true)
+    [[ -n "$old" ]] && rm -f "$old" "$old.sig"
+  done
   msg "=== building local package $p (VERSION $ver, inputs $id; fresh container) ==="
   podman unshare rm -rf "/tmp/aur-build-$p"; mkdir -p "/tmp/aur-build-$p/pkg"
   cp -r "$here/pkgs/$p/." "/tmp/aur-build-$p/pkg/"
@@ -399,15 +431,39 @@ build_local() {
       cd /work/pkg
       export MAKEFLAGS="-j$(nproc)"
       echo "OPTIONS+=(!debug)" >> /etc/makepkg.conf
-      su builder -c "makepkg --noconfirm -s"
-      own=""
+      # su keeps the HOME it inherits from the host environment, and that path
+      # does not exist inside the container, so gpg has nowhere to put a keyring
+      # and every source signature check fails with "unknown public key"
+      # regardless of which keys are present. Give the build a real GNUPGHOME.
+      # Then import whatever the package vendors under keys/pgp/: this makepkg
+      # has no keys/pgp support of its own, and we would rather verify an
+      # upstream source signature against a trust anchor committed to our tree
+      # than reach a keyserver at build time.
+      export GNUPGHOME=/home/builder/.gnupg
+      install -d -m700 -o builder -g builder "$GNUPGHOME"
+      if [ -d /work/pkg/keys/pgp ]; then
+        su builder -c "GNUPGHOME=$GNUPGHOME HOME=/home/builder gpg --batch --quiet --import /work/pkg/keys/pgp/*.asc"
+        echo ">> imported vendored PGP keys: $(ls /work/pkg/keys/pgp/ | tr "\n" " ")"
+      fi
+      su builder -c "GNUPGHOME=$GNUPGHOME HOME=/home/builder makepkg --noconfirm -s"
+      # Copy the package named $p and every split name this unit declares in
+      # pkgs/<name>/splits. Anything else makepkg produced (a -debug leftover,
+      # an undeclared sibling) must never reach the repo: the db name set is
+      # exact and the ISO build hard-fails on an extra name (D4).
+      want="$p"
+      [ -f /work/pkg/splits ] && want="$p $(sed "s/#.*//" /work/pkg/splits | tr -d "\r" | tr "\n" " ")"
+      own=""; kept=0
       for f in ./*.pkg.tar*; do
         [[ -e "$f" && "$f" != *.sig ]] || continue
         n=$(basename "$f"); n=${n%%.pkg.tar*}; n=${n%-*}; n=${n%-*}; n=${n%-*}
-        [[ "$n" == "$p" ]] && own="$f"
+        for w in $want; do
+          [[ "$n" == "$w" ]] || continue
+          cp "$f" /repo/; kept=$((kept+1))
+          [[ "$w" == "$p" ]] && own="$f"
+        done
       done
       [[ -n "$own" ]] || { echo "!! no package file named $p among: $(ls ./*.pkg.tar* 2>/dev/null)" >&2; exit 1; }
-      cp "$own" /repo/
+      echo ">> collected $kept package file(s) for: $want"
       n=$(basename "$own"); n=${n%%.pkg.tar*}; n=${n%-*}; echo "${n#"$p-"}" > /work/PKGVER
     ' 2>&1 | tee "$locks/$p.build.log"; then
     jq -n --arg name "$p" --arg id "$id" --arg pkgver "$(cat /tmp/aur-build-$p/PKGVER)" --arg epoch "$(date +%s)" \
@@ -427,7 +483,7 @@ do_build() {
   local order; order=$(topo_order "${PKGS[@]}")
   msg "build order: $order ${LOCALS[*]:-}"
   rm -f "$locks/BUILD_FAIL"
-  local -a ALL=("${PKGS[@]}" "${LOCALS[@]}")
+  local -a ALL=("${PKGS[@]}" "${LOCAL_ALL[@]}")
 
   # Purge anything in out/ whose pkgname is not in scope: -debug and split
   # -doc siblings copied by earlier runs, or packages excluded since. The

@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# AstroOS post-install cleanup. Replaces the CachyOS-Live-ISO script at the
+# same (unowned) path, which named packages that do not exist on an AstroOS
+# system; the overlay copy wins because container-build.sh copies
+# astroos/overlay/airootfs over the base profile.
+#
+# Who runs it: the OFFLINE Calamares sequence, shellprocess@before
+# (settings_offline.conf -> shellprocess-before.conf, dontChroot: false), so
+# it runs inside the freshly installed root after unpackfs copied the live
+# filesystem to disk, and Calamares deletes it from the target afterwards.
+# AstroOS ships only the online sequence today (calamares-online.sh writes
+# settings_online.conf, which never names this script), so nothing on the
+# current ISO invokes it. It is kept correct for the day the offline path is
+# enabled and for hand use in a rescue chroot.
+#
+# Scope is deliberately narrower than upstream's, which also stripped gparted,
+# cmake, doxygen, boost-libs, squashfs-tools, tcpdump and friends: on AstroOS
+# those are the product, not live clutter. What goes is the installer, which
+# cannot work on an installed system, and the live NVIDIA set on a machine
+# that has no NVIDIA GPU.
+#
+# No `set -e`: a cleanup pass must never abort an installation half way. Every
+# step reports what it did and carries on.
+set -u
+
+log() { printf 'removeun: %s\n' "$*"; }
+
+# This prunes an INSTALLED root. On the live medium the same list would take
+# the installer out from under a running Calamares. The target chroot gets a
+# fresh tmpfs on /run (Calamares mount.conf mounts only /run/udev into it), so
+# a visible /run/archiso means we are not in the target.
+if [ -d /run/archiso ] && [ "${ASTROOS_REMOVEUN_FORCE:-0}" != "1" ]; then
+  log "refusing: /run/archiso is visible, so this is the live medium (or a chroot that bind-mounts /run)"
+  log "this prunes an installed root; re-run with ASTROOS_REMOVEUN_FORCE=1 if the root really is the target"
+  exit 0
+fi
+
+# --- packages -------------------------------------------------------------
+# The live-only installer set: the Calamares build, the AstroOS configuration
+# and branding package that drives it (live-only by design, see
+# astroos/pkgs/astroos-calamares/PKGBUILD) and the boost 1.91 shim that exists
+# only so that binary starts.
+packages=(
+  astroos-calamares-installer
+  astroos-calamares
+  astroos-calamares-boost-compat
+)
+
+# The ISO carries the LTS open NVIDIA module so an NVIDIA machine gets a
+# working live session; an installed system gets its driver from chwd instead.
+# Drop that live set only when there is positively no NVIDIA GPU. sysfs is
+# mounted in the target chroot, so read PCI vendor ids from it rather than
+# depend on a tool being installed. No PCI device visible at all means "cannot
+# tell", and then the drivers stay.
+nvidia_state() {
+  local vendor seen=no
+  for vendor in /sys/bus/pci/devices/*/vendor; do
+    [ -r "$vendor" ] || continue
+    seen=yes
+    if [ "$(cat "$vendor")" = "0x10de" ]; then
+      echo present
+      return
+    fi
+  done
+  if [ "$seen" = yes ]; then echo absent; else echo unknown; fi
+}
+
+case "$(nvidia_state)" in
+  present)
+    log "NVIDIA GPU present: keeping the NVIDIA driver packages" ;;
+  absent)
+    log "no NVIDIA GPU: removing the live NVIDIA driver set"
+    packages+=(linux-astroos-lts-nvidia-open nvidia-utils egl-wayland) ;;
+  *)
+    log "no PCI device visible: keeping the NVIDIA driver packages" ;;
+esac
+
+# -Rns, never -Rc: pacman refuses to remove a package another installed one
+# still needs, and that refusal is the safety net. One target per transaction
+# so a refusal for one name cannot block the rest, and only names that are
+# actually installed so an absent one is not an error.
+for pkg in "${packages[@]}"; do
+  if ! pacman -Qq "$pkg" >/dev/null 2>&1; then
+    log "not installed, skipping: $pkg"
+    continue
+  fi
+  if pacman -Rns --noconfirm "$pkg"; then
+    log "removed $pkg"
+  else
+    log "kept $pkg: pacman refused it (still required by something installed?)"
+  fi
+done
+
+# --- live-only files ------------------------------------------------------
+# Unowned files that unpackfs copied to disk with the rest of the live root:
+# the first four are the base profile's, the rest are the AstroOS overlay's.
+# All of them are meaningless or broken on an installed system, and no package
+# owns them, so nothing else would ever clean them up.
+files=(
+  /usr/local/bin/choose-mirror
+  /usr/local/bin/prepare-live-desktop.sh
+  /usr/local/bin/removeun-online
+  /usr/local/share/livecd-sound
+  /usr/local/bin/calamares-online.sh
+  /usr/share/applications/astroos-install.desktop
+  /usr/local/bin/astroos-smoke-report
+  /etc/systemd/system/astroos-smoke.service
+  /etc/systemd/system/multi-user.target.wants/astroos-smoke.service
+)
+for f in "${files[@]}"; do
+  [ -e "$f" ] || [ -L "$f" ] || continue
+  if rm -rf "$f"; then
+    log "removed $f"
+  else
+    log "could not remove $f"
+  fi
+done
+
+exit 0
+
+# vim:set ft=bash sw=2 sts=2 et:

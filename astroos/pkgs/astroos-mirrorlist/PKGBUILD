@@ -1,0 +1,39 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Local lane package (see astroos-keyring/PKGBUILD for the version scheme):
+# built by astroos/scripts/build-aur-repo.sh from this directory, pkgver comes
+# from the VERSION file that script writes.
+#
+# Replaces cachyos-mirrorlist as part of dropping the [cachyos] repo. The
+# shipped file carries the one origin AstroOS actually has, the same string
+# astroos/scripts/container-build.sh writes into every pacman.conf:
+#
+#   repo_url='https://astroosrepo.blob.core.windows.net/repo/astroos/$arch'
+#
+# so a pacman.conf that Includes this file and one that carries a direct
+# Server line resolve to the same address. forge.sh builds the same URL from
+# ASTROOS_REPO_ACCOUNT/ASTROOS_REPO_CONTAINER; overriding either variable at
+# publish time means this file has to be updated to match.
+#
+# Nothing Includes it yet: delta 2c in container-build.sh still appends a
+# literal "Server = $repo_url" line, and forge.sh's audit stage greps for that
+# exact line. Switching those to Include = /etc/pacman.d/astroos-mirrorlist is
+# a separate change to those two scripts, not to this package.
+pkgname=astroos-mirrorlist
+pkgver=0
+pkgrel=1
+pkgdesc="AstroOS [astroos] repository mirrorlist"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(GPL-3.0-or-later)
+provides=(cachyos-mirrorlist)
+conflicts=(cachyos-mirrorlist)
+replaces=(cachyos-mirrorlist)
+# keep a hand edited or ranked mirrorlist across upgrades (upstream does the same)
+backup=(etc/pacman.d/astroos-mirrorlist)
+
+pkgver() { cat "$startdir/VERSION"; }
+
+package() {
+  install -Dm644 "$startdir/files/etc/pacman.d/$pkgname" \
+    "$pkgdir/etc/pacman.d/$pkgname"
+}

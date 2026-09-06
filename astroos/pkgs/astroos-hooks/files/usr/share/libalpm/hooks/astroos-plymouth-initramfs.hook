@@ -1,0 +1,15 @@
+# Point plymouth's initrd updater at the generator-agnostic helper.
+# Derived from the CachyOS package of the same purpose (GPL): upstream
+# cachyos-hooks' cachyos-plymouth-initramfs.hook, unchanged apart from the file
+# name. plymouth is a third-party package, so the Target is untouched.
+[Trigger]
+Operation = Upgrade
+Operation = Install
+Operation = Remove
+Type = Package
+Target = plymouth
+
+[Action]
+Description = Fix plymouth script to update initramfs
+When = PostTransaction
+Exec = /usr/bin/sh -c 'ln -s -f /usr/bin/update-initramfs /usr/lib/plymouth/plymouth-update-initrd 2>/dev/null || true'

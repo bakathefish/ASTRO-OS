@@ -1,0 +1,100 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Contributor: Peter Jung <admin@ptr1337.dev>
+# Contributor: Vladislav Nepogodin <nepogodin.vlad@gmail.com>
+# Derived from the CachyOS package of the same purpose (GPL).
+#
+# The system tuning layer: sysctl, udev, modprobe, tmpfiles, systemd drop-ins,
+# zram, the realtime audio limits, the wireless regulatory-domain unit and a
+# handful of CLI helpers. Upstream (cachyos-settings) fetches its payload from
+# a signed git tag of CachyOS/CachyOS-Settings at build time; AstroOS vendors
+# that payload in-tree under files/ mirroring the install paths, the same way
+# astroos-branding does, so the [astroos] repo owns the bytes and the build
+# needs no network and no upstream signing key.
+#
+# Payload vendored from CachyOS/CachyOS-Settings tag 1.4.0 (commit aba2ea7).
+#
+# pkgver tracks that upstream release, so this package does NOT use the local
+# lane's VERSION-file scheme (see astroos-keyring/PKGBUILD): there is no
+# pkgver() here and build-aur-repo.sh's generated VERSION file is ignored. A
+# change under files/ that stays on the same upstream release must therefore
+# bump pkgrel by hand, otherwise clients never see a new version.
+#
+# Renamed from upstream (distro identity only, nothing third-party):
+#   usr/bin/cachyos-bugreport.sh              -> usr/bin/astroos-bugreport.sh
+#   usr/lib/sysctl.d/70-cachyos-settings.conf -> .../70-astroos-settings.conf
+#   cachyos-iw-set-regdomain.{path,service}   -> astroos-iw-set-regdomain.{path,service}
+#     (this package owns that unit; the .path unit, 85-iw-regulatory.rules and
+#     the .install scriptlet were re-pointed with it)
+#   "CachyOS game-performance"  -> "AstroOS game-performance" in usr/bin/game-performance
+#   bug report log/banner strings, and the repo names astroos-bugreport.sh
+#   looks for (cachyos-v4/v3/znver4 -> the tiers the AstroOS mirrorlist
+#   packages reserve: astroos-v4, astroos-v3, astroos)
+# Left alone on purpose: every kernel sysctl key, every udev attribute and
+# hardware match, ntsync, zram, ananicy-cpp, systemd-resolved, sbctl, hdparm,
+# the DLSS/zink environment variables and the ISC-licensed iw-set-regdomain
+# code from the Filotimo/Red Hat/Velocity Limitless lineage.
+#
+# Four upstream files are deliberately NOT shipped:
+#   etc/debuginfod/cachyos.urls      points at debuginfod.cachyos.org, which
+#     only indexes CachyOS-built binaries; AstroOS no longer pulls from
+#     [cachyos] so every build-id would miss. Arch's own debuginfod package
+#     ships archlinux.urls for the Arch repos.
+#   usr/bin/paste-cachyos            a client for paste.cachyos.org. AstroOS
+#     runs no paste service, and uploading a user's dmesg and journal to a
+#     third party under an AstroOS name is not ours to do.
+#     astroos-bugreport.sh now prints where the log landed instead.
+#   usr/share/icons/cachyos.svg      CachyOS artwork.
+#   usr/share/glib-2.0/schemas/zz_cachyos.org.gnome.login-screen.gschema.override
+#     pointed GNOME's login screen at that artwork. astroos-branding already
+#     ships zz_astroos.org.gnome.login-screen.gschema.override with the AstroOS
+#     logo, and astroos-identity removes the leftover svg, so shipping our own
+#     copy here would only collide with branding for the same setting.
+pkgname=astroos-settings
+pkgver=1.4.0
+pkgrel=1
+# epoch kept from upstream: this package replaces cachyos-settings 1:1.4.0-1,
+# and matching the epoch keeps the version comparison monotonic across that
+# swap and across any later upstream bump.
+epoch=1
+pkgdesc="AstroOS system tuning: sysctl, udev, modprobe, tmpfiles, systemd drop-ins, zram and CLI helpers"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+# Upstream's PKGBUILD declares GPL-1.0-only, but the CachyOS-Settings tree
+# ships GPLv3 in LICENSE.md and the iw-set-regdomain files carry ISC headers.
+license=('GPL-3.0-or-later' 'ISC')
+groups=(astroos)
+depends=(
+  zram-generator
+  ananicy-cpp
+  inxi
+  "systemd>=256"
+  iw # for setting proper regulatory
+  wireless-regdb
+)
+optdepends=('libluv: for topmem'
+            'lua-luv: for topmem'
+            'power-profiles-daemon: For game-performance'
+            # upstream hard-depends on cachyos-ananicy-rules, which lives in
+            # the [cachyos] repo AstroOS is cutting; no AstroOS lane ships a
+            # rules package yet, so ananicy-cpp runs with no rules until one
+            # does. Downgraded to an optdepend rather than making the package
+            # uninstallable.
+            'ananicy-rules-git: process priority rules for ananicy-cpp'
+            # not listed upstream, but each of these is called by a file we ship
+            'pciutils: setpci, used by pci-latency'
+            'hdparm: 69-hdparm.rules power management for rotational SATA disks'
+            'sbctl: for sbctl-batch-sign')
+provides=('cachyos-settings' 'ntsync-common')
+conflicts=('cachyos-settings')
+replaces=('cachyos-settings')
+install="$pkgname.install"
+
+package() {
+  # plain cp (not -a): ownership must be root:root in the package, and the exec
+  # bits are re-asserted below because the git checkout may come from Windows
+  cp -r "$startdir/files/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+  chmod 755 "$pkgdir"/usr/bin/*
+  chmod 755 "$pkgdir/usr/lib/iw-set-regdomain"
+}

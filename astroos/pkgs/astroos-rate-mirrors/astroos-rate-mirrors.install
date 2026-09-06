@@ -1,0 +1,24 @@
+# Derived from the CachyOS package of the same purpose (GPL).
+# Upstream shape: enable the refresh timer on install, disable it on removal.
+# Inside the installer's pacstrap chroot systemctl detects the chroot, ignores
+# the daemon-reload and still exits 0, while enable writes its symlink on the
+# filesystem: the same thing "arch-chroot ... systemctl enable" does during any
+# ordinary Arch install. So this is safe both live and in the target root.
+post_install() {
+  systemctl daemon-reload
+  systemctl enable astroos-rate-mirrors.timer
+  echo ":: Rank the Arch Linux mirrors now with: sudo astroos-rate-mirrors"
+  echo ":: astroos-rate-mirrors.timer refreshes them about every ten days."
+}
+
+# Deliberately NOT upstream's "daemon-reload + enable". Re-enabling on every
+# upgrade resurrects a timer the user disabled on purpose; a reload is all an
+# upgrade needs. A fresh install, including the replacement of
+# cachyos-rate-mirrors, runs post_install and does enable it.
+post_upgrade() {
+  systemctl daemon-reload
+}
+
+pre_remove() {
+  systemctl disable astroos-rate-mirrors.timer
+}

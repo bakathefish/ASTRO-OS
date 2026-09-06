@@ -1,0 +1,65 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Contributor: Piotr Górski <lucjan.lucjanov@gmail.com>
+# Contributor: Vasiliy Stelmachenok <ventureo@cachyos.org>
+# Contributor: Michael Bolden <me@sm9.dev>
+#
+# Derived from the CachyOS package of the same purpose (GPL).
+#
+# Local lane package (see astroos-keyring/PKGBUILD for the lane). Unlike the
+# other local packages this one keeps the upstream pkgver rather than reading
+# the VERSION file the build script writes, so bump pkgrel whenever anything
+# under files/ changes: without that, pacman sees no upgrade.
+#
+# Vendored payload: upstream builds from git+https://github.com/CachyOS/
+# cachyos-hooks#tag=2026.02.05. We own the bytes instead, one file per install
+# path under files/, so the build pulls nothing from a CachyOS remote.
+# update-initramfs is byte-for-byte the upstream blob (it carries no
+# distro-identity string); the hooks and the two libalpm scripts differ from
+# upstream only in the AstroOS names, listed in each file's header.
+#
+# Not packaged: upstream's PKGBUILD at this pkgver still installs
+# cachyos-nvidia.hook, but that file was deleted in the very commit tag
+# 2026.02.05 points at (9996afc, "Remove nvidia hook to update initramfs"), so
+# there is nothing to vendor. Nvidia now reaches the initramfs through
+# mkinitcpio's own hooks.
+#
+# Overlap with astroos-branding, which lands on the same installed system:
+#   - /etc/pacman.d/hooks/{os-release,lsb-release}.hook are /dev/null symlinks
+#     there, which mask the same-named hooks this package ships. The identity
+#     is then re-asserted by zz-astroos-identity.hook, which writes the same
+#     values, so the result is unchanged.
+#   - /etc/pacman.d/hooks/astroos-reboot-required.hook there overrides this
+#     package's copy in /usr/share/libalpm/hooks (a hook of the same name in
+#     the HookDir wins), so exactly one reboot notification fires.
+#   - astroos-branding.hook here sorts before zz-astroos-identity.hook, which
+#     runs last and copies the staged identity files over the sed result. Both
+#     write the same values, so the two never disagree.
+
+pkgname=astroos-hooks
+pkgver=2026.02.05
+pkgrel=1
+pkgdesc='AstroOS libalpm hooks'
+groups=('astroos')
+depends=('bash' 'systemd')
+arch=('any')
+license=(GPL-3.0-or-later)
+url="https://github.com/bakathefish/ASTRO-OS"
+provides=('cachyos-hooks')
+conflicts=('cachyos-hooks')
+replaces=('cachyos-hooks')
+
+package() {
+  local f="$startdir/files" n
+  # explicit modes: this tree can be checked out on Windows, where the exec bit
+  # does not survive (astroos-branding normalises them for the same reason)
+  for n in astroos-branding astroos-plymouth-initramfs astroos-reboot-required \
+           lsb-release os-release; do
+    install -Dm644 "$f/usr/share/libalpm/hooks/$n.hook" \
+      "$pkgdir/usr/share/libalpm/hooks/$n.hook"
+  done
+  for n in astroos-branding astroos-reboot-required; do
+    install -Dm755 "$f/usr/share/libalpm/scripts/$n" \
+      "$pkgdir/usr/share/libalpm/scripts/$n"
+  done
+  install -Dm755 "$f/usr/bin/update-initramfs" "$pkgdir/usr/bin/update-initramfs"
+}

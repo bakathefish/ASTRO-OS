@@ -6,8 +6,8 @@
 # --- astroos-core ---
 base
 base-devel
-linux-cachyos
-linux-cachyos-lts
+linux-astroos
+linux-astroos-lts
 linux
 linux-firmware
 btrfs-progs

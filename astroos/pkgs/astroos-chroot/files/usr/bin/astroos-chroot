@@ -1,0 +1,768 @@
+#!/usr/bin/env bash
+# astroos-chroot: rescue helper. Lists the partitions on this machine, mounts
+# the one you pick as the root filesystem (plus whatever its /etc/fstab asks
+# for) and drops you into an arch-chroot. On exit it unmounts what it mounted,
+# closes the LUKS devices it opened and exports the ZFS pools it imported.
+#
+# Derived from the CachyOS package of the same purpose (cachy-chroot,
+# BSD-3-Clause). Upstream is a Rust program, so there is no script to copy:
+# every action it takes is a call to lsblk, mount, umount, btrfs, cryptsetup,
+# zfs, zpool or arch-chroot, and this is that same flow in bash, so the AstroOS
+# repo owns the bytes it ships and the package needs no Rust toolchain.
+#
+# Copyright (c) 2024, SoulHarsh007
+# BSD 3-Clause License. Full text: /usr/share/licenses/astroos-chroot/LICENSE
+#
+# -f throughout: nothing here globs, and mount options and menu answers are
+# split on whitespace, so pathname expansion can only ever be a surprise.
+set -fuo pipefail
+
+VERSION="1.3.0"
+
+info() { printf '\033[36mInfo:\033[0m %s\n' "$*"; }
+warn() { printf '\033[33mWarning:\033[0m %s\n' "$*"; }
+err() { printf '\033[31mError:\033[0m %s\n' "$*" >&2; }
+# unwind before leaving, so a second attempt does not stack a second set of
+# mounts on top of the first (cleanup is defined further down)
+die() {
+  err "$*"
+  declare -F cleanup >/dev/null && cleanup
+  exit 1
+}
+
+usage() {
+  cat <<'EOF'
+Chroot helper for AstroOS
+
+Usage: astroos-chroot [OPTIONS]
+
+Options:
+      --skip-root-check           Allow running the program without root permissions
+      --show-btrfs-dot-snapshots  Show .snapshots subvolumes for BTRFS partitions
+      --no-auto-mount             Disable automatic mounting of block devices based on
+                                  data from /etc/fstab after root is mounted
+      --no-systemd-chroot         Disable arch-chroot systemd mode, which spawns a
+                                  transient systemd instance via systemd-run inside the
+                                  chroot. Useful if you cannot update the
+                                  arch-install-scripts package that provides it.
+  -h, --help                      Print help
+  -V, --version                   Print version
+EOF
+}
+
+# --- options -----------------------------------------------------------------
+skip_root_check=0
+show_dot_snapshots=0
+no_auto_mount=0
+no_systemd_chroot=0
+
+while (($#)); do
+  case "$1" in
+    --skip-root-check) skip_root_check=1 ;;
+    --show-btrfs-dot-snapshots) show_dot_snapshots=1 ;;
+    --no-auto-mount) no_auto_mount=1 ;;
+    --no-systemd-chroot) no_systemd_chroot=1 ;;
+    -h | --help) usage; exit 0 ;;
+    -V | --version) printf 'astroos-chroot %s\n' "$VERSION"; exit 0 ;;
+    *) err "unexpected argument: $1"; usage >&2; exit 1 ;;
+  esac
+  shift
+done
+
+if [[ $EUID -ne 0 && $skip_root_check -eq 0 ]]; then
+  die "This program must be run as root, to skip this check use --skip-root-check"
+fi
+if ((skip_root_check)); then
+  warn "Root permission check skipped, make sure you have the necessary permissions to run this program"
+fi
+# every selection below is a prompt; without a terminal the reads would spin
+[[ -t 0 ]] || die "astroos-chroot is interactive and needs a terminal on stdin"
+
+# --- optional features come from what is in PATH ------------------------------
+feat_btrfs=0
+feat_luks=0
+feat_zfs=1
+
+have() { command -v "$1" >/dev/null 2>&1; }
+require_bin() {
+  have "$1" ||
+    die "Required binary not found in path: $1, please install the suggested package: $2"
+}
+optional_bin() { # command package feature-description
+  have "$1" && return 0
+  warn "Optional binary not found in path: $1, suggested package: $2, disabled features: $3"
+  return 1
+}
+
+require_bin lsblk util-linux
+require_bin mount util-linux
+require_bin umount util-linux
+require_bin arch-chroot arch-install-scripts
+optional_bin btrfs btrfs-progs "BTRFS Support" && feat_btrfs=1
+optional_bin cryptsetup cryptsetup "LUKS Support" && feat_luks=1
+# both halves of zfs-utils are needed: zpool imports the pool, zfs mounts the
+# datasets. Upstream enables ZFS when either one is found, which then fails at
+# import time; requiring both turns that into an up-front warning.
+optional_bin zfs zfs-utils "ZFS Support" || feat_zfs=0
+optional_bin zpool zfs-utils "ZFS Support" || feat_zfs=0
+
+# --- block devices ------------------------------------------------------------
+# One lsblk call per field per device. lsblk --pairs would be one call, but its
+# values would have to be eval'd, and LABEL/PARTLABEL come off the disk: a label
+# is attacker-controlled input to a program that runs as root.
+declare -a D_NAME=() D_FSTYPE=() D_UUID=() D_PARTUUID=() D_LABEL=() D_PARTLABEL=()
+
+lsblk_field() { # field device
+  local v
+  v=$(lsblk -n -d -o "$1" "$2" 2>/dev/null | head -n1)
+  v="${v#"${v%%[![:space:]]*}"}"
+  v="${v%"${v##*[![:space:]]}"}"
+  printf '%s' "$v"
+}
+
+# Partitions and opened LUKS mappers that carry a filesystem we could chroot
+# into. Upstream's lsblk filter reads "type=='part' || type=='crypt' && ..."
+# and && binds tighter than ||, so its swap/fstype/uuid conditions only ever
+# applied to crypt devices; the intended grouping is used here, which keeps
+# swap and unformatted partitions out of the menus.
+list_block_devices() { # arguments: device names to leave out
+  local name type fstype uuid ign skip
+  D_NAME=() D_FSTYPE=() D_UUID=() D_PARTUUID=() D_LABEL=() D_PARTLABEL=()
+  while read -r name type; do
+    [[ $name == /dev/* ]] || continue
+    [[ $type == part || $type == crypt ]] || continue
+    skip=0
+    for ign in "$@"; do [[ $name == "$ign" ]] && skip=1; done
+    ((skip)) && continue
+    fstype=$(lsblk_field FSTYPE "$name")
+    uuid=$(lsblk_field UUID "$name")
+    [[ -n $fstype && -n $uuid && $fstype != swap ]] || continue
+    D_NAME+=("$name")
+    D_FSTYPE+=("$fstype")
+    D_UUID+=("$uuid")
+    D_PARTUUID+=("$(lsblk_field PARTUUID "$name")")
+    D_LABEL+=("$(lsblk_field LABEL "$name")")
+    D_PARTLABEL+=("$(lsblk_field PARTLABEL "$name")")
+  done < <(lsblk -p -a -n -r -o NAME,TYPE)
+}
+
+dev_label() { printf '%s (FS: %s, UUID: %s)' "${D_NAME[$1]}" "${D_FSTYPE[$1]}" "${D_UUID[$1]}"; }
+
+# a ZFS pool is identified by its name, which blkid reports as the label
+dev_id() {
+  local i="$1"
+  if [[ ${D_FSTYPE[i],,} == zfs_member && -n ${D_LABEL[i]} ]]; then
+    printf '%s' "${D_LABEL[i]}"
+  else
+    printf '%s' "${D_UUID[i]}"
+  fi
+}
+
+is_luks() { [[ ${D_FSTYPE[$1],,} == crypto_luks ]]; }
+is_btrfs() { [[ ${D_FSTYPE[$1],,} == btrfs ]]; }
+is_zfs() { [[ ${D_FSTYPE[$1],,} == zfs_member ]]; }
+
+# --- prompts ------------------------------------------------------------------
+confirm() {
+  local reply
+  printf '%s [y/N] ' "$1"
+  read -r reply || return 1
+  [[ ${reply,,} == y || ${reply,,} == yes ]]
+}
+
+# numbered menus rather than an arrow-key list: a rescue tool has to work on a
+# serial console and in a plain VT
+CHOICE=-1
+choose_one() { # prompt allow_skip item...
+  local prompt="$1" allow_skip="$2"
+  shift 2
+  local -a items=("$@")
+  local n=${#items[@]} i reply max
+  max=$n
+  if ((n == 0 && allow_skip == 0)); then
+    err "Nothing to choose from"
+    return 1
+  fi
+  while :; do
+    for ((i = 0; i < n; i++)); do printf '  %3d) %s\n' "$((i + 1))" "${items[i]}"; done
+    if ((allow_skip)); then
+      max=$((n + 1))
+      printf '  %3d) %s\n' "$max" "Skip"
+    fi
+    printf '%s ' "$prompt"
+    read -r reply || return 1
+    if [[ $reply =~ ^[0-9]+$ ]] && ((reply >= 1 && reply <= max)); then
+      if ((allow_skip && reply == max)); then CHOICE=-1; else CHOICE=$((reply - 1)); fi
+      return 0
+    fi
+    err "Not a valid choice, enter a number between 1 and $max"
+  done
+}
+
+declare -a MULTI_ITEMS=() MULTI_CHECKED=() MULTI_SELECTION=()
+choose_many() { # prompt allow_empty ; reads MULTI_ITEMS/MULTI_CHECKED
+  local prompt="$1" allow_empty="$2"
+  local n=${#MULTI_ITEMS[@]} i reply tok mark
+  while :; do
+    for ((i = 0; i < n; i++)); do
+      mark=' '
+      [[ ${MULTI_CHECKED[i]} == 1 ]] && mark='*'
+      printf '  %3d) [%s] %s\n' "$((i + 1))" "$mark" "${MULTI_ITEMS[i]}"
+    done
+    printf 'Enter the numbers to mount separated by spaces, empty to keep the [*] selection, or "none" for nothing.\n'
+    printf '%s ' "$prompt"
+    read -r reply || return 1
+    MULTI_SELECTION=()
+    if [[ -z ${reply//[[:space:]]/} ]]; then
+      for ((i = 0; i < n; i++)); do [[ ${MULTI_CHECKED[i]} == 1 ]] && MULTI_SELECTION+=("$i"); done
+    elif [[ ${reply,,} == none ]]; then
+      MULTI_SELECTION=()
+    elif [[ $reply =~ ^[0-9[:space:]]+$ ]]; then
+      for tok in $reply; do
+        if ((tok >= 1 && tok <= n)); then
+          MULTI_SELECTION+=("$((tok - 1))")
+        else
+          err "Not a valid choice: $tok"
+          continue 2
+        fi
+      done
+    else
+      err "Enter numbers between 1 and $n, or \"none\""
+      continue
+    fi
+    if ((${#MULTI_SELECTION[@]} == 0)) && ((allow_empty == 0)); then
+      err "You must select at least one dataset, please try again."
+      continue
+    fi
+    return 0
+  done
+}
+
+# --- mounting -----------------------------------------------------------------
+declare -a mounted_ids=()
+mounted_any=0
+id_mounted() {
+  local x
+  for x in "${mounted_ids[@]}"; do [[ $x == "$1" ]] && return 0; done
+  return 1
+}
+
+mount_device() { # device mountpoint graceful [mount options...]
+  local dev="$1" mp="$2" graceful="$3"
+  shift 3
+  if (($#)); then
+    info "Mounting partition $dev at $mp with options: $*"
+  else
+    info "Mounting partition $dev at $mp"
+  fi
+  if mount "$dev" "$mp" "$@"; then
+    mounted_any=1
+    return 0
+  fi
+  if ((graceful)) && confirm "Do you want to skip mounting this partition?"; then
+    warn "Failed to mount partition $dev at $mp, skipping..."
+    return 1
+  fi
+  die "Failed to mount partition $dev at $mp"
+}
+
+# --- BTRFS --------------------------------------------------------------------
+declare -a SUBVOL_ID=() SUBVOL_NAME=()
+declare -A BTRFS_CACHE_IDS=() BTRFS_CACHE_NAMES=()
+
+# The subvolume the kernel mounts when no subvolid is given is always 5, and
+# `btrfs subvolume list` never reports it, so it is prepended by hand.
+list_subvolumes() { # device uuid
+  local dev="$1" uuid="$2" tmp id gen top path
+  tmp=$(mktemp -d "${TMPDIR:-/tmp}/astroos-chroot-temp-mount-$uuid-XXXXXXXX") ||
+    die "Failed to create temporary directory"
+  mount_device "$dev" "$tmp" 0
+  SUBVOL_ID=(5)
+  SUBVOL_NAME=("/")
+  while read -r id gen top path; do
+    [[ $id =~ ^[0-9]+$ ]] || continue # the -t header and its rule line
+    [[ -n $path ]] || continue
+    [[ $path == .snapshots* && $show_dot_snapshots -eq 0 ]] && continue
+    SUBVOL_ID+=("$id")
+    SUBVOL_NAME+=("$path")
+  done < <(btrfs subvolume list -t "$tmp")
+  umount "$tmp" || warn "Failed to unmount the temporary listing mount at $tmp"
+  rmdir "$tmp" 2>/dev/null
+}
+
+load_subvolumes() { # device uuid
+  local dev="$1" uuid="$2"
+  if [[ -n ${BTRFS_CACHE_IDS[$uuid]:-} ]]; then
+    mapfile -t SUBVOL_ID <<<"${BTRFS_CACHE_IDS[$uuid]}"
+    mapfile -t SUBVOL_NAME <<<"${BTRFS_CACHE_NAMES[$uuid]}"
+    return 0
+  fi
+  list_subvolumes "$dev" "$uuid"
+  BTRFS_CACHE_IDS[$uuid]=$(printf '%s\n' "${SUBVOL_ID[@]}")
+  BTRFS_CACHE_NAMES[$uuid]=$(printf '%s\n' "${SUBVOL_NAME[@]}")
+}
+
+# index into SUBVOL_ID/SUBVOL_NAME of the subvolume to use
+SUBVOL_CHOICE=0
+pick_subvolume() { # device uuid partition-name
+  local dev="$1" uuid="$2" what="$3" i
+  local -a items=()
+  load_subvolumes "$dev" "$uuid"
+  if ((${#SUBVOL_ID[@]} == 1)); then
+    warn "No subvolumes found, using root subvolume"
+    SUBVOL_CHOICE=0
+    return 0
+  fi
+  if [[ $what == root ]]; then
+    for ((i = 0; i < ${#SUBVOL_ID[@]}; i++)); do
+      if [[ ${SUBVOL_NAME[i]} == "@" ]] &&
+        confirm "Do you want to use the AstroOS BTRFS preset to auto mount root subvolume?"; then
+        SUBVOL_CHOICE=$i
+        return 0
+      fi
+    done
+  fi
+  for ((i = 0; i < ${#SUBVOL_ID[@]}; i++)); do
+    items+=("[$dev] BTRFS Subvolume: ${SUBVOL_NAME[i]}: SubVol ID: ${SUBVOL_ID[i]}")
+  done
+  choose_one "Select the subvolume for the $what partition:" 0 "${items[@]}" ||
+    die "No subvolume selected for the $what partition"
+  SUBVOL_CHOICE=$CHOICE
+}
+
+# --- LUKS ---------------------------------------------------------------------
+declare -a opened_luks_name=() opened_luks_uuid=()
+
+luks_open() { # device uuid
+  info "Opening LUKS encrypted partition $1"
+  cryptsetup luksOpen "$1" "luks-$2" || die "Failed to open LUKS encrypted partition $1"
+  opened_luks_name+=("$1")
+  opened_luks_uuid+=("$2")
+}
+
+declare -A CRYPTTAB=()
+load_crypttab() { # path has_luks_on_root
+  local path="$1" root_is_luks="$2" name dev rest
+  if [[ ! -f $path ]]; then
+    ((root_is_luks)) && warn "Unable to find /etc/crypttab in the root partition, is this a valid root partition? Good luck fixing that!"
+    return 0
+  fi
+  while read -r name dev rest; do
+    [[ -z $name || $name == \#* ]] && continue
+    if [[ -z $dev ]]; then
+      warn "Invalid crypttab entry, skipping..."
+      continue
+    fi
+    # kept as written (UUID=..., /dev/...): it is matched against block devices
+    # the same way an fstab source is. Upstream strips the UUID= prefix here
+    # and then hands the bare value to that matcher, which never matches.
+    CRYPTTAB["$name"]="$dev"
+  done <"$path"
+}
+
+# --- ZFS ----------------------------------------------------------------------
+declare -a imported_pools=() loaded_keys=()
+declare -a Z_NAME=() Z_MOUNTED=() Z_MOUNTPOINT=()
+
+zfs_import_pool() { # uuid pool-name altroot
+  info "Importing ZFS pool: $2 at: $3"
+  # an import mounts the pool's datasets under the altroot straight away
+  zpool import "$1" -R "$3" && { mounted_any=1; return 0; }
+  if confirm "Failed to import ZFS Pool, do you want to force zfs pool import?"; then
+    info "Forcing ZFS pool import..."
+    zpool import "$1" -f -R "$3" && { mounted_any=1; return 0; }
+  fi
+  die "Failed to import ZFS pool: $2"
+}
+
+zfs_export_pool() { # pool-name
+  info "Exporting ZFS pool: $1"
+  zpool export "$1" && return 0
+  if confirm "Failed to export ZFS Pool, do you want to force zfs pool export?"; then
+    info "Forcing ZFS pool export..."
+    zpool export -f "$1" && return 0
+  fi
+  err "Failed to export ZFS pool: $1, please perform the operation manually."
+}
+
+zfs_load_key() { # dataset
+  info "Loading key for ZFS dataset: $1"
+  while ! zfs load-key "$1"; do
+    err "Failed to load key for ZFS dataset: $1"
+    confirm "Do you want to retry entering the ZFS passphrase for dataset: $1?" || return 1
+    info "Retrying to load key for ZFS dataset: $1"
+  done
+  return 0
+}
+
+key_loaded() {
+  local k
+  for k in "${loaded_keys[@]}"; do [[ $k == "$1" ]] && return 0; done
+  return 1
+}
+
+# Mountable filesystems in the pool, unlocking any that prompt for a passphrase.
+# `-t filesystem` already excludes volumes and snapshots, so upstream's separate
+# type check is redundant and the property is not queried here.
+zfs_list_datasets() { # pool-name
+  local name canmount encryption keylocation mounted mountpoint line unsupported=0
+  local -a rows=()
+  Z_NAME=() Z_MOUNTED=() Z_MOUNTPOINT=()
+  # buffered, not piped into the loop: unlocking a dataset prompts, and a
+  # prompt inside a redirected loop would read the command output, not the user
+  mapfile -t rows < <(zfs list -H -o name,canmount,encryption,keylocation,mounted,mountpoint -t filesystem -r "$1")
+  for line in "${rows[@]}"; do
+    IFS=$'\t' read -r name canmount encryption keylocation mounted mountpoint <<<"$line"
+    [[ -n $name ]] || continue
+    [[ ${keylocation,,} == none || ${keylocation,,} == prompt ]] || unsupported=1
+    if [[ ${encryption,,} != off && ${keylocation,,} == prompt ]] && ! key_loaded "$name"; then
+      info "Please enter passphrase for ZFS dataset: $name"
+      if zfs_load_key "$name"; then
+        info "Successfully loaded key for ZFS dataset: $name"
+        loaded_keys+=("$name")
+      else
+        err "Failed to load key for ZFS dataset: $name. You will not be able to mount this dataset and its children datasets."
+      fi
+    fi
+    [[ ${canmount,,} == off || ${mountpoint,,} == none ]] && continue
+    Z_NAME+=("$name")
+    if [[ ${mounted,,} == yes ]]; then Z_MOUNTED+=(1); else Z_MOUNTED+=(0); fi
+    Z_MOUNTPOINT+=("$mountpoint")
+  done
+  ((unsupported)) && warn "One or more ZFS datasets have unsupported encryption methods. Only datasets with 'none' or 'prompt' keylocation are supported. You might need to manually unlock these datasets."
+  return 0
+}
+
+# Datasets mount at their own mountpoint under the pool's altroot, so the target
+# only ever appears in the messages, exactly as upstream.
+zfs_mount_dataset() { # index target graceful
+  local i="$1" target="$2" graceful="$3"
+  info "Mounting ZFS dataset ${Z_NAME[i]} at $target"
+  if [[ ${Z_MOUNTED[i]} == 1 ]]; then
+    warn "ZFS dataset ${Z_NAME[i]} is already mounted, skipping..."
+    return 0
+  fi
+  if zfs mount "${Z_NAME[i]}"; then
+    Z_MOUNTED[i]=1
+    mounted_any=1
+    return 0
+  fi
+  if ((graceful)) && confirm "Do you want to skip mounting this partition?"; then
+    warn "Failed to mount ZFS dataset ${Z_NAME[i]} at $target, skipping..."
+    return 1
+  fi
+  die "Failed to mount ZFS dataset ${Z_NAME[i]} at $target"
+}
+
+zfs_unmount_dataset() { # index
+  local i="$1"
+  info "Unmounting ZFS dataset ${Z_NAME[i]}"
+  if zfs unmount "${Z_NAME[i]}"; then
+    Z_MOUNTED[i]=0
+  else
+    warn "Failed to unmount ZFS dataset: ${Z_NAME[i]}, please perform the operation manually."
+  fi
+}
+
+# Pool selection and mounting, shared by the root partition and the interactive
+# loop. Returns 1 when there is nothing to mount.
+zfs_select_and_mount() { # pool-name target allow_empty
+  local pool="$1" target="$2" allow_empty="$3" i s selected
+  zfs_list_datasets "$pool"
+  ((${#Z_NAME[@]})) || return 1
+  info "Found ${#Z_NAME[@]} mountable ZFS datasets"
+  info "Datasets already mounted are marked [*]. Selecting none unmounts them."
+  MULTI_ITEMS=() MULTI_CHECKED=()
+  for ((i = 0; i < ${#Z_NAME[@]}; i++)); do
+    MULTI_ITEMS+=("ZFS Dataset: ${Z_NAME[i]}: Pool: $pool, Mountpoint: ${Z_MOUNTPOINT[i]}")
+    MULTI_CHECKED+=("${Z_MOUNTED[i]}")
+  done
+  choose_many "Select the zfs datasets to import from the zfs pool: $pool:" "$allow_empty" ||
+    die "No ZFS datasets selected"
+  for ((i = 0; i < ${#Z_NAME[@]}; i++)); do
+    selected=0
+    for s in "${MULTI_SELECTION[@]}"; do [[ $s == "$i" ]] && selected=1; done
+    if ((selected)); then
+      zfs_mount_dataset "$i" "$target" 1
+    elif [[ ${Z_MOUNTED[i]} == 1 ]]; then
+      zfs_unmount_dataset "$i"
+    fi
+  done
+  for ((i = 0; i < ${#Z_NAME[@]}; i++)); do
+    if [[ ${Z_MOUNTED[i]} == 1 ]]; then
+      id_mounted "${Z_NAME[i]}-$pool" || mounted_ids+=("${Z_NAME[i]}-$pool")
+    else
+      local -a keep=()
+      for s in "${mounted_ids[@]}"; do [[ $s == "${Z_NAME[i]}-$pool" ]] || keep+=("$s"); done
+      mounted_ids=("${keep[@]}")
+    fi
+  done
+  return 0
+}
+
+# --- fstab matching -----------------------------------------------------------
+spec_matches() { # device-index spec
+  local i="$1" spec="$2"
+  case "$spec" in
+    UUID=*) [[ ${spec#UUID=} == "${D_UUID[i]}" ]] ;;
+    /dev/disk/by-uuid/*) [[ ${spec#/dev/disk/by-uuid/} == "${D_UUID[i]}" ]] ;;
+    PARTUUID=*) [[ -n ${D_PARTUUID[i]} && ${spec#PARTUUID=} == "${D_PARTUUID[i]}" ]] ;;
+    /dev/disk/by-partuuid/*) [[ -n ${D_PARTUUID[i]} && ${spec#/dev/disk/by-partuuid/} == "${D_PARTUUID[i]}" ]] ;;
+    LABEL=*) [[ -n ${D_LABEL[i]} && ${spec#LABEL=} == "${D_LABEL[i]}" ]] ;;
+    PARTLABEL=*) [[ -n ${D_PARTLABEL[i]} && ${spec#PARTLABEL=} == "${D_PARTLABEL[i]}" ]] ;;
+    *) [[ $spec == "${D_NAME[i]}" ]] ;;
+  esac
+}
+
+# A crypttab line names the container, but what fstab has to be matched against
+# is the mapper this run opened over it. Without this the crypttab lookup can
+# never resolve anything, because the container itself is left out of the list
+# the moment it is opened.
+resolve_crypt_alias() { # spec
+  local spec="$1" u
+  for u in "${opened_luks_uuid[@]}"; do
+    if [[ $spec == "UUID=$u" || $spec == "/dev/disk/by-uuid/$u" ]]; then
+      printf '/dev/mapper/luks-%s' "$u"
+      return 0
+    fi
+  done
+  printf '%s' "$spec"
+}
+
+find_device() { # spec... (tried in order); prints an index, or -1
+  local spec i
+  for spec in "$@"; do
+    [[ -n $spec ]] || continue
+    for ((i = 0; i < ${#D_NAME[@]}; i++)); do
+      if spec_matches "$i" "$spec"; then
+        printf '%s' "$i"
+        return 0
+      fi
+    done
+  done
+  printf '%s' "-1"
+}
+
+# --- cleanup ------------------------------------------------------------------
+root_mnt=""
+cleaned=0
+cleanup() {
+  ((cleaned)) && return 0
+  cleaned=1
+  local i
+  if [[ -n $root_mnt ]]; then
+    if ((mounted_any)); then
+      info "Unmounting partition at $root_mnt"
+      umount -R "$root_mnt" ||
+        warn "Failed to unmount $root_mnt, please perform the operation manually."
+    fi
+    rmdir "$root_mnt" 2>/dev/null
+  fi
+  for ((i = 0; i < ${#opened_luks_uuid[@]}; i++)); do
+    info "Closing LUKS encrypted partition ${opened_luks_name[i]}"
+    cryptsetup luksClose "luks-${opened_luks_uuid[i]}" ||
+      warn "Failed to close LUKS encrypted partition ${opened_luks_name[i]}"
+  done
+  for i in "${loaded_keys[@]}"; do
+    info "Unloading key for ZFS dataset: $i"
+    zfs unload-key "$i" ||
+      err "Failed to unload key for ZFS dataset: $i, please perform the operation manually."
+  done
+  for i in "${imported_pools[@]}"; do zfs_export_pool "$i"; done
+}
+# Only while the setup prompts are running: once arch-chroot has the terminal,
+# Ctrl+C belongs to whatever the user is running inside the chroot.
+trap 'echo; cleanup; exit 130' INT TERM
+
+# --- root partition -----------------------------------------------------------
+list_block_devices
+((${#D_NAME[@]})) || die "No block devices found on the system"
+info "Found ${#D_NAME[@]} block devices"
+for ((i = 0; i < ${#D_NAME[@]}; i++)); do info "Found partition: $(dev_label "$i")"; done
+
+select_device() { # what allow_skip
+  local what="$1" allow_skip="$2" i
+  local -a items=()
+  for ((i = 0; i < ${#D_NAME[@]}; i++)); do items+=("$(dev_label "$i")"); done
+  choose_one "Select the block device for the $what partition:" "$allow_skip" "${items[@]}"
+}
+
+select_device root 0 || die "No block device selected for root partition"
+root=$CHOICE
+
+has_luks_on_root=0
+if is_luks "$root"; then
+  ((feat_luks)) || die "LUKS encrypted partition selected but LUKS support is disabled or missing required binaries in PATH"
+  has_luks_on_root=1
+  luks_open "${D_NAME[root]}" "${D_UUID[root]}"
+  list_block_devices "${opened_luks_name[@]}"
+  select_device root 0 || die "No block device selected for root partition"
+  root=$CHOICE
+fi
+
+root_mnt=$(mktemp -d "${TMPDIR:-/tmp}/astroos-chroot-root-mount-${D_UUID[root]}-XXXXXXXX") ||
+  die "Failed to create temporary directory"
+
+declare -a root_opts=()
+if is_btrfs "$root"; then
+  ((feat_btrfs)) || die "BTRFS partition selected but BTRFS support is disabled or missing required binaries in PATH"
+  info "Selected BTRFS partition, mounting and listing subvolumes..."
+  pick_subvolume "${D_NAME[root]}" "${D_UUID[root]}" root
+  mounted_ids+=("$(dev_id "$root")-${SUBVOL_ID[SUBVOL_CHOICE]}")
+  root_opts=(-o "subvolid=${SUBVOL_ID[SUBVOL_CHOICE]}")
+elif is_zfs "$root"; then
+  ((feat_zfs)) || die "ZFS partition selected but ZFS support is disabled or missing required binaries in PATH"
+  root_pool=$(dev_id "$root")
+  zfs_import_pool "${D_UUID[root]}" "$root_pool" "$root_mnt"
+  imported_pools+=("$root_pool")
+  zfs_select_and_mount "$root_pool" "$root_mnt" 0 ||
+    die "No mountable ZFS datasets found in the selected partition"
+else
+  mounted_ids+=("$(dev_id "$root")")
+fi
+
+is_zfs "$root" || mount_device "${D_NAME[root]}" "$root_mnt" 0 "${root_opts[@]}"
+
+# --- /etc/fstab ---------------------------------------------------------------
+load_crypttab "$root_mnt/etc/crypttab" "$has_luks_on_root"
+
+if [[ ! -f $root_mnt/etc/fstab ]]; then
+  warn "Unable to find /etc/fstab in the root partition, is this a valid root partition? Good luck fixing that!"
+elif ((no_auto_mount == 0)); then
+  info "Mounting additional partitions based on /etc/fstab..."
+  declare -a fstab_lines=()
+  while read -r line; do
+    [[ -z ${line//[[:space:]]/} || ${line#"${line%%[![:space:]]*}"} == \#* ]] && continue
+    fstab_lines+=("$line")
+  done <"$root_mnt/etc/fstab"
+  info "Found ${#fstab_lines[@]} entries in /etc/fstab"
+
+  for line in "${fstab_lines[@]}"; do
+    read -r fs_spec fs_mp fs_type fs_opts _ <<<"$line"
+    [[ -n $fs_mp && -n $fs_type ]] || continue
+    [[ $fs_type == swap ]] && continue
+    fs_mp="${fs_mp//\\040/ }" # fstab escapes spaces in paths
+    # fstab names a mapper, crypttab says which container is behind it
+    alias_a=$(resolve_crypt_alias "${CRYPTTAB[$fs_spec]:-}")
+    alias_b=$(resolve_crypt_alias "${CRYPTTAB[${fs_spec#/dev/mapper/}]:-}")
+    idx=$(find_device "$alias_a" "$alias_b" "$fs_spec")
+    if ((idx < 0)); then
+      warn "Device $fs_spec not found, skipping mounting..."
+      continue
+    fi
+    if id_mounted "$(dev_id "$idx")"; then
+      warn "Partition $fs_spec already mounted, skipping..."
+      continue
+    fi
+    target="$root_mnt/${fs_mp#/}"
+    if is_btrfs "$idx"; then
+      load_subvolumes "${D_NAME[idx]}" "${D_UUID[idx]}"
+      want_id="" want_name="" pick=-1
+      for opt in ${fs_opts//,/ }; do
+        [[ $opt == subvolid=* ]] && want_id="${opt#subvolid=}"
+        [[ $opt == subvol=* ]] && want_name="${opt#subvol=}"
+      done
+      if [[ -n $want_id ]]; then
+        for ((i = 0; i < ${#SUBVOL_ID[@]}; i++)); do
+          [[ ${SUBVOL_ID[i]} == "$want_id" ]] && pick=$i && break
+        done
+      elif [[ -n $want_name ]]; then
+        for ((i = 0; i < ${#SUBVOL_ID[@]}; i++)); do
+          if [[ ${SUBVOL_NAME[i]} == "$want_name" || ${SUBVOL_NAME[i]} == "${want_name#/}" ]]; then
+            pick=$i
+            break
+          fi
+        done
+      else
+        warn "No subvolume specified in fstab, using root subvolume"
+        pick=0
+      fi
+      if ((pick < 0)); then
+        warn "No subvolume found for entry: $fs_spec $fs_mp, skipping..."
+        continue
+      fi
+      sub_id="$(dev_id "$idx")-${SUBVOL_ID[pick]}"
+      if id_mounted "$sub_id"; then
+        warn "Partition already mounted: $fs_spec $fs_mp, skipping..."
+        continue
+      fi
+      mount_device "${D_NAME[idx]}" "$target" 1 -o "subvolid=${SUBVOL_ID[pick]}" &&
+        mounted_ids+=("$sub_id")
+      continue
+    fi
+    mount_device "${D_NAME[idx]}" "$target" 1 && mounted_ids+=("$(dev_id "$idx")")
+  done
+  info "Finished mounting additional partitions"
+fi
+
+# --- extra partitions the user asks for ---------------------------------------
+while confirm "Do you want to mount additional partitions?"; do
+  warn "NOTE: Mountpoint is ignored for ZFS datasets as they manage their own mountpoints. If you want to select a ZFS dataset with a custom mountpoint, please do so manually after chrooting. If you want to use default mountpoint for a ZFS dataset, just type '/' when prompted for mountpoint."
+  mp=""
+  while :; do
+    printf "Enter the mount point for additional partition (e.g. /boot), type 'skip' to cancel: "
+    read -r mp || break 2
+    [[ $mp == /* || ${mp,,} == skip ]] && break
+    err "Mount point must start with /"
+  done
+  [[ ${mp,,} == skip ]] && break
+
+  select_device "$mp" 1 || continue
+  ((CHOICE < 0)) && continue
+  sel=$CHOICE
+  if is_luks "$sel"; then
+    ((feat_luks)) || die "LUKS encrypted partition selected but LUKS support is disabled or missing required binaries in PATH"
+    luks_open "${D_NAME[sel]}" "${D_UUID[sel]}"
+    list_block_devices "${opened_luks_name[@]}"
+    select_device "$mp" 1 || continue
+    ((CHOICE < 0)) && continue
+    sel=$CHOICE
+  fi
+  if id_mounted "$(dev_id "$sel")"; then
+    warn "Partition already mounted, skipping..."
+    continue
+  fi
+  target="$root_mnt/${mp#/}"
+  if is_btrfs "$sel"; then
+    ((feat_btrfs)) || die "BTRFS partition selected but BTRFS support is disabled or missing required binaries in PATH"
+    pick_subvolume "${D_NAME[sel]}" "${D_UUID[sel]}" "$mp"
+    sub_id="$(dev_id "$sel")-${SUBVOL_ID[SUBVOL_CHOICE]}"
+    if id_mounted "$sub_id"; then
+      warn "Partition already mounted, skipping..."
+      continue
+    fi
+    mount_device "${D_NAME[sel]}" "$target" 1 -o "subvolid=${SUBVOL_ID[SUBVOL_CHOICE]}" &&
+      mounted_ids+=("$sub_id")
+    continue
+  elif is_zfs "$sel"; then
+    ((feat_zfs)) || die "ZFS partition selected but ZFS support is disabled or missing required binaries in PATH"
+    pool=$(dev_id "$sel")
+    already=0
+    for p in "${imported_pools[@]}"; do [[ $p == "$pool" ]] && already=1; done
+    if ((already)); then
+      info "ZFS pool for the selected partition is already imported, proceeding to dataset selection..."
+    else
+      zfs_import_pool "${D_UUID[sel]}" "$pool" "$root_mnt"
+      imported_pools+=("$pool")
+    fi
+    zfs_select_and_mount "$pool" "$target" 1 ||
+      warn "No mountable ZFS datasets found in the selected partition, skipping..."
+    continue
+  fi
+  mount_device "${D_NAME[sel]}" "$target" 1 && mounted_ids+=("$(dev_id "$sel")")
+done
+
+# --- chroot -------------------------------------------------------------------
+info "Chrooting into the configured root partition..."
+info "To exit the chroot, type 'exit' or press Ctrl+D"
+trap - INT TERM
+
+rc=0
+if ((no_systemd_chroot)); then
+  arch-chroot "$root_mnt" || rc=$?
+else
+  arch-chroot -S "$root_mnt" || rc=$?
+fi
+
+cleanup
+exit "$rc"

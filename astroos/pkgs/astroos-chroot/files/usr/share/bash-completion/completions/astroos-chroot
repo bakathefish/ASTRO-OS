@@ -1,0 +1,8 @@
+# bash completion for astroos-chroot. Every option is a long flag and the
+# program takes no operands, so the whole grammar is this word list.
+_astroos_chroot() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  local opts="--skip-root-check --show-btrfs-dot-snapshots --no-auto-mount --no-systemd-chroot --help --version"
+  mapfile -t COMPREPLY < <(compgen -W "$opts" -- "$cur")
+}
+complete -F _astroos_chroot astroos-chroot

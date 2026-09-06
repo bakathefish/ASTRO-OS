@@ -1,0 +1,64 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Contributor: Peter Jung <admin@ptr1337.dev>
+# Contributor: Michael Bolden Jnr SM9(); <me@sm9.dev>
+#
+# Derived from the CachyOS package of the same purpose (GPL).
+#
+# Local lane package. Unlike astroos-keyring/astroos-branding/astroos-tools it
+# keeps the upstream pkgver instead of the VERSION file scheme, the same way
+# astroos-zenbook-duo does: this is a fork of a versioned upstream package, so
+# its version tracks upstream's. Bump pkgrel by hand when the payload changes,
+# because a fixed pkgver means an installed system sees no upgrade otherwise.
+#
+# What this fork does, and does not do:
+#   - It ranks the ARCH LINUX mirrors with rate-mirrors (third party tool, its
+#     own name kept) and rewrites /etc/pacman.d/mirrorlist. That is the whole
+#     job. Ranking is a real win there: Arch has hundreds of mirrors of very
+#     different speed.
+#   - It does NOT touch /etc/pacman.d/astroos-mirrorlist. AstroOS is served
+#     from one origin, the signed repository the forge uploads to Azure Blob
+#     Storage, and that file (owned by the astroos-mirrorlist package) holds
+#     the single Server line for it. Ranking a one server list would be
+#     theatre, and the file sits in that package's backup array, so rewriting
+#     it would also spawn .pacnew churn on every upgrade.
+#   - Dropped from upstream: the cachyos / cachyos-v3 / cachyos-v4 mirrorlist
+#     ranking and copies, the CDN77 Arch mirror CachyOS pins at the top of
+#     /etc/pacman.d/mirrorlist, and the (already dead) RU fallback list. All
+#     three point at CachyOS infrastructure AstroOS no longer uses.
+#   - Kept from upstream: the root check, the GeoIP entry country probe, the
+#     China special case, the backup-then-replace write, /etc/conf.d overrides,
+#     the refresh timer and the reflector hook.
+#
+# groups: upstream had groups=(cachyos). No AstroOS package declares a group,
+# so it is dropped rather than renamed.
+#
+# licence: upstream's PKGBUILD field said GPL-1.0-only, but the script it ships
+# carries a "version 2 of the License, or (at your option) any later version"
+# header. This fork keeps that header verbatim, so the field follows the file.
+pkgname=astroos-rate-mirrors
+pkgver=24
+pkgrel=1
+pkgdesc="Ranks the Arch Linux mirrors with rate-mirrors and rewrites /etc/pacman.d/mirrorlist (service + timer)"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(GPL-2.0-or-later)
+# rate-mirrors: the ranker itself ([extra], third party, name never renamed).
+# curl: the GeoIP entry country probe. pacman: the "which package owns this
+# path" hint in the error path. systemd: the service, the timer and systemctl
+# in the install script.
+depends=(bash curl pacman rate-mirrors systemd)
+provides=('cachyos-rate-mirrors')
+conflicts=('cachyos-rate-mirrors')
+replaces=('cachyos-rate-mirrors')
+install=$pkgname.install
+
+package() {
+  local u
+  install -Dm755 "$startdir/files/usr/bin/$pkgname" "$pkgdir/usr/bin/$pkgname"
+  for u in service timer; do
+    install -Dm644 "$startdir/files/usr/lib/systemd/system/$pkgname.$u" \
+      "$pkgdir/usr/lib/systemd/system/$pkgname.$u"
+  done
+  install -Dm644 "$startdir/files/usr/share/libalpm/hooks/$pkgname.hook" \
+    "$pkgdir/usr/share/libalpm/hooks/$pkgname.hook"
+}

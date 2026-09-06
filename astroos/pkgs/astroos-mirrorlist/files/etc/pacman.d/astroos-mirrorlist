@@ -1,0 +1,17 @@
+#
+# AstroOS repository mirrorlist
+#
+# pacman Include file for the [astroos] section of pacman.conf:
+#
+#   [astroos]
+#   SigLevel = Required DatabaseOptional
+#   Include  = /etc/pacman.d/astroos-mirrorlist
+#
+# AstroOS publishes from a single origin: the signed repository the AstroOS
+# forge uploads to Azure Blob Storage (astroos/scripts/forge.sh). There are no
+# mirrors of it, so there is nothing here to rank and a mirror ranker has no
+# work to do on this file. pacman substitutes $arch when it reads the Server
+# line below.
+#
+# Azure Blob Storage, account astroosrepo, container repo
+Server = https://astroosrepo.blob.core.windows.net/repo/astroos/$arch

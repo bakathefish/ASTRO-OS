@@ -14,8 +14,9 @@
 #   iso      release ISO build with the repo enabled (xz squashfs)
 #   gate     QEMU boot gate (five in-guest verdicts, qemu-smoke.sh)
 #   audit    content audit INSIDE the artifact: identity, branding, installer
-#            configuration, repo wiring, laptop profile, and every lane
-#            package actually installed
+#            configuration, repo wiring, independence from CachyOS (no
+#            [cachy*] repo, mirror, mirrorlist, package or kernel), laptop
+#            profile, and every lane package actually installed
 #   release  sign the ISO with the repo key, upload ISO + sums + signature +
 #            manifests to the public iso container, write out/RELEASE
 #
@@ -192,6 +193,7 @@ stage_audit() {
     etc/os-release usr/lib/os-release etc/lsb-release etc/issue etc/motd etc/hostname etc/astroos-release \
     etc/pacman.conf etc/pacman-more.conf etc/pacman.d/hooks etc/pacman.d/blackarch-mirrorlist \
     etc/pacman.d/cachyos-mirrorlist etc/pacman.d/cachyos-v3-mirrorlist etc/pacman.d/cachyos-v4-mirrorlist \
+    etc/pacman.d/astroos-mirrorlist \
     etc/fastfetch usr/share/astroos usr/share/pacman/keyrings \
     usr/share/plymouth/themes/spinner/watermark.png usr/bin/astroos-doctor \
     usr/share/calamares/settings_online.conf usr/share/calamares/branding/astroos \
@@ -255,6 +257,33 @@ stage_audit() {
     [[ "$shipfpr" == "$(fpr_expect)" ]] && ok "shipped astroos keyring fingerprint matches" || bad "shipped keyring fingerprint mismatch ($shipfpr)"
     [[ "$(tr -d ' \r\n' < "$r/usr/share/pacman/keyrings/astroos-trusted" 2>/dev/null)" == "$(fpr_expect):4:" ]] \
       && ok "astroos-trusted grants ownertrust 4 to the repo key" || bad "astroos-trusted wrong or missing"
+  fi
+  # independence: no pacman configuration in the image may enable a CachyOS
+  # repository or name their mirror, and etc/pacman.d carries our mirrorlist
+  # instead of theirs. Every path below is in the unsquashfs list above, and
+  # each file is asserted PRESENT before the absence checks that read beside
+  # it, so an absence check can never pass because the path was never
+  # extracted (R4.3). These run unconditionally: dropping [cachyos] is not
+  # gated on ASTROOS_WITH_AUR_REPO.
+  local pc
+  for pc in etc/pacman.conf etc/pacman-more.conf; do
+    if [[ -s "$r/$pc" ]]; then
+      ok "$pc extracted (positive control for the two checks below)"
+      grep -qE '^\[cachy' "$r/$pc" && bad "$pc still enables a CachyOS repository" || ok "no [cachy*] section in $pc"
+      grep -qF 'mirror.cachyos.org' "$r/$pc" && bad "$pc still names mirror.cachyos.org" || ok "no CachyOS mirror server line in $pc"
+    else
+      bad "$pc missing or empty in the image (CachyOS repo independence untested)"
+    fi
+  done
+  if [[ -s "$r/etc/pacman.d/astroos-mirrorlist" ]]; then
+    ok "etc/pacman.d/astroos-mirrorlist shipped (positive control: etc/pacman.d was extracted)"
+    local ml survivors=""
+    for ml in cachyos-mirrorlist cachyos-v3-mirrorlist cachyos-v4-mirrorlist; do
+      [[ ! -e "$r/etc/pacman.d/$ml" ]] || survivors="$survivors $ml"
+    done
+    [[ -z "$survivors" ]] && ok "no CachyOS mirrorlist in etc/pacman.d" || bad "CachyOS mirrorlists survive in etc/pacman.d:$survivors"
+  else
+    bad "etc/pacman.d/astroos-mirrorlist missing (astroos-mirrorlist not installed?)"
   fi
   if [[ "${ASTROOS_WITH_BLACKARCH:-0}" == "1" ]]; then
     for c in etc/pacman.conf etc/pacman-more.conf; do
@@ -344,6 +373,44 @@ stage_audit() {
   for p in cachyos-hello cachyos-cli-installer-new; do
     grep -qx "$p" "$a/installed" && bad "$p is installed" || ok "$p not installed"
   done
+  # independence: no CachyOS package at all, which is the point of rebuilding
+  # the [cachyos] scope under AstroOS names. n_inst is the positive control:
+  # an empty listing is reported, never silently passed as an absence.
+  if (( n_inst > 0 )); then
+    local icachy; icachy=$({ grep -E '^cachy|^linux-cachyos' "$a/installed" || true; } | tr '\n' ' ')
+    [[ -z "$icachy" ]] && ok "no CachyOS package installed in the image" || bad "CachyOS packages installed in the image: $icachy"
+  else
+    bad "the pacman local db listing is empty (CachyOS package check could not run)"
+  fi
+  # the shipped package manifest. container-build.sh copies the resolved
+  # profile list to /build/out/manifest.pkglist and build-iso.sh bind-mounts
+  # the repo checkout at /build, so it lands in out/ beside the ISO and
+  # stage_release uploads it next to the ISO: it is a sibling artifact, NOT a
+  # file inside the image. Auditing out/manifest.pkglist is therefore auditing
+  # exactly the file a user downloads. It belongs to the run that built the
+  # ISO, so a missing one is a finding rather than a skip.
+  if [[ -s "$out/manifest.pkglist" ]]; then
+    { grep -vE '^\s*(#|$)' "$out/manifest.pkglist" || true; } | tr -d '\r' | awk '{print $1}' | sort -u > "$a/manifest"
+    ok "manifest.pkglist present beside the ISO ($(wc -l < "$a/manifest") entries)"
+    local mcachy; mcachy=$({ grep -E '^cachy|^linux-cachyos' "$a/manifest" || true; } | tr '\n' ' ')
+    [[ -z "$mcachy" ]] && ok "manifest.pkglist names no CachyOS package" || bad "manifest.pkglist names CachyOS packages: $mcachy"
+  else
+    bad "out/manifest.pkglist missing or empty (the shipped manifest could not be audited)"
+  fi
+  # the kernel is ours. usr/lib/modules is far too large to put in the
+  # extraction list, so the evidence is the squashfs directory listing: a
+  # second metadata pass, kept separate from the installed-package listing
+  # above so that check keeps working exactly as it does today. The module
+  # tree name is what uname -r reports, so it is the kernel's own identity.
+  unsquashfs -l "$sfs" 2>/dev/null | grep -oE 'usr/lib/modules/[^/]+$' | sed 's|.*/||' | sort -u > "$a/kmods" || true
+  local n_kmod; n_kmod=$(wc -l < "$a/kmods")
+  if (( n_kmod > 0 )); then
+    ok "kernel module trees in the image: $(tr '\n' ' ' < "$a/kmods")"
+    grep -q -- '-astroos' "$a/kmods" && ok "an AstroOS kernel is installed (usr/lib/modules/*-astroos*)" || bad "no usr/lib/modules/*-astroos* tree: the installed kernel is not ours"
+    grep -q -- '-cachyos' "$a/kmods" && bad "a CachyOS kernel is installed (usr/lib/modules/*-cachyos*)" || ok "no usr/lib/modules/*-cachyos* tree"
+  else
+    bad "no usr/lib/modules entry in the squashfs listing (kernel checks could not run)"
+  fi
   if [[ "${ASTROOS_WITH_BLACKARCH:-0}" == "1" ]]; then
     missing=()
     while read -r p; do grep -qx "$p" "$a/installed" || missing+=("$p"); done < <(tr -d '\r' < "$here/meta/blackarch.list" | grep -vE '^\s*(#|$)' | awk '{print $1}')

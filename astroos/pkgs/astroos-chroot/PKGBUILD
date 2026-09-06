@@ -1,0 +1,48 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Contributor: SoulHarsh007 <harsh.peshwani@outlook.com>
+# Local lane package (see astroos-keyring/PKGBUILD for the version scheme).
+#
+# Derived from the CachyOS package of the same purpose (cachy-chroot, which is
+# BSD-3-Clause, not GPL: its licence and copyright notice ship with this
+# package and its author is credited above).
+#
+# Upstream is a Rust program, so there was no script to copy byte for byte.
+# Every action it takes is a call to lsblk, mount, umount, btrfs, cryptsetup,
+# zfs, zpool or arch-chroot, and files/usr/bin/astroos-chroot is that same flow
+# in bash: same options, same prompts, same order of operations. So the repo
+# owns every byte it ships and the package needs no Rust toolchain, no
+# crates.io fetch at build time and no makedepends at all.
+#
+# Version: this package keeps the upstream pkgver it derives from rather than
+# the local lane's date.time VERSION scheme, so it orders against the
+# cachy-chroot it provides, conflicts with and replaces. build-aur-repo.sh
+# still writes a VERSION file into the build directory; without a pkgver()
+# function it is simply unused, and the rebuild trigger is the inputs hash.
+pkgname=astroos-chroot
+pkgver=1.3.0
+pkgrel=1
+pkgdesc="Chroot helper for AstroOS: mounts an installed system and chroots into it"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(BSD-3-Clause)
+depends=(bash arch-install-scripts util-linux)
+optdepends=('btrfs-progs: for btrfs support'
+            'cryptsetup: for LUKS support'
+            'zfs-utils: for ZFS support')
+provides=('cachy-chroot')
+conflicts=('cachy-chroot')
+replaces=('cachy-chroot')
+
+package() {
+  local f="$startdir/files"
+  # astroos-chroot --version prints a string of its own: fail the build rather
+  # than ship one that disagrees with the package version
+  grep -qx "VERSION=\"$pkgver\"" "$f/usr/bin/astroos-chroot" ||
+    { echo "astroos-chroot: VERSION in the script does not match pkgver $pkgver" >&2; return 1; }
+
+  install -Dm755 "$f/usr/bin/astroos-chroot" "$pkgdir/usr/bin/astroos-chroot"
+  install -Dm644 "$f/usr/share/bash-completion/completions/astroos-chroot" \
+    "$pkgdir/usr/share/bash-completion/completions/astroos-chroot"
+  install -Dm644 "$f/usr/share/licenses/astroos-chroot/LICENSE" \
+    "$pkgdir/usr/share/licenses/astroos-chroot/LICENSE"
+}

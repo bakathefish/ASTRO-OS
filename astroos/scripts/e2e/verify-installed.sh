@@ -59,6 +59,15 @@ chk "astroos key in the keyring"      bash -c 'sudo_ pacman-key --list-keys 2>/d
 chk "astroos key locally signed"      bash -c 'sudo_ pacman-key --list-sigs DA5C947A5C329E528948830E92304756ECC2F9D8 2>/dev/null | grep -qi "pacman keyring master key"'
 chk "pacman -Sy works with SigLevel"  sudo_ pacman -Sy
 chk "[astroos] package signature verifies (pacman -Sw)" sudo_ pacman -Sw --noconfirm python-fleep
+# independence from CachyOS: [astroos] carries the rebuilt packages, so no
+# repository whose name starts with "cachy" may be configured any more, not in
+# pacman.conf and not in anything it Includes
+echo "     repositories: $(pacman-conf --repo-list 2>/dev/null | tr '\n' ' ')"
+chk "pacman-conf lists astroos"       bash -c 'pacman-conf --repo-list | grep -qx astroos'
+chk "pacman-conf lists no cachy* repo" bash -c '! pacman-conf --repo-list | grep -qE "^cachy"'
+chk "no mirror.cachyos.org in pacman.conf" bash -c '! grep -q "mirror\.cachyos\.org" /etc/pacman.conf'
+chk "astroos-mirrorlist installed"    test -f /etc/pacman.d/astroos-mirrorlist
+chk "no cachyos-mirrorlist"           bash -c '[[ ! -e /etc/pacman.d/cachyos-mirrorlist ]]'
 
 echo "== packages"
 for p in astroos-keyring astroos-branding astroos-tools astroos-zenbook-duo; do
@@ -72,6 +81,38 @@ for p in siril-git python-healpy astromatic-swarp; do
   chk "[astroos] sample installed: $p" pacman -Qq "$p"
 done
 chk "a [blackarch] package installed" bash -c 'pacman -Qq nmap >/dev/null || pacman -Qq sqlmap >/dev/null || pacman -Qq aircrack-ng >/dev/null'
+# the headline independence check: an installed AstroOS system carries zero
+# CachyOS-named packages. The offending names are the whole diagnosis when
+# this regresses, so print them.
+cachy_pkgs=$(pacman -Qq 2>/dev/null | grep -E '^cachy' | tr '\n' ' ')
+chk "zero cachy* packages installed"  bash -c '! pacman -Qq 2>/dev/null | grep -qE "^cachy"'
+[[ -z $cachy_pkgs ]] || echo "     cachy-named packages still installed: $cachy_pkgs"
+
+echo "== kernel"
+echo "     uname -r: $(uname -r)"
+chk "kernel release ends in -astroos" bash -c '[[ $(uname -r) == *-astroos ]]'
+chk "kernel release has no cachyos"   bash -c '[[ $(uname -r) != *cachyos* ]]'
+# a rename that drops the localversion suffix leaves the modules in a directory
+# the running kernel never looks in, and every module silently disappears;
+# catch that here rather than on the owner's machine
+chk "module tree for the running kernel" bash -c '[[ -d /usr/lib/modules/$(uname -r) ]]'
+chk "module tree has kernel/"         bash -c '[[ -d /usr/lib/modules/$(uname -r)/kernel ]]'
+# the kernel package is ours, and the copy on disk is the one [astroos]
+# publishes. pacman -Qi carries no repository field for an installed package,
+# so prove the origin by matching the installed version against the repo's.
+# Packager is printed for the reader only: the build container leaves PACKAGER
+# unset, so [astroos] packages read "Unknown Packager" until
+# astroos/scripts/build-aur-repo.sh sets it.
+astroos_owns_kernel() {
+  local repo_ver local_ver
+  repo_ver=$(pacman -Sl astroos 2>/dev/null | awk '$2 == "linux-astroos" { print $3 }')
+  local_ver=$(pacman -Q linux-astroos 2>/dev/null | awk '{ print $2 }')
+  [[ -n $repo_ver && $repo_ver == "$local_ver" ]]
+}
+echo "     linux-astroos packager: $(pacman -Qi linux-astroos 2>/dev/null | sed -n 's/^Packager *: *//p')"
+chk "kernel package is linux-astroos" pacman -Qq linux-astroos
+chk "[astroos] provides the installed linux-astroos" astroos_owns_kernel
+chk "linux-astroos packager is not CachyOS" bash -c '! pacman -Qi linux-astroos 2>/dev/null | sed -n "s/^Packager *: *//p" | grep -qi cachy'
 
 echo "== hooks"
 for h in zz-astroos-identity.hook 85-astroos-plymouth-watermark.hook 86-astroos-skel.hook astroos-reboot-required.hook; do

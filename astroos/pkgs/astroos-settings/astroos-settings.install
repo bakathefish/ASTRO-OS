@@ -1,0 +1,67 @@
+# Contributor: Peter Jung <admin@ptr1337.dev>
+# Derived from the CachyOS package of the same purpose (GPL).
+
+SERVICES=("ananicy-cpp" "systemd-resolved" )
+
+# astroos-iw-set-regdomain.path is the one unit this package renamed, so a
+# system that had cachyos-settings installed carries an enablement symlink for
+# the old name that now points at nothing. Move that state across instead of
+# leaving a dangling link, and only when the link is actually there: an
+# ordinary upgrade must not re-enable a unit the user disabled. pacman may run
+# post_install rather than post_upgrade when it applies a replaces=, so both
+# entry points call this.
+migrate_regdomain_path() {
+    local old=/etc/systemd/system/multi-user.target.wants/cachyos-iw-set-regdomain.path
+    [[ -L "$old" ]] || return 0
+    echo "Migrating the wireless regulatory domain unit to astroos-iw-set-regdomain.path..."
+    rm -f "$old"
+    systemctl enable astroos-iw-set-regdomain.path
+}
+
+migrate_keyboard_layout() {
+    local x11_conf="/etc/X11/xorg.conf.d/00-keyboard.conf"
+    local status layout model variant options
+
+    [[ -r "$x11_conf" ]] || return 0
+    status=$(localectl status 2>/dev/null) || return 0
+    if ! grep -q '^[[:space:]]*X11 Layout:[[:space:]]*(unset)' <<< "$status"; then
+        return 0
+    fi
+
+    layout=$(awk -F'"' '/^[[:space:]]*Option[[:space:]]+"XkbLayout"/ { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4); print $4; exit }' "$x11_conf")
+    model=$(awk -F'"' '/^[[:space:]]*Option[[:space:]]+"XkbModel"/ { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4); print $4; exit }' "$x11_conf")
+    variant=$(awk -F'"' '/^[[:space:]]*Option[[:space:]]+"XkbVariant"/ { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4); print $4; exit }' "$x11_conf")
+    options=$(awk -F'"' '/^[[:space:]]*Option[[:space:]]+"XkbOptions"/ { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4); print $4; exit }' "$x11_conf")
+
+    [[ -n "$layout" ]] || return 0
+
+    localectl set-x11-keymap "$layout" "$model" "$variant" "$options" || return 0
+}
+
+post_install() {
+    echo "Enabling services..."
+    for service in "${SERVICES[@]}"; do
+        systemctl enable "$service"
+    done
+    migrate_regdomain_path
+    if command -v iw >/dev/null 2>&1; then
+        systemctl enable astroos-iw-set-regdomain.path
+    fi
+}
+
+post_upgrade() {
+    echo "restarting services..."
+
+    for service in "${SERVICES[@]}"; do
+        if systemctl is-active "$service" >/dev/null; then
+            systemctl restart "$service"
+        fi
+    done
+    migrate_regdomain_path
+    # The bounds stay on the CachyOS release that shipped the fix: $2 is the
+    # version being replaced, which across the cachyos-settings swap is a
+    # CachyOS version, and no AstroOS version can ever fall inside the window.
+    if (( $(vercmp "$2" 1:1.3.5-2) < 0 )) && (( $(vercmp "$2" 1:1.3.5-1) >= 0 )); then
+        migrate_keyboard_layout
+    fi
+}

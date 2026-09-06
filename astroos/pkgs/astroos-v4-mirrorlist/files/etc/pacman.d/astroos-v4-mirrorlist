@@ -1,0 +1,19 @@
+#
+# AstroOS repository mirrorlist, x86_64_v4
+#
+# pacman Include file for an x86_64_v4 repository section. It is the AstroOS
+# counterpart of /etc/pacman.d/cachyos-v4-mirrorlist, and it exists so that a
+# pacman.conf, an installer step or a script that still expects a v4 mirrorlist
+# at this path keeps working once the CachyOS packages are gone.
+#
+# AstroOS does not publish microarchitecture optimised repositories. There is
+# no x86_64_v4 build of [astroos], so this file has NO active Server line and
+# is inert. A pacman.conf section whose only Include is this file has no server
+# at all, and pacman cannot sync a repository with no servers, so do not add
+# such a section until the repository named below actually exists.
+#
+# Uncommenting the line is the whole change on the day AstroOS does publish an
+# x86_64_v4 repository. The generic mirrorlist uses $arch; this file names the
+# directory outright, because $arch is still x86_64 on a v4 capable machine.
+#
+# Server = https://astroosrepo.blob.core.windows.net/repo/astroos/x86_64_v4

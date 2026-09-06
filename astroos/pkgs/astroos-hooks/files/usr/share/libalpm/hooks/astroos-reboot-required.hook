@@ -1,0 +1,49 @@
+# Notify that a reboot is recommended after a core system package upgrade.
+# Derived from the CachyOS package of the same purpose (GPL): upstream
+# cachyos-hooks' cachyos-reboot-required.hook. Target list is upstream's apart
+# from linux-cachyos* -> linux-astroos* (which covers linux-astroos-lts and the
+# -headers, -nvidia-open and -zfs suffixes). linux-cacule* is the CacULE
+# scheduler kernel, a third-party name, so it is left alone.
+#
+# astroos-branding ships /etc/pacman.d/hooks/astroos-reboot-required.hook, and a
+# hook of the same name in the pacman HookDir overrides this one: on a system
+# with both packages only one notification fires, from that copy.
+[Trigger]
+Operation = Upgrade
+Type = Package
+Target = amd-ucode
+Target = intel-ucode
+Target = btrfs-progs
+Target = e2fsprogs
+Target = xfsprogs
+Target = cryptsetup
+Target = linux
+Target = linux-hardened
+Target = linux-lts
+Target = linux-zen
+Target = linux-firmware
+Target = linux-astroos*
+Target = linux-cacule*
+Target = nvidia
+Target = nvidia-dkms
+Target = nvidia-*xx-dkms
+Target = nvidia-*xx
+Target = nvidia-*lts-dkms
+Target = nvidia*-lts
+Target = mesa
+Target = systemd*
+Target = wayland
+Target = egl-wayland
+Target = xf86-video-*
+Target = xorg-server*
+Target = xorg-fonts*
+Target = mkinitcpio*
+Target = booster*
+Target = dracut*
+Target = winesync-dkms
+
+[Action]
+Description = Check if user should be informed about rebooting after certain system package upgrades.
+When = PostTransaction
+NeedsTargets
+Exec = /usr/share/libalpm/scripts/astroos-reboot-required

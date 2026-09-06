@@ -1,0 +1,32 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Local lane package (see astroos-keyring/PKGBUILD for the version scheme):
+# built by astroos/scripts/build-aur-repo.sh from this directory, pkgver comes
+# from the VERSION file that script writes.
+#
+# Replaces cachyos-v3-mirrorlist as part of dropping the [cachyos] repo. The
+# CachyOS installer copies /etc/pacman.d/cachyos-v3-mirrorlist into the target
+# (shellprocess_initialize_pacman.conf, .planning/R4_BRANDING_SURVEY.md line
+# 22), so the AstroOS-named file has to exist at the matching path.
+#
+# It is deliberately inert: AstroOS publishes no x86_64_v3 repository, so the
+# shipped file has no active Server line. This package exists for pacman.conf
+# and installer compatibility, not because a v3 mirror exists.
+pkgname=astroos-v3-mirrorlist
+pkgver=0
+pkgrel=1
+pkgdesc="AstroOS x86_64_v3 repository mirrorlist (inert: AstroOS publishes no v3 repository)"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(GPL-3.0-or-later)
+provides=(cachyos-v3-mirrorlist)
+conflicts=(cachyos-v3-mirrorlist)
+replaces=(cachyos-v3-mirrorlist)
+# keep a hand edited or ranked mirrorlist across upgrades (upstream does the same)
+backup=(etc/pacman.d/astroos-v3-mirrorlist)
+
+pkgver() { cat "$startdir/VERSION"; }
+
+package() {
+  install -Dm644 "$startdir/files/etc/pacman.d/$pkgname" \
+    "$pkgdir/etc/pacman.d/$pkgname"
+}

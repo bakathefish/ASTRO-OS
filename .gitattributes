@@ -1,0 +1,13 @@
+# Everything under astroos/ is a build input consumed on Linux: shell scripts,
+# alpm hooks, systemd units, pacman configuration, kernel configs and patches.
+# A CRLF checkout breaks them, and where a file is covered by a checksum it
+# breaks the checksum too: astroos/pkgs/linux-astroos/config is pinned by a
+# b2sum in its PKGBUILD, so a single stray carriage return fails the build.
+#
+# text=auto lets git detect binaries (the branding PNGs, the vendored fonts)
+# and leave them exactly as they are; eol=lf pins the working copy for the
+# rest, on Windows as well as on the build host.
+astroos/** text=auto eol=lf
+*.patch    text=auto eol=lf
+*.PKGBUILD text=auto eol=lf
+PKGBUILD   text=auto eol=lf

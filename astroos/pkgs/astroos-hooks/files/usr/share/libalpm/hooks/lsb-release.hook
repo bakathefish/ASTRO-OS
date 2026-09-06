@@ -1,0 +1,18 @@
+# Derived from the CachyOS package of the same purpose (GPL): upstream
+# cachyos-hooks' lsb-release.hook. lsb-release is a stock Arch package, so the
+# hook file name and the Target keep their upstream names; only the description
+# and the script path are AstroOS.
+#
+# astroos-branding masks this file name with /etc/pacman.d/hooks/lsb-release.hook
+# -> /dev/null and re-asserts the same values from zz-astroos-identity.hook, so
+# on a system with both packages this hook is present but inert.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = lsb-release
+
+[Action]
+Description = Updating AstroOS specific configuration.
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/astroos-branding lsb-release

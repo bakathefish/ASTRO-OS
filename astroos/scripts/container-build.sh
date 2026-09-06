@@ -33,32 +33,13 @@ printf '%s\n' \
 pacman -Syu --noconfirm --needed base-devel archiso mkinitcpio-archiso git \
   squashfs-tools grub syslinux
 
-# Keyring: Arch packager keys + the CachyOS signing key (the base profile's
-# pacman.conf enables [cachyos] with SigLevel Required).
+# Keyring: Arch packager keys only. [cachyos] is deleted from all three pacman
+# configurations (delta 0), so nothing in the build resolves to a CachyOS
+# binary and the CachyOS signing key has nothing left to verify. The one
+# non-Arch repo that remains, [astroos], brings its own key through
+# pacman-key --populate (delta 2c).
 pacman-key --init
 pacman-key --populate archlinux
-# Keyservers flake ("keyserver receive failed: No data"), so: retry across
-# transports, then fall back to extracting the key from the cachyos-keyring
-# package over https from their mirror.
-import_cachyos_key() {
-  local ks _
-  for ks in hkps://keyserver.ubuntu.com hkp://keyserver.ubuntu.com:80; do
-    for _ in 1 2 3; do
-      pacman-key --recv-keys F3B607488DB35A47 --keyserver "$ks" && return 0
-      sleep 5
-    done
-  done
-  echo ">> Keyservers unreachable; extracting key from cachyos-keyring package"
-  local idx pkg
-  idx=$(curl -sL https://mirror.cachyos.org/repo/x86_64/cachyos/)
-  pkg=$(printf '%s' "$idx" | grep -oE 'cachyos-keyring-[0-9][^"<>]*\.pkg\.tar\.zst' | head -1)
-  [[ -n "$pkg" ]] || { echo "!! cachyos-keyring package not found in mirror index" >&2; return 1; }
-  curl -sLo /tmp/cachyos-keyring.zst "https://mirror.cachyos.org/repo/x86_64/cachyos/$pkg"
-  bsdtar -xf /tmp/cachyos-keyring.zst -C /tmp 'usr/share/pacman/keyrings/*'
-  pacman-key --add /tmp/usr/share/pacman/keyrings/cachyos.gpg
-}
-import_cachyos_key
-pacman-key --lsign-key F3B607488DB35A47
 # Mass verification in a container dies mid-transaction with
 # "GPGME error: Inappropriate ioctl for device" when gpg decides it wants a
 # tty. Belt (no-tty here) and suspenders (-t on the podman run).
@@ -78,6 +59,34 @@ prof="$base/archiso"
 # installed system as ITS pacman.conf (survey §0: the only overlay file that
 # reaches disk)
 pconfs=("$prof/pacman.conf" "$prof/airootfs/etc/pacman.conf" "$prof/airootfs/etc/pacman-more.conf")
+
+# --- AstroOS delta 0: no [cachyos] repository -----------------------------
+# AstroOS ships none of CachyOS's binaries: every package the base took from
+# [cachyos] is rebuilt under an AstroOS name in the signed [astroos] repo
+# (delta 2c), so the section goes from all three configurations. The build
+# conf carries it as a hardcoded mirror.cachyos.org Server, the two airootfs
+# confs as SigLevel Optional TrustAll plus a cachyos-mirrorlist Include.
+# awk, not sed: the body is 1-2 lines today, and this drops it without
+# counting, stopping at the next section header or at the blank line that
+# ends this one, whichever comes first. The ^\[cachyos prefix also catches
+# [cachyos-v3] and friends should the base ever grow them.
+for c in "${pconfs[@]}"; do
+  [[ -f "$c" ]] || { echo "!! missing pacman configuration $c" >&2; exit 1; }
+  awk '
+    /^\[cachyos/             { skip = 1; next }
+    skip && /^\[/            { skip = 0 }
+    skip && /^[[:space:]]*$/ { skip = 0; next }
+    skip                     { next }
+                             { print }
+  ' "$c" > /tmp/pacman.conf.nocachy
+  mv /tmp/pacman.conf.nocachy "$c"
+done
+if hits=$(grep -nE '^\[cachyos' "${pconfs[@]}"); then
+  echo "!! a [cachyos] section survived the removal:" >&2
+  printf '%s\n' "$hits" >&2
+  exit 1
+fi
+echo ">> [cachyos] removed from the build, live and installed pacman.conf"
 
 # --- AstroOS delta 1: packages -------------------------------------------
 # Append our additions to the desktop list (their prepare_profile copies
@@ -99,38 +108,141 @@ if (( net_adds < min_adds )); then
   echo "!! Only $net_adds net additions (< $min_adds floor) — additions list looks broken. Aborting." >&2
   exit 1
 fi
-# CachyOS-only apps that cannot be rebranded by configuration (survey rows 4,
-# 26): the GTK welcome app (plasma-welcome + astroos-install.desktop replace
-# it) and the CachyOS TUI installer. Nothing on the ISO depends on either.
-for p in cachyos-hello cachyos-cli-installer-new; do
-  grep -qx "$p" "$prof/packages_desktop.x86_64" || { echo "!! expected $p in the base package list (base moved?)" >&2; exit 1; }
-  sed -i "/^$p\$/d" "$prof/packages_desktop.x86_64"
-done
-echo ">> removed from the base list: cachyos-hello cachyos-cli-installer-new"
+# Every CachyOS name the base list carries, and what AstroOS installs instead.
+# The whole substitution lives in this one table; "-" in the second column
+# removes the line rather than renaming it. The kernels, hooks, settings,
+# mirrorlists, chroot helper, hardware detection and installer are rebuilt
+# under our names in [astroos] (delta 2c). cachyos-keyring goes because
+# astroos-keyring is already installed from there and holds the only repo key
+# the ISO trusts; cachyos-hello (survey row 4) and the CachyOS TUI installer
+# (row 26) have no package replacement (plasma-welcome +
+# astroos-install.desktop, and Calamares, cover them) and nothing on the ISO
+# depends on either. Every name below is in the base list today, so a
+# substitution that does not apply means the base moved, and a silently
+# skipped one would either ship an upstream package or drop a kernel.
+pkglist="$prof/packages_desktop.x86_64"
+renamed=0 dropped=0
+while read -r old new; do
+  [[ -n "$old" ]] || continue
+  grep -qx "$old" "$pkglist" || { echo "!! expected $old in the base package list (base moved?)" >&2; exit 1; }
+  if [[ "$new" == "-" ]]; then
+    sed -i "/^$old\$/d" "$pkglist"
+    dropped=$((dropped + 1))
+  else
+    sed -i "s/^$old\$/$new/" "$pkglist"
+    grep -qx "$new" "$pkglist" || { echo "!! $old -> $new did not land in $pkglist" >&2; exit 1; }
+    renamed=$((renamed + 1))
+  fi
+  if grep -qx "$old" "$pkglist"; then
+    echo "!! $old survives in $pkglist after its substitution" >&2
+    exit 1
+  fi
+done <<'PKGMAP'
+linux-cachyos                  linux-astroos
+linux-cachyos-lts              linux-astroos-lts
+linux-cachyos-nvidia-open      linux-astroos-nvidia-open
+linux-cachyos-zfs              linux-astroos-zfs
+linux-cachyos-lts-nvidia-open  linux-astroos-lts-nvidia-open
+linux-cachyos-lts-zfs          linux-astroos-lts-zfs
+cachyos-hooks                  astroos-hooks
+cachyos-settings               astroos-settings
+cachyos-kde-settings           astroos-kde-settings
+cachyos-fish-config            astroos-fish-config
+cachyos-rate-mirrors           astroos-rate-mirrors
+cachy-chroot                   astroos-chroot
+cachyos-mirrorlist             astroos-mirrorlist
+cachyos-v3-mirrorlist          astroos-v3-mirrorlist
+cachyos-v4-mirrorlist          astroos-v4-mirrorlist
+cachyos-calamares-next         astroos-calamares-installer
+chwd                           astroos-chwd
+cachyos-keyring                -
+cachyos-hello                  -
+cachyos-cli-installer-new      -
+PKGMAP
+echo ">> base list: $renamed CachyOS names renamed to AstroOS, $dropped removed"
 
 # --- AstroOS delta 2: airootfs overlay (live-only files) ------------------
 cp -a /build/astroos/overlay/airootfs/. "$prof/airootfs/"
 # the profile's own release file (survey row 25): nothing reads it and the
 # identity hook removes it from installed systems, so the live ISO drops it too
 rm -f "$prof/airootfs/etc/cachyos-release"
+# The Arch mirrorlist the live medium ships puts two CachyOS CDN hosts at the
+# top, so every official Arch package on the ISO is currently fetched through
+# CachyOS infrastructure. Drop those Server lines and the comment that sells
+# them; the pkgbuild.com geo mirror below them becomes the first entry.
+ml="$prof/airootfs/etc/pacman.d/mirrorlist"
+[[ -f "$ml" ]] || { echo "!! missing $ml (base moved?)" >&2; exit 1; }
+grep -qiE '^[[:space:]]*Server[[:space:]]*=.*cachyos\.org' "$ml" \
+  || { echo "!! expected CachyOS CDN Server lines in the live mirrorlist (base moved?)" >&2; exit 1; }
+sed -i -E '/^[[:space:]]*#.*[Cc]achy/d; /^[[:space:]]*Server[[:space:]]*=.*cachyos\.org/d' "$ml"
+grep -qiE '^[[:space:]]*Server[[:space:]]*=' "$ml" \
+  || { echo "!! the live mirrorlist has no Server line left after dropping the CachyOS CDN" >&2; exit 1; }
+# The live KWin keyboard hook triggers on the settings package, which is ours
+# now. Its "remove from airootfs!" first line is what deletes it at the end of
+# pacstrap (zzzz99 hook, by content), so renaming the file is safe.
+hooks="$prof/airootfs/etc/pacman.d/hooks"
+[[ -f "$hooks/90-cachyos-live-kwin-keyboard.hook" ]] \
+  || { echo "!! missing $hooks/90-cachyos-live-kwin-keyboard.hook (base moved?)" >&2; exit 1; }
+sed -i 's/^Target = cachyos-kde-settings$/Target = astroos-kde-settings/' "$hooks/90-cachyos-live-kwin-keyboard.hook"
+mv "$hooks/90-cachyos-live-kwin-keyboard.hook" "$hooks/90-astroos-live-kwin-keyboard.hook"
+grep -qx 'Target = astroos-kde-settings' "$hooks/90-astroos-live-kwin-keyboard.hook" \
+  || { echo "!! the live KWin keyboard hook still triggers on cachyos-kde-settings" >&2; exit 1; }
 # --- AstroOS delta 2b: bootloader branding (profile-level, not airootfs) ---
 br=/build/astroos/branding/out
-# Bootloader splashes + menu titles. Only the capitalized brand string is
-# rewritten: lowercase "cachyos" appears in kernel and package file paths
-# (vmlinuz-linux-cachyos) and must never be touched.
+# Bootloader splashes + menu titles. The efiboot loader entries carry titles
+# too and the branding sed never reached them: they are dead weight under
+# bootmodes=('bios.syslinux' 'uefi.grub'), but a CachyOS title on our medium
+# is still a leak.
 install -m644 "$br/splash-1920.png" "$base/archiso/grub/splash.png"
 install -m644 "$br/splash-1920.png" "$base/archiso/syslinux/splash.png"
 install -m644 "$br/splash-640.png"  "$base/archiso/syslinux/splash1.png"
 sed -i 's/CachyOS/AstroOS/g' "$base/archiso/grub/grub.cfg" \
-  "$base/archiso/grub/loopback.cfg" "$base"/archiso/syslinux/*.cfg
+  "$base/archiso/grub/loopback.cfg" "$base"/archiso/syslinux/*.cfg \
+  "$base"/archiso/efiboot/loader/entries/*.conf
+
+# --- AstroOS delta 2b-kernel: the boot files name OUR kernel --------------
+# Every boot path names the kernel by filename, not by package, and the
+# filename follows the package: linux-astroos installs
+# /boot/vmlinuz-linux-astroos and mkarchiso copies /boot/vmlinuz-* and
+# initramfs-*.img into the medium verbatim. Left alone, every menu entry
+# would point at a file that does not exist, and linux.preset would build
+# the live initramfs from a kernel that is not there, which fails long
+# before a menu is ever drawn. The comment that used to sit here said the
+# lowercase paths must never be touched; that was right while the kernel
+# came from [cachyos].
+efi="$base/archiso/efiboot/loader/entries"
+[[ -f "$efi/02-archiso-linux-cachyos.conf" ]] \
+  || { echo "!! missing $efi/02-archiso-linux-cachyos.conf (base moved?)" >&2; exit 1; }
+mv "$efi/02-archiso-linux-cachyos.conf" "$efi/02-archiso-linux-astroos.conf"
+kfiles=("$prof/airootfs/etc/mkinitcpio.d/linux.preset"
+        "$base/archiso/grub/grub.cfg" "$base/archiso/grub/loopback.cfg"
+        "$base"/archiso/syslinux/archiso_sys-linux.cfg
+        "$base"/archiso/syslinux/archiso_pxe-linux.cfg
+        "$efi"/*.conf)
+for f in "${kfiles[@]}"; do
+  [[ -f "$f" ]] || { echo "!! missing boot file $f (base moved?)" >&2; exit 1; }
+done
+sed -i 's/-linux-cachyos/-linux-astroos/g' "${kfiles[@]}"
+if hits=$(grep -n 'linux-cachyos' "${kfiles[@]}"); then
+  echo "!! a boot file still names the CachyOS kernel:" >&2
+  printf '%s\n' "$hits" >&2
+  exit 1
+fi
+hits=$(find "$base/archiso/efiboot" -iname '*cachy*')
+[[ -z "$hits" ]] || { echo "!! CachyOS-named file under efiboot: $hits" >&2; exit 1; }
+grep -qx "ALL_kver='/boot/vmlinuz-linux-astroos-lts'" "$prof/airootfs/etc/mkinitcpio.d/linux.preset" \
+  || { echo "!! linux.preset ALL_kver is not the AstroOS LTS kernel (it builds the live initramfs)" >&2; exit 1; }
+echo ">> boot files point at the AstroOS kernel: ${#kfiles[@]} files rewritten"
 
 # --- AstroOS delta 2c: [astroos] prebuilt repo (council R3, ratified; R4.1) --
 # Adds the signed Azure-hosted repo to the build, the live system AND the
 # installed system (pacman-more.conf), trusts the key, and installs every
 # aur.list package plus every local package from prebuilt binaries. The
-# section is appended AFTER the Arch repos (review D-D): every name in it is
-# AUR-only or AstroOS-only, so nothing is shadowed either way, and a name
-# that later reaches [extra] is then taken from there.
+# section stays appended AFTER the Arch repos (review D-D). It carries system
+# packages now, not just extras, because the [cachyos] replacements land here
+# (linux-astroos, astroos-settings, astroos-hooks), but every name in it is
+# still AUR-only or AstroOS-only: ordering shadows nothing either way, and a
+# name that later reaches [extra] is then taken from there.
 if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
   akr=/build/astroos/pkgs/astroos-keyring/files/usr/share/pacman/keyrings
   fpr_expect=$(tr -d ' \r\n' < /build/astroos/branding/REPO_FINGERPRINT)
@@ -148,7 +260,16 @@ if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
   # D4 client-side machine check: repo db name set == aur.list ∪ pkgs/, BEFORE
   # pacstrap. A missing/extra name means repo and tree diverged — hard fail.
   mapfile -t aur_scope < <(tr -d '\r' < /build/astroos/meta/aur.list | grep -vE '^\s*(#|$)' | awk '{print $1}')
-  mapfile -t local_scope < <(for d in /build/astroos/pkgs/*/; do [[ -f "$d/PKGBUILD" ]] && basename "$d"; done)
+  # A PKGBUILD that produces more than one pkgname lists the extra names in
+  # pkgs/<name>/splits: one linux-astroos build yields the base package,
+  # headers, the ZFS module and the open NVIDIA module, and the db carries
+  # all four, so the scope has to as well or D4 rejects a correct repo. Same
+  # parse as build-aur-repo.sh's local_splits; the two must not disagree.
+  mapfile -t local_scope < <(for d in /build/astroos/pkgs/*/; do
+    [[ -f "$d/PKGBUILD" ]] || continue
+    basename "$d"
+    [[ -f "$d/splits" ]] && tr -d '\r' < "$d/splits" | grep -vE '^\s*(#|$)' | awk '{print $1}'
+  done)
   mapfile -t scope < <(printf '%s\n' "${aur_scope[@]}" "${local_scope[@]}" | sort -u)
   curl -sfL "https://astroosrepo.blob.core.windows.net/repo/astroos/x86_64/astroos.db.tar.zst" -o /tmp/astroos.db.tar.zst \
     || { echo "!! [astroos] repo db unreachable" >&2; exit 1; }
@@ -160,7 +281,7 @@ if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
     diff <(printf '%s\n' "${scope[@]}") <(printf '%s\n' "${db_names[@]}") >&2 || true
     exit 1
   fi
-  echo ">> [astroos] repo check OK: ${#db_names[@]} packages match aur.list (${#aur_scope[@]}) + pkgs/ (${#local_scope[@]})"
+  echo ">> [astroos] repo check OK: ${#db_names[@]} packages match aur.list (${#aur_scope[@]}) + pkgs/ (${#local_scope[@]} names, splits included)"
   # SigLevel staging per R3 D2/Q4: Required DatabaseOptional for publish
   # cycle 1 only.
   repo_section=$(printf '\n[astroos]\nSigLevel = Required DatabaseOptional\nServer = %s\n' "$repo_url")
@@ -271,6 +392,36 @@ if [[ "${ASTROOS_FAST:-0}" == "1" ]]; then
     "$prof/profiledef.sh"
 fi
 
+# --- The gate: no CachyOS name reaches pacstrap or a shipped pacman.conf --
+# Every edit above is a targeted substitution, so this is the check that
+# proves the set of targets was complete: the list pacstrap installs from,
+# plus the three configurations that decide where packages come from on the
+# builder, on the live system and on the installed system. A hit here means
+# a CachyOS package would be installed or a CachyOS repo shipped.
+if hits=$(grep -rniE 'cachy' "$prof/packages_desktop.x86_64" "${pconfs[@]}"); then
+  echo "!! CachyOS survives the AstroOS delta:" >&2
+  printf '%s\n' "$hits" >&2
+  exit 1
+fi
+echo ">> no cachy string in the package list or in any of the three pacman configurations"
+# The same question asked of the whole profile, with a named allowlist so a
+# leftover cannot hide behind a blanket exclusion:
+#   GRUB ids: default= has to match an --id, and CACHYOS_VERSION is the
+#     variable their change_grub_version sed writes into. Both are internal
+#     to GRUB, neither is rendered (survey section 7 keeps them).
+#   removeun, removeun-online, calamares-online.sh: live-only scripts the
+#     branding lane replaces through the overlay, not here.
+#   airootfs/usr/share: astroos-calamares' apply.sh carries "cachyos" as a
+#     sed pattern, so the string there is the tool, not a leak.
+prof_allow='/airootfs/usr/share/|/airootfs/usr/local/bin/(removeun|removeun-online|calamares-online\.sh):|/grub/(grub|loopback)\.cfg:[0-9]+:.*(CACHYOS_VERSION|default=cachyos|--id .cachyos)'
+prof_hits=$(grep -rIin cachy "$prof" | grep -vE "$prof_allow") || true
+if [[ -n "$prof_hits" ]]; then
+  echo "!! CachyOS survives elsewhere in the profile:" >&2
+  printf '%s\n' "$prof_hits" >&2
+  exit 1
+fi
+echo ">> profile clean: the only cachy strings left are the GRUB ids, the overlay-owned live scripts and usr/share sed patterns"
+
 # --- Their build (four one-line patches) ---------------------------------
 # Their buildiso.sh traps EXIT itself with an error message, so EVERY run —
 # success included — ends with "==> ERROR: An unknown error has occurred."
@@ -289,6 +440,14 @@ sed -i 's|vars+=("cachyos")|vars+=("astroos")|' "$base/util-iso.sh"
 # at pacstrap time, so the generator call becomes a no-op.
 sed -i 's/^    generate_motd$/    : # AstroOS: motd is written by the astroos-branding identity hook/' "$base/util-iso.sh"
 grep -q '^    generate_motd$' "$base/util-iso.sh" && { echo "!! generate_motd call still present (util-iso.sh changed?)" >&2; exit 1; }
+# prepare_profile also curls cachyos-mirrorlist from CachyOS-PKGBUILDS into
+# airootfs at build time, which would recreate the file delta 2 just removed.
+# The function definition stays (dead); only the call is neutralised.
+sed -i 's|^    fetch_cachyos_mirrorlist$|    : # AstroOS: the mirrorlist ships in the astroos-mirrorlist package|' "$base/util-iso.sh"
+grep -q '^    fetch_cachyos_mirrorlist$' "$base/util-iso.sh" && { echo "!! fetch_cachyos_mirrorlist call still present (util-iso.sh changed?)" >&2; exit 1; }
+# and it masks the mirror-ranking timer by unit name; ours is astroos-.
+sed -i 's|/etc/systemd/system/cachyos-rate-mirrors.timer|/etc/systemd/system/astroos-rate-mirrors.timer|' "$base/util-iso.sh"
+grep -q 'astroos-rate-mirrors.timer' "$base/util-iso.sh" || { echo "!! rate-mirrors timer mask not retargeted (util-iso.sh changed?)" >&2; exit 1; }
 cd "$base"
 ./buildiso.sh -p desktop
 

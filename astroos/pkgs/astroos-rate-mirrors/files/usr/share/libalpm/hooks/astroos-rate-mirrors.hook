@@ -1,0 +1,27 @@
+# Derived from the CachyOS package of the same purpose (GPL).
+#
+# reflector is in astroos-core.list, and it ranks the very file this package's
+# timer rewrites: /etc/pacman.d/mirrorlist. Two rankers on two schedules fight
+# over one file, so reflector's timer is turned off whenever reflector is
+# installed or upgraded. Arch ships reflector.timer disabled, so on a stock
+# AstroOS this is a no-op safety net rather than a change of behaviour.
+#
+# To use reflector instead: systemctl disable --now astroos-rate-mirrors.timer,
+# then systemctl enable --now reflector.timer. Removing this package removes
+# the hook, so the choice sticks.
+#
+# "|| true" is on the exec because a PostTransaction hook that exits non-zero
+# makes the whole pacman run report failure, and disabling an already disabled
+# or masked timer is not an error worth failing an install over.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+
+Type = Package
+Target = reflector
+
+[Action]
+Description = Disabling reflector timer (astroos-rate-mirrors ranks the Arch mirrors)...
+When = PostTransaction
+Depends = astroos-rate-mirrors
+Exec = /usr/bin/bash -c 'systemctl disable reflector.timer || true'

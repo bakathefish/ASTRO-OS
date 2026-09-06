@@ -1,0 +1,16 @@
+# Derived from the CachyOS package of the same purpose (GPL).
+# Wants=network-online.target is added on top of upstream's After=: the timer
+# already pulls the target in, but a manual "systemctl start" of this service
+# would not, and the ranking needs the network up.
+[Unit]
+Description=Rank the Arch Linux mirrors
+Documentation=https://github.com/bakathefish/ASTRO-OS
+Wants=network-online.target
+After=network-online.target nss-lookup.target
+
+[Service]
+Type=oneshot
+StandardOutput=null
+StandardError=journal
+ExecStart=/usr/bin/astroos-rate-mirrors
+IPAccounting=yes

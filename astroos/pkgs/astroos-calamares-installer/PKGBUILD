@@ -1,0 +1,198 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Contributor: Peter Jung ptr1337 <admin@ptr1337.dev>
+# Contributor: Vladislav Nepogodin <nepogodin.vlad@gmail.com>
+# Contributor: Philip Müller <philm[at]manjaro[dog]org>
+#
+# Derived from the CachyOS Calamares fork (GPL-3.0).
+#
+# The AstroOS installer binary: our own build of the very Calamares fork the
+# ISO used to pull out of the [cachyos] repository as cachyos-calamares-next.
+# Two reasons it lives here instead:
+#   1. no package on the ISO may come from a CachyOS repository, and
+#   2. a binary we build links the boost that is current when the [astroos]
+#      repository is built. The prebuilt cachyos-calamares-next 3.4.2-13 was
+#      linked against boost 1.91 eleven hours before Arch moved to 1.92, which
+#      is the only reason astroos-calamares-boost-compat exists.
+#
+# Configuration and branding are NOT here. astroos-calamares owns those: it
+# ships its branding component beside upstream's and re-points this package's
+# configuration tree from an alpm PostTransaction hook, so this package ships
+# upstream's configuration untouched, exactly as cachyos-calamares-next did.
+# package() below asserts that every path that hook edits was produced.
+#
+# Source pin (branch cachyos-dev has no tags; a commit is the only exact pin):
+#   commit  ce54421cf0a08008ccda59a4e5f2f4747ae762be
+#   date    2026-08-12T21:44:40Z, "netinstall: fix correct mangowm path"
+# That is the tip of cachyos-dev when CachyOS built cachyos-calamares-next
+# 3.4.2-13 (2026-08-13 00:24), i.e. the exact source of the installer the
+# 2026-09-05 ISO was end-to-end tested with. Rebuilding it changes the boost
+# linkage and nothing else. To move the pin, bump _commit and sha256sums and
+# re-run the ISO install test; also bump pkgrel whenever boost-libs changes
+# soname, because nothing else triggers a rebuild of this package.
+
+pkgname=astroos-calamares-installer
+pkgver=3.4.2
+pkgrel=1
+_commit=ce54421cf0a08008ccda59a4e5f2f4747ae762be
+pkgdesc='Distribution-independent installer framework (AstroOS build of the CachyOS Calamares fork)'
+arch=('x86_64')
+license=(GPL-3.0-or-later)
+url="https://github.com/CachyOS/cachyos-calamares"
+provides=('cachyos-calamares-next' 'calamares')
+conflicts=('cachyos-calamares-next' 'calamares')
+replaces=('cachyos-calamares-next')
+depends=(
+  boost-libs
+  ckbcomp
+  cryptsetup
+  dmidecode
+  gptfdisk
+  hwinfo
+  kconfig
+  kcoreaddons
+  kcrash
+  ki18n
+  kparts
+  kpmcore
+  kservice
+  kwidgetsaddons
+  libpwquality
+  mkinitcpio-openswap
+  networkmanager
+  polkit-qt6
+  python
+  qt6-declarative
+  qt6-svg
+  rsync
+  solid
+  squashfs-tools
+  upower
+  yaml-cpp
+  qt6-imageformats
+  python-toml # for greetd config
+)
+# Upstream's makedepends minus git: it was there to clone the fork, and this
+# package fetches a tarball instead. Nothing in the build reaches for git:
+# CMakeModules/ExtendedVersion.cmake is the only caller and it is reached only
+# when CALAMARES_RELEASE_MODE is OFF (it is ON) and .git/HEAD exists.
+makedepends=(
+  boost
+  cmake
+  doxygen
+  extra-cmake-modules
+  ninja
+  python-jsonschema
+  python-pyaml
+  python-unidecode
+  qt6-tools
+)
+_srcname="cachyos-calamares-${_commit}"
+source=("${pkgname}-${_commit}.tar.gz::${url}/archive/${_commit}.tar.gz")
+sha256sums=('6b4b721f08f1eea6743fe57a4f01e4bb4b343cf412eb853a30966f8b18741b47')
+options=('!emptydirs')
+
+prepare() {
+    cd "${srcdir}/${_srcname}"
+
+    # Upstream's prepare() runs two seds on CMakeLists.txt. Against this tree
+    # both are no-ops, and only the one that could ever matter is carried:
+    #
+    #  - the version sed replaces the literal
+    #    ${CALAMARES_VERSION_MAJOR}.${CALAMARES_VERSION_MINOR}.${CALAMARES_VERSION_PATCH}
+    #    which does not occur in CMakeLists.txt at all (only
+    #    src/libcalamares/CalamaresVersion.h.in names those variables). So the
+    #    installer reports CMakeLists' own CALAMARES_VERSION, 3.4.1, while
+    #    pacman calls it 3.4.2 - the same mismatch cachyos-calamares-next has.
+    #    Dropped rather than carried, so no dead sed hides a real one.
+    #  - CALAMARES_VERSION_RC 1 sits inside "if(NOT CALAMARES_RELEASE_MODE)"
+    #    and CALAMARES_RELEASE_MODE is ON, so the branch never runs. Kept: it
+    #    costs nothing and stays correct if a later pin flips that flag.
+    sed -i -e 's|CALAMARES_VERSION_RC 1|CALAMARES_VERSION_RC 0|g' CMakeLists.txt
+}
+
+build() {
+    cd "${srcdir}/${_srcname}"
+
+    export CXXFLAGS+=" -fPIC"
+
+    # Upstream's flags verbatim, including SKIP_MODULES. WITH_PYBIND11=OFF is
+    # what makes the python job modules (bootloader, chwd, pacstrap,
+    # plymouthcfg) run through Boost.Python, and so what puts boost-libs in
+    # depends. Do not flip it without re-running the install test.
+    cmake -S . -Bbuild \
+        -GNinja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DWITH_APPSTREAM=OFF \
+        -DWITH_PYBIND11=OFF \
+        -DWITH_QT6=ON \
+        -DSKIP_MODULES="dracut dracutlukscfg \
+        dummycpp dummyprocess dummypython dummypythonqt \
+        finishedq keyboardq license localeq notesqml oemid \
+        openrcdmcryptcfg packagechooserq fsresizer \
+        rawfs mkinitfs contextualprocess interactiveterminal \
+        plasmalnf services-openrc \
+        summaryq tracking usersq webview welcomeq"
+
+    cmake --build build
+}
+
+package() {
+    cd "${srcdir}/${_srcname}/build"
+    DESTDIR="${pkgdir}" cmake --build . --target install
+
+    local _src="${srcdir}/${_srcname}"
+    cp "${_src}/settings_offline.conf" "$pkgdir/usr/share/calamares/settings_offline.conf"
+    cp "${_src}/settings_online.conf"  "$pkgdir/usr/share/calamares/settings_online.conf"
+    cp "${_src}/settings_online.conf"  "$pkgdir/usr/share/calamares/settings.conf"
+    local _destdir=etc/calamares
+    install -dm755 "$pkgdir/$_destdir"
+    install -dm755 "$pkgdir/$_destdir/modules"
+    cp -rf "${_src}"/src/modules/*/*.conf "$pkgdir/etc/calamares/modules"
+    cp -rf "${_src}/src/scripts" "$pkgdir/etc/calamares"
+    cp -rf "${_src}/src/images"  "$pkgdir/etc/calamares"
+
+    # Workaround netinstall.yaml not being installed by cmake
+    cp "${_src}/src/modules/netinstall/netinstall.yaml" "$pkgdir/etc/calamares/modules/netinstall.yaml"
+
+    # Delete Desktop Entry to avoid confusion for users
+    rm -rf "$pkgdir/usr/share/applications"
+
+    # Contract with astroos-calamares: its apply.sh re-points exactly these
+    # paths (targeted seds, two whole-file installs, one append). An upstream
+    # rename would leave the installer silently CachyOS-branded instead, so
+    # fail here rather than at install time.
+    local _f _missing=()
+    for _f in usr/bin/calamares \
+              usr/share/calamares/settings.conf \
+              usr/share/calamares/settings_online.conf \
+              usr/share/calamares/settings_offline.conf \
+              etc/calamares/modules/netinstall.conf \
+              etc/calamares/modules/netinstall.yaml \
+              etc/calamares/modules/pacstrap.conf \
+              etc/calamares/modules/users.conf \
+              etc/calamares/modules/bootloader.conf \
+              etc/calamares/modules/grubcfg.conf \
+              etc/calamares/modules/plymouthcfg.conf \
+              etc/calamares/modules/packagechooser_desktop.conf \
+              etc/calamares/modules/packagechooser_bootloader.conf \
+              etc/calamares/modules/welcome.conf \
+              etc/calamares/modules/welcome_online.conf \
+              etc/calamares/modules/shellprocess-before.conf \
+              etc/calamares/modules/shellprocess-before-online.conf \
+              etc/calamares/modules/shellprocess_initialize_pacman.conf \
+              etc/calamares/scripts/bootloader-post-setup \
+              etc/calamares/scripts/btrfs-installation-snapshot \
+              etc/calamares/images/bootloaders \
+              usr/lib/calamares/modules/bootloader/main.py \
+              usr/lib/calamares/modules/chwd/main.py \
+              usr/lib/calamares/modules/pacstrap/main.py; do
+        [[ -e "$pkgdir/$_f" ]] || _missing+=("$_f")
+    done
+    if (( ${#_missing[@]} )); then
+        printf '%s\n' "!! astroos-calamares edits these paths and the build did not produce them:" >&2
+        printf '   %s\n' "${_missing[@]}" >&2
+        return 1
+    fi
+}

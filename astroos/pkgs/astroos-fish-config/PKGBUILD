@@ -1,0 +1,75 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Contributor: Vladislav Nepogodin <nepogodin.vlad@gmail.com>
+# Contributor: ptr1337 <admin@ptr1337.dev>
+#
+# Derived from the CachyOS package of the same purpose (MIT).
+# MIT and not GPL: upstream cachyos-fish-config declares MIT, and the one file
+# in the payload that carries a copyright header, conf.d/done.fish, is the MIT
+# "done" plugin by Francisco Lourenço and Daniel Wehner. That header is kept
+# verbatim in the file and is also installed as the licence text, because
+# upstream ships no repository-level LICENSE file to copy.
+#
+# The payload is vendored under files/ instead of fetched by a source array, so
+# the [astroos] repo owns the bytes and no build reaches out to GitHub. The base
+# is upstream v16, whose tarball
+# (sha256 97a0b603f393be3422465ff9e18f2d03ccfc33657b672de6ba89b3a3ac3b473d)
+# was checked against the sum in the CachyOS PKGBUILD before vendoring.
+# Three strings changed, and nothing else: the /usr/share path, and the two
+# aliases that name the mirror ranker. A UTF-8 BOM at the head of upstream's
+# config file was dropped at the same time.
+#
+# Greeting, and why this package ships nothing under conf.d: astroos-branding
+# owns the AstroOS fastfetch configuration and already ships its own greeting
+# drop-in at /etc/skel/.config/fish/conf.d/astroos-greeting.fish. pacstrap
+# refuses file conflicts, so that path stays with astroos-branding and this
+# package installs only /etc/skel/.config/fish/config.fish beside it. Both
+# definitions of fish_greeting call fastfetch with no -c, which resolves the
+# AstroOS configuration through the XDG search path, so the greeting draws the
+# AstroOS logo whichever of the two is defined last (config.fish is read after
+# conf.d, so in practice it is the one in astroos-config.fish).
+pkgname=astroos-fish-config
+pkgver=16
+pkgrel=1
+pkgdesc="Fish configuration of AstroOS"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(MIT)
+depends=(
+  bat
+  expac
+  eza
+  fastfetch
+  fish
+  fish-autopair
+  fish-pure-prompt
+  fisher
+  fzf
+  pkgfile
+  tealdeer
+  ttf-fantasque-nerd
+)
+optdepends=('astroos-branding: AstroOS logo and fastfetch config for the greeting'
+            'astroos-rate-mirrors: the update and mirror aliases')
+# cachyos-fish-config: this package takes its place and its files.
+# kwin-scripts-window-colors: upstream's conflict, carried over unchanged.
+conflicts=(cachyos-fish-config kwin-scripts-window-colors)
+provides=(cachyos-fish-config)
+replaces=(cachyos-fish-config)
+install=astroos-fish-config.install
+
+# no makedepends: upstream needed git only to fetch the tarball, and the
+# payload is in the tree
+
+package() {
+  local f="$startdir/files"
+  install -Dm644 "$f/usr/share/astroos-fish-config/conf.d/done.fish" \
+    "$pkgdir/usr/share/astroos-fish-config/conf.d/done.fish"
+  install -Dm644 "$f/usr/share/astroos-fish-config/astroos-config.fish" \
+    "$pkgdir/usr/share/astroos-fish-config/astroos-config.fish"
+  install -Dm644 "$f/etc/skel/.config/fish/config.fish" \
+    "$pkgdir/etc/skel/.config/fish/config.fish"
+  install -Dm644 "$f/usr/share/licenses/astroos-fish-config/LICENSE.done" \
+    "$pkgdir/usr/share/licenses/astroos-fish-config/LICENSE.done"
+}
+
+# vim:set sw=2 sts=2 et:

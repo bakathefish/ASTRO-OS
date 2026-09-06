@@ -1,0 +1,79 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Contributor: Vladislav Nepogodin <nepogodin.vlad@gmail.com>
+# Contributor: SoulHarsh007 <admin@soulharsh007.dev>
+# Derived from the CachyOS package of the same purpose (GPL).
+#
+# Local lane package (see astroos-keyring/PKGBUILD for the lane; this one keeps
+# the upstream pkgver instead of the VERSION file, because the payload is
+# upstream's and its version is what identifies it).
+#
+# Why the payload is vendored under files/ rather than fetched: AstroOS is
+# deleting the [cachyos] repo section from every pacman.conf, so no AstroOS
+# package may pull a CachyOS artifact at build time. Every file under files/
+# mirrors its install path, the same shape astroos-branding uses, and this
+# repository owns the bytes.
+#
+# Payload source: https://github.com/cachyos/cachyos-kde-settings tag 4.9
+# (commit de08092e48b5e9695c400dfe9daf112cd0249516), copied byte for byte
+# except for LF line endings and the three edits below. The GVariant database
+# etc/skel/.config/dconf/user is the upstream file unchanged (sha256
+# 5f93493be785b832c10b5f8e9e45e97cadef01cbf805554f47288ab0db5f296b); it carries
+# GTK defaults only, no distro identity.
+#
+# AstroOS edits, all three in etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc:
+#   1. Kickoff button icon: icon=org.cachyos.hello becomes icon=astroos-logo.
+#      cachyos-hello is dropped from AstroOS, so the upstream name dangles and
+#      Kickoff falls back to a generic icon (R4 branding survey row 6).
+#      astroos-branding ships usr/share/icons/hicolor/*/apps/astroos-logo.png.
+#   2. Kickoff favourites: upstream sets favoritesPortedToKAstats=true and ships
+#      no favorites list, so the Favorites page opens empty and stays empty.
+#      plasma-desktop applets/kickoff/main.qml only calls
+#      portOldFavorites(configuration.favorites) while that flag is false, so
+#      the flag goes back to its KDE default (false) and a five-entry list is
+#      seeded. Every id was checked against the AstroOS package set: dolphin
+#      and konsole are in astroos-core.list, plasma-meta pulls systemsettings
+#      and discover, and preferred://browser resolves to firefox.
+#   3. Default wallpaper: upstream puts the Wallpaper group under
+#      [Containments][4], a containment this file never defines (the desktop is
+#      [Containments][22]), so the keys never applied and a fresh session showed
+#      the Plasma "Next" wallpaper until the branding autostart fired (survey
+#      row 7). The group is corrected to [Containments][22] and both paths name
+#      the AstroOS wallpaper that astroos-branding installs.
+#
+# The upstream .install scriptlet is deliberately not carried over. Its font
+# cache rebuild is already done by the fontconfig and xorg-mkfontscale alpm
+# hooks; its glib-compile-schemas and gtk-update-icon-cache calls use relative
+# paths and this package installs neither schemas nor icons; and dconf update
+# compiles /etc/dconf/db, not the per-user database that lives in etc/skel.
+#
+# Dropped dependency: cachyos-alacritty-config. It only exists in the [cachyos]
+# repo AstroOS is removing, alacritty appears in no AstroOS meta list, and
+# nothing in this payload references it.
+pkgname=astroos-kde-settings
+pkgver=4.9
+pkgrel=1
+pkgdesc="AstroOS KDE Plasma defaults: desktop, panel, KWin, GTK, cursor and font skeleton configs plus the SDDM drop-ins"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(GPL-1.0-only)
+depends=('ttf-fantasque-nerd'
+         'noto-fonts'
+         'ttf-fira-sans'
+         'capitaine-cursors')
+optdepends=('astroos-branding: the wallpaper and the Kickoff icon these defaults name'
+            'dolphin: seeded Kickoff favourite, the file manager'
+            'konsole: seeded Kickoff favourite, the terminal'
+            'systemsettings: seeded Kickoff favourite, the settings app'
+            'discover: seeded Kickoff favourite, the software centre')
+provides=('cachyos-kde-settings' 'cachyos-desktop-settings')
+conflicts=('cachyos-kde-settings' 'cachyos-desktop-settings')
+replaces=('cachyos-kde-settings')
+
+package() {
+  # plain cp (not -a): ownership must be root:root in the package, and the exec
+  # bits are normalised below because the git checkout may come from Windows.
+  # Nothing this package ships is executable.
+  cp -r "$startdir/files/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+}
