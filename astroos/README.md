@@ -25,7 +25,7 @@ astroos/
 │   ├── astroos-branding         identity files, icons, wallpaper (desktop, SDDM and plasmalogin greeters) and the
 │   │                            greeters' colour-scheme config, the watermark asset, fastfetch/fish drop-ins,
 │   │                            alpm hooks that re-assert identity
-│   ├── astroos-theme            the colour scheme: AstroOS.colors, look-and-feel org.astroos.desktop (+ login splash),
+│   ├── astroos-theme            the colour schemes: AstroOSDark.colors and AstroOSLight.colors (gen-colors.py), look-and-feel org.astroos.desktop (+ login splash),
 │   │                            Konsole scheme and profile, the astroos Plymouth boot theme (R5.1)
 │   ├── astroos-grub-theme       the GRUB menu of an installed system; the live UEFI menu gets the same theme.txt
 │   │                            from container-build.sh

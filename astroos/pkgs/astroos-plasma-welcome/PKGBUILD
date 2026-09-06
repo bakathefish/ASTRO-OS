@@ -1,0 +1,93 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Contributor: Antonio Rojas <arojas@archlinux.org> (the Arch recipe this follows)
+#
+# plasma-welcome, rebuilt with one page changed. On a live medium the Welcome
+# Center's first page (src/qml/pages/Live.qml) draws the distribution's logo a
+# second time behind the "Install" button: a copy sixteen grid units wide,
+# blurred, at ten percent opacity, meant as a glow. With a logo that already
+# carries its own glow and a bright ring the copy reads as a second planet
+# with a faint wordmark through it (2026-09-06 screenshot: "two AstroOS logos
+# on top of each other"). The QML is compiled into the binary, so no file on
+# disk can override it; the patch removes the blurred copy and the
+# QtQuick.Effects import that only served it. Nothing else changes.
+#
+# provides/conflicts/replaces plasma-welcome: plasma-meta depends on
+# plasma-welcome by name, and libalpm resolves a dependency from the target
+# set before it looks at the repositories, so listing this package explicitly
+# (astroos/meta/astroos-core.list) is what makes it the one installed, on the
+# ISO and by the installer alike. Same version as the Plasma release the rest
+# of the desktop comes from; rebuild when Plasma moves.
+#
+# Source and signature are KDE's own release files, verified against the
+# release manager's key vendored under keys/pgp/ (the lane imports it before
+# makepkg; see build-aur-repo.sh). 6.7.4 is signed by Bhushan Shah's signing
+# subkey B3CB366552540BE06EE9AD9711968C44928CAEFC; the primary key fingerprint
+# below is the one Arch's recipe names for him. The tarball's sha256 was
+# checked against Arch's recipe and against a download of our own
+# (2026-09-06) and both agree.
+pkgname=astroos-plasma-welcome
+pkgver=6.7.4
+pkgrel=1
+pkgdesc="AstroOS onboarding wizard for Plasma: plasma-welcome, with the live page drawing the logo once"
+arch=(x86_64)
+url="https://kde.org/plasma-desktop/"
+license=(LGPL-2.0-or-later)
+depends=(glibc
+         kcmutils
+         kconfig
+         kcoreaddons
+         kcrash
+         kdbusaddons
+         kglobalaccel
+         ki18n
+         kio
+         kirigami
+         kirigami-addons
+         kjobwidgets
+         knewstuff
+         kservice
+         ksvg
+         kuserfeedback
+         kwindowsystem
+         libplasma
+         libstdc++
+         plasma-nm
+         plasma5support
+         qt6-5compat
+         qt6-base
+         qt6-declarative)
+makedepends=(extra-cmake-modules)
+provides=("plasma-welcome=$pkgver")
+conflicts=(plasma-welcome)
+replaces=(plasma-welcome)
+_dirver=$(echo $pkgver | cut -d. -f1-3)
+source=("https://download.kde.org/stable/plasma/$_dirver/plasma-welcome-$pkgver.tar.xz"{,.sig}
+        0001-live-page-no-blurred-second-logo.patch)
+sha256sums=('d9862440a16820ca00abb22363be57e9b156adc76db692d4d04cabd3e862ab3d'
+            'SKIP'
+            '7ce1ac47e4adcdc554f8e7d38452adeeb8ae7b5a390ce197ccbab0d63ee504b3')
+b2sums=('9895c3e6028177333114f823f18ef8d27e6de28ad5735cdd779a0345756e52b3a62e2833e30f98abdb0193e1d3262a932b64d68cc12aa5c11094049009dd4a4a'
+        'SKIP'
+        '643b5a843d2ac8535acc30f2b99bb78ada25815ed5a5551df6122422dd99f76d7a1386c4ce9e30c99eed5568fb30bc831751c52d389bfe72f736698a0d85edb2')
+validpgpkeys=('0AAC775BB6437A8D9AF7A3ACFE0784117FBCE11D') # Bhushan Shah <bshah@kde.org>
+
+prepare() {
+  cd "plasma-welcome-$pkgver"
+  patch -Np1 -i "$srcdir/0001-live-page-no-blurred-second-logo.patch"
+  # the assertion the patch exists for: no second copy of the distro logo on
+  # the live page, and no effects import left to draw one with
+  if grep -q 'Welcome.Distro.logo\|QtQuick.Effects' src/qml/pages/Live.qml; then
+    echo "astroos-plasma-welcome: Live.qml still draws the blurred distro logo" >&2
+    return 1
+  fi
+}
+
+build() {
+  cmake -B build -S "plasma-welcome-$pkgver" \
+    -DBUILD_TESTING=OFF
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

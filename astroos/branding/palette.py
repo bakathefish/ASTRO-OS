@@ -53,6 +53,21 @@ PALETTE = {
     "amber_hi": "f0cb8c",  # bright yellow
     "rose": "e0679a",  # negative / error, ANSI red
     "rose_hi": "f08ab5",  # bright red
+    # The light scheme (AstroOS Light, pkgs/astroos-theme/gen-colors.py):
+    # paper surfaces with the same violet cast the dark ones have, and the
+    # five semantic hues deepened until they pass 4.2:1 on the lightest
+    # paper. Text on paper reuses the dark roles the other way round: window
+    # is the ink, text_disabled the dimmed ink, text_dim the disabled ink.
+    "paper_view": "fbfaff",  # text views, lists, editors
+    "paper_button": "f8f6fd",  # buttons, raised surfaces, inputs
+    "paper": "f0edf8",  # window chrome, dialogs, panel, tooltips
+    "paper_header": "e8e4f3",  # title bars, header bars, sidebars
+    "paper_line": "d3cde3",  # separators, frames, alternate rows
+    "cyan_deep": "0c7085",  # links, active and attention text on paper
+    "teal_deep": "12716a",  # positive on paper
+    "amber_deep": "8a6212",  # neutral / warning on paper
+    "rose_deep": "ad3d74",  # negative / error on paper
+    "orchid_deep": "8a44ad",  # visited links on paper
 }
 
 # The 16 ANSI colours every terminal surface (Konsole, Limine, fish, the

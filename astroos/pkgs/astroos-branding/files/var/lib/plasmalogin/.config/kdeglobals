@@ -11,7 +11,7 @@
 # plasmalogin is installed but disabled on AstroOS; SDDM is the greeter the
 # installer enables. This file is here so switching costs nothing.
 [General]
-ColorScheme=AstroOS
+ColorScheme=AstroOSDark
 
 [Icons]
 Theme=breeze-dark

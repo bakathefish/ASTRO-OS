@@ -55,10 +55,13 @@ echo "== theme"
 # into this user's home has to select it, the files it names have to be there,
 # and nothing may still select BreezeDark. Every check names a file, so one
 # that never got installed fails here instead of passing quietly.
-chk "kdeglobals selects ColorScheme=AstroOS"  grep -qx 'ColorScheme=AstroOS' "$HOME/.config/kdeglobals"
+chk "kdeglobals selects ColorScheme=AstroOSDark"  grep -qx 'ColorScheme=AstroOSDark' "$HOME/.config/kdeglobals"
 chk "kdeglobals selects the AstroOS look-and-feel" grep -qx 'LookAndFeelPackage=org.astroos.desktop' "$HOME/.config/kdeglobals"
 chk "no BreezeDark in ~/.config/kdeglobals" bash -c '[[ -f $HOME/.config/kdeglobals ]] && ! grep -q BreezeDark "$HOME/.config/kdeglobals"'
-chk "AstroOS colour scheme installed"         test -f /usr/share/color-schemes/AstroOS.colors
+chk "AstroOS Dark colour scheme installed"    test -f /usr/share/color-schemes/AstroOSDark.colors
+chk "AstroOS Light colour scheme installed"   test -f /usr/share/color-schemes/AstroOSLight.colors
+chk "Welcome Center is the AstroOS rebuild"   pacman -Q astroos-plasma-welcome
+chk "extra plasma-welcome not installed"       bash -c '! pacman -Q plasma-welcome 2>/dev/null | grep -q "^plasma-welcome "'
 chk "look-and-feel org.astroos.desktop installed" test -f /usr/share/plasma/look-and-feel/org.astroos.desktop/metadata.json
 chk "Konsole colour scheme installed"         test -f /usr/share/konsole/AstroOS.colorscheme
 chk "Konsole AstroOS profile installed"       test -f /usr/share/konsole/AstroOS.profile
@@ -72,7 +75,7 @@ else
   skip "plymouth default theme is astroos (plymouth-set-default-theme not installed)"
 fi
 # /var/lib/sddm is 0700, so the greeter's own config is only readable as root
-chk "SDDM greeter uses the AstroOS colour scheme" bash -c 'sudo_ grep -qx "ColorScheme=AstroOS" /var/lib/sddm/.config/kdeglobals'
+chk "SDDM greeter uses the AstroOS colour scheme" bash -c 'sudo_ grep -qx "ColorScheme=AstroOSDark" /var/lib/sddm/.config/kdeglobals'
 # the GRUB theme only applies where the installer wrote GRUB; another
 # bootloader is a legitimate install, not a failure
 if [[ -d /boot/grub ]]; then

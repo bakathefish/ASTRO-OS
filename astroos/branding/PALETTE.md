@@ -42,6 +42,8 @@ consistency does.
 | indigo / indigo_hi | #7c6bd0 / #9c8ce6 | ANSI blue |
 | amber / amber_hi | #e2b46a / #f0cb8c | neutral and warning, ANSI yellow |
 | rose / rose_hi | #e0679a / #f08ab5 | negative and error, ANSI red |
+| paper_view / paper_button / paper / paper_header / paper_line | #fbfaff / #f8f6fd / #f0edf8 / #e8e4f3 / #d3cde3 | the light scheme's surfaces: views, buttons and inputs, windows and tooltips, header bars, frames and alternate rows |
+| cyan_deep / teal_deep / amber_deep / rose_deep / orchid_deep | #0c7085 / #12716a / #8a6212 / #ad3d74 / #8a44ad | the five semantic hues on paper: links and attention, positive, neutral, negative, visited |
 
 Contrast on the darkest surfaces: `text` on `view` is about 15:1, `text_dim` on
 `window` about 5.8:1, `cyan` on `view` about 8.7:1, `selection_text` on
@@ -49,22 +51,48 @@ Contrast on the darkest surfaces: `text` on `view` is about 15:1, `text_dim` on
 ever carries a selected sidebar step, a pressed button or a shell selection,
 all bold or transient, never running text).
 
+## The light scheme
+
+`AstroOS Light` is the same brand on paper, for anyone who works in daylight
+or simply prefers it. Both schemes come out of one generator
+(`pkgs/astroos-theme/gen-colors.py`) from role tables, so they cannot drift
+apart: the accent, the selection colour and the text over it are identical,
+and the dark scheme's values are byte for byte what they were before the
+generator existed. The paper surfaces keep the violet cast of the dark ones
+(`paper_view` < `paper_button` < `paper` < `paper_header` in depth, the same
+order `view` < `button` < `window` < `header` has), the ink is `window` and the
+dimmed inks are `text_disabled` and `text_dim` read the other way round. The
+five semantic hues are deepened (`*_deep`) until every text role clears
+4.2:1 on the darkest paper it sits on; the generator measures each pair and
+refuses to write a scheme below that floor, and prints the table so the
+numbers here are copied from it, never typed. Lowest pairs, both schemes:
+selection text on lavender 4.23:1; on paper, amber_deep on paper_header
+4.38:1, rose_deep 4.55:1, cyan_deep 4.58:1, teal_deep 4.68:1. Over a
+selection the semantic colours of a selected row (a link, an error) sit at
+2.2 to 3.4:1 in both schemes, as Breeze's own do on its blue; they are
+momentary and are printed, not enforced. The lock and logout overlays
+(`Complementary`) stay dark in both, as Breeze keeps them.
+
+Only the scheme is light: the global theme, the wallpaper, the login and
+boot screens stay dark, so switching to AstroOS Light in System Settings
+changes the windows and the panel and nothing that comes before the session.
+
 ## Surfaces and their owners
 
 | surface | mechanism | package |
 |---|---|---|
-| every Qt/KDE window, System Settings and Discover sidebars, title bars, Plasma panel and widgets | `/usr/share/color-schemes/AstroOS.colors`; the Breeze desktop theme in "follow colour scheme" mode | astroos-theme |
+| every Qt/KDE window, System Settings and Discover sidebars, title bars, Plasma panel and widgets | `/usr/share/color-schemes/AstroOSDark.colors` (and `AstroOSLight.colors`, the same brand on paper; both from `pkgs/astroos-theme/gen-colors.py`); the Breeze desktop theme in "follow colour scheme" mode | astroos-theme |
 | Global Theme entry, login splash (ksplash), defaults for cursor, icons, wallpaper | look-and-feel package `org.astroos.desktop` | astroos-theme |
 | terminal | Konsole colour scheme + default profile `AstroOS` | astroos-theme (+ skel konsolerc in astroos-kde-settings) |
 | boot splash | Plymouth theme `astroos` (two-step, space gradient, lavender progress, watermark) | astroos-theme |
 | GRUB menu on installed systems | `/usr/share/grub/themes/astroos/theme.txt` | astroos-grub-theme (pulled in with grub by the installer) |
 | GRUB menu on the live medium | the same theme, staged into the profile | container-build.sh |
 | Limine menu | palette written into limine.conf by the installer's bootloader module | astroos-calamares (apply.sh) |
-| login screen (SDDM Breeze theme) | greeter kdeglobals `ColorScheme=AstroOS`, background already ours | astroos-branding |
+| login screen (SDDM Breeze theme) | greeter kdeglobals `ColorScheme=AstroOSDark`, background already ours | astroos-branding |
 | installer | branding.desc sidebar colours, stylesheet.qss | astroos-calamares |
 | GTK apps | kde-gtk-config derives GTK colours from the active scheme | nothing to ship |
 | fish prompt and fastfetch | palette colours in astroos-config.fish and config.jsonc | astroos-fish-config, astroos-branding |
-| defaults for new users | skel kdeglobals `ColorScheme=AstroOS`, `LookAndFeelPackage=org.astroos.desktop` | astroos-kde-settings |
+| defaults for new users | skel kdeglobals `ColorScheme=AstroOSDark`, `LookAndFeelPackage=org.astroos.desktop` | astroos-kde-settings |
 
 ## Checking
 

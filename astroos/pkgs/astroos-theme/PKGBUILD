@@ -76,7 +76,8 @@ package() {
   # Assertions rather than comments: every path below is named from outside
   # this package (kdeglobals, konsolerc, plymouthd.conf, the look-and-feel
   # loader), so a missing one is a theme that half applies and reports nothing.
-  for p in usr/share/color-schemes/AstroOS.colors \
+  for p in usr/share/color-schemes/AstroOSDark.colors \
+           usr/share/color-schemes/AstroOSLight.colors \
            usr/share/plasma/look-and-feel/org.astroos.desktop/metadata.json \
            usr/share/konsole/AstroOS.colorscheme \
            usr/share/konsole/AstroOS.profile \

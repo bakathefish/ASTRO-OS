@@ -11,7 +11,7 @@
 widgetStyle=Breeze
 
 [kdeglobals][General]
-ColorScheme=AstroOS
+ColorScheme=AstroOSDark
 
 [kdeglobals][Icons]
 Theme=breeze-dark

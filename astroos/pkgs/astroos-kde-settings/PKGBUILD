@@ -46,7 +46,7 @@
 # files stay comment-free, the way the payload has them, and the reasons are
 # here; the four AstroOS-authored files carry their own short comments.
 #   etc/skel/.config/kdeglobals and .config/kdedefaults/kdeglobals
-#         ColorScheme=BreezeDark becomes ColorScheme=AstroOS, and [KDE] gains
+#         ColorScheme=BreezeDark becomes ColorScheme=AstroOSDark, and [KDE] gains
 #         LookAndFeelPackage=org.astroos.desktop. widgetStyle stays Breeze:
 #         the widget style is a shape, not a palette, and Breeze draws it in
 #         whatever scheme is active.

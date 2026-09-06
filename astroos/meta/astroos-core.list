@@ -26,6 +26,7 @@ plymouth
 
 # Desktop (KDE Plasma / Wayland)
 plasma-meta
+astroos-plasma-welcome  # plasma-meta's plasma-welcome, rebuilt so the live page draws the logo once; explicit so libalpm picks it over extra's (pkgs/astroos-plasma-welcome)
 sddm
 konsole
 dolphin

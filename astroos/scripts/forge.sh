@@ -213,7 +213,8 @@ stage_audit() {
     usr/share/refind/icons/os_astroos.png \
     usr/share/sddm/themes/breeze/theme.conf.user \
     usr/lib/plasmalogin/plasmalogin.conf.d usr/share/doc/astroos \
-    usr/share/color-schemes/AstroOS.colors usr/share/plasma/look-and-feel/org.astroos.desktop \
+    usr/share/color-schemes/AstroOSDark.colors usr/share/color-schemes/AstroOSLight.colors \
+    usr/share/plasma/look-and-feel/org.astroos.desktop \
     usr/share/konsole/AstroOS.colorscheme usr/share/konsole/AstroOS.profile \
     usr/share/grub/themes/astroos var/lib/sddm/.config \
     etc/skel/.config/kdeglobals etc/skel/.config/kdedefaults \
@@ -412,18 +413,20 @@ stage_audit() {
   # extracted (R4.3). The recursive BreezeDark search sees the skeleton files
   # in that list (kdeglobals, kdedefaults, konsolerc, kscreenlockerrc,
   # appletsrc, plasma-welcomerc), which is where a stale scheme name would sit.
-  local cs="$r/usr/share/color-schemes/AstroOS.colors"
+  local cs="$r/usr/share/color-schemes/AstroOSDark.colors" cl="$r/usr/share/color-schemes/AstroOSLight.colors"
   if [[ -s "$cs" ]]; then
-    ok "AstroOS.colors extracted (positive control for the colour scheme checks)"
-    sed -n '/^\[General\]/,/^\[/p' "$cs" | grep -q '^Name=AstroOS$' \
-      && ok "AstroOS.colors is named AstroOS ([General] Name)" || bad "AstroOS.colors carries no [General] Name=AstroOS (nothing would select it by name)"
+    ok "AstroOSDark.colors extracted (positive control for the colour scheme checks)"
+    sed -n '/^\[General\]/,/^\[/p' "$cs" | grep -q '^Name=AstroOS Dark$' \
+      && ok "AstroOSDark.colors is named AstroOS Dark ([General] Name)" || bad "AstroOSDark.colors carries no [General] Name=AstroOS Dark (the Colors page would list it under another name)"
+    sed -n '/^\[General\]/,/^\[/p' "$cl" 2>/dev/null | grep -q '^Name=AstroOS Light$' \
+      && ok "AstroOSLight.colors shipped and named AstroOS Light" || bad "usr/share/color-schemes/AstroOSLight.colors missing or not named AstroOS Light"
   else
-    bad "usr/share/color-schemes/AstroOS.colors missing from the image (astroos-theme not installed?)"
+    bad "usr/share/color-schemes/AstroOSDark.colors missing from the image (astroos-theme not installed?)"
   fi
   local sk="$r/etc/skel/.config"
   if [[ -s "$sk/kdeglobals" ]]; then
     ok "skel kdeglobals extracted (positive control for the skeleton colour checks)"
-    grep -q '^ColorScheme=AstroOS$' "$sk/kdeglobals" && ok "skel kdeglobals selects ColorScheme=AstroOS" || bad "skel kdeglobals does not select ColorScheme=AstroOS"
+    grep -q '^ColorScheme=AstroOSDark$' "$sk/kdeglobals" && ok "skel kdeglobals selects ColorScheme=AstroOSDark" || bad "skel kdeglobals does not select ColorScheme=AstroOSDark"
     grep -q '^LookAndFeelPackage=org.astroos.desktop$' "$sk/kdeglobals" && ok "skel kdeglobals selects LookAndFeelPackage=org.astroos.desktop" || bad "skel kdeglobals does not select the AstroOS look-and-feel"
     local breeze
     breeze=$({ grep -rl '^ColorScheme=BreezeDark' "$sk" || true; } | sed "s|^$sk/||" | tr '\n' ' ')
@@ -432,14 +435,14 @@ stage_audit() {
     bad "etc/skel/.config/kdeglobals missing from the image (the skeleton colour checks could not run)"
   fi
   local kd="$sk/kdedefaults"
-  grep -q '^ColorScheme=AstroOS$' "$kd/kdeglobals" 2>/dev/null \
+  grep -q '^ColorScheme=AstroOSDark$' "$kd/kdeglobals" 2>/dev/null \
     && ok "skel kdedefaults/kdeglobals selects AstroOS (the defaults layer Plasma reads first)" || bad "kdedefaults/kdeglobals does not select AstroOS"
   sed -n '/^\[Theme\]/,/^\[/p' "$kd/plasmarc" 2>/dev/null | grep -q '^name=default$' \
     && ok "skel kdedefaults/plasmarc keeps [Theme] name=default (Breeze follows the colour scheme)" || bad "kdedefaults/plasmarc does not keep [Theme] name=default"
   local lnf="$r/usr/share/plasma/look-and-feel/org.astroos.desktop"
   [[ -s "$lnf/metadata.json" ]] && ok "look-and-feel org.astroos.desktop shipped (metadata.json)" || bad "look-and-feel org.astroos.desktop metadata.json missing"
-  grep -q '^ColorScheme=AstroOS$' "$lnf/contents/defaults" 2>/dev/null \
-    && ok "look-and-feel defaults name ColorScheme=AstroOS" || bad "look-and-feel contents/defaults does not name ColorScheme=AstroOS"
+  grep -q '^ColorScheme=AstroOSDark$' "$lnf/contents/defaults" 2>/dev/null \
+    && ok "look-and-feel defaults name ColorScheme=AstroOSDark" || bad "look-and-feel contents/defaults does not name ColorScheme=AstroOSDark"
   [[ -s "$lnf/contents/splash/Splash.qml" ]] && ok "look-and-feel login splash shipped (Splash.qml)" || bad "look-and-feel contents/splash/Splash.qml missing"
   [[ -s "$r/usr/share/konsole/AstroOS.colorscheme" ]] && ok "Konsole colour scheme shipped" || bad "usr/share/konsole/AstroOS.colorscheme missing"
   [[ -s "$r/usr/share/konsole/AstroOS.profile" ]] && ok "Konsole AstroOS profile shipped" || bad "usr/share/konsole/AstroOS.profile missing"
@@ -457,7 +460,7 @@ stage_audit() {
   [[ -n "$throb" ]] && ok "Plymouth throbber frames shipped ($(printf '%s' "$throb" | wc -w))" || bad "no throbber-*.png in the astroos Plymouth theme (the splash would not animate)"
   grep -q '^Theme=astroos$' "$r/etc/plymouth/plymouthd.conf" 2>/dev/null \
     && ok "plymouthd.conf selects Theme=astroos" || bad "etc/plymouth/plymouthd.conf does not select the astroos theme"
-  grep -q '^ColorScheme=AstroOS$' "$r/var/lib/sddm/.config/kdeglobals" 2>/dev/null \
+  grep -q '^ColorScheme=AstroOSDark$' "$r/var/lib/sddm/.config/kdeglobals" 2>/dev/null \
     && ok "SDDM greeter kdeglobals selects AstroOS" || bad "var/lib/sddm/.config/kdeglobals does not select AstroOS"
   [[ -s "$r/usr/share/grub/themes/astroos/theme.txt" ]] && ok "GRUB theme shipped (astroos-grub-theme)" || bad "usr/share/grub/themes/astroos/theme.txt missing"
   # astroos-theme owns Plymouth now: a leftover 85-astroos-plymouth-watermark
@@ -535,6 +538,14 @@ stage_audit() {
     ok "manifest.pkglist present beside the ISO ($(wc -l < "$a/manifest") entries)"
     local mcachy; mcachy=$({ grep -E '^cachy|^linux-cachyos' "$a/manifest" || true; } | tr '\n' ' ')
     [[ -z "$mcachy" ]] && ok "manifest.pkglist names no CachyOS package" || bad "manifest.pkglist names CachyOS packages: $mcachy"
+    # the Welcome Center is our rebuild (pkgs/astroos-plasma-welcome): the
+    # live page draws the logo once. extra's plasma-welcome must not be there
+    # beside it, which is what a dependency resolved from the repositories
+    # instead of the target set would look like.
+    grep -qx 'astroos-plasma-welcome' "$a/manifest" \
+      && ok "manifest.pkglist carries astroos-plasma-welcome" || bad "manifest.pkglist lacks astroos-plasma-welcome (the live Welcome Center would draw the logo twice)"
+    grep -qx 'plasma-welcome' "$a/manifest" \
+      && bad "manifest.pkglist still carries extra's plasma-welcome" || ok "extra's plasma-welcome not in the manifest"
   else
     bad "out/manifest.pkglist missing or empty (the shipped manifest could not be audited)"
   fi

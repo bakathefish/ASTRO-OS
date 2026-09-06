@@ -9,7 +9,7 @@
 # (color scheme)" and "copy plasmarc (icons, UI style)" blocks). Shipping the
 # pair here means a fresh install already looks right without that round trip.
 [General]
-ColorScheme=AstroOS
+ColorScheme=AstroOSDark
 
 [Icons]
 Theme=breeze-dark

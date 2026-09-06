@@ -18,6 +18,7 @@ grub-btrfs
 efibootmgr
 plymouth
 plasma-meta
+astroos-plasma-welcome
 sddm
 konsole
 dolphin
