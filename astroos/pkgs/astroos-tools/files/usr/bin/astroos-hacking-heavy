@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# astroos-hacking-heavy — install the heavy pentest set on demand.
+# astroos-hacking-heavy: install the heavy pentest set on demand.
 # Spec §3a: heavy tools are not day-1 defaults (burpsuite alone is ~680 MiB
 # installed). Thin glue, directive 7a: pure pacman over repos the image
 # already carries ([extra] + [blackarch]).

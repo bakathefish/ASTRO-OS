@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# astroos-cuda-setup — install the CUDA stack on NVIDIA hardware.
+# astroos-cuda-setup: install the CUDA stack on NVIDIA hardware.
 # Council R2 (C1): cuda + cudnn (5.5 GiB installed) are NVIDIA-only and were
 # cut from the live image; this thin glue script restores them on demand.
 # Directive 7a compliant: pure pacman driver, no custom machinery.

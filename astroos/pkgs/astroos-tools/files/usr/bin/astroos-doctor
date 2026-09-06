@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# astroos-doctor — one-shot health check. First-run tool + the thing you ask
+# astroos-doctor: one-shot health check. First-run tool + the thing you ask
 # bug reporters to paste. `--quick` is used by the QEMU boot-smoke gate.
 set -uo pipefail
 

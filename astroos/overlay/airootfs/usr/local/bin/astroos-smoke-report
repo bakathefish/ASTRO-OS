@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # In-guest smoke reporter, run by astroos-smoke.service (armed only by the
 # astroos.smoke kernel flag). Emits machine-readable verdicts on the console
-# for qemu-smoke.sh to grep — in-guest systemd state, not serial-log scraping.
+# for qemu-smoke.sh to grep, in-guest systemd state, not serial-log scraping.
 set -u
 
 echo "ASTROOS-SMOKE-BEGIN"

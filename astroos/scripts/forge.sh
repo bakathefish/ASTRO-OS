@@ -189,7 +189,7 @@ stage_audit() {
   # files of interest, extracted without unpacking the whole image (no -q:
   # not every squashfs-tools accepts it, review m2; the extraction must work)
   unsquashfs -n -d "$a/root" "$sfs" \
-    etc/os-release usr/lib/os-release etc/lsb-release etc/issue etc/motd etc/hostname \
+    etc/os-release usr/lib/os-release etc/lsb-release etc/issue etc/motd etc/hostname etc/astroos-release \
     etc/pacman.conf etc/pacman-more.conf etc/pacman.d/hooks etc/pacman.d/blackarch-mirrorlist \
     etc/pacman.d/cachyos-mirrorlist etc/pacman.d/cachyos-v3-mirrorlist etc/pacman.d/cachyos-v4-mirrorlist \
     etc/fastfetch usr/share/astroos usr/share/pacman/keyrings \
@@ -309,6 +309,10 @@ stage_audit() {
     && ok "plasmalogin greeter wallpaper drop-in shipped" || bad "plasmalogin wallpaper drop-in missing"
   grep -q 'astroos-logo' "$r/usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override" 2>/dev/null \
     && ok "GNOME login logo override shipped" || bad "GNOME login logo override missing"
+  grep -q '^AstroOS rolling' "$r/etc/astroos-release" 2>/dev/null && ok "/etc/astroos-release shipped" || bad "/etc/astroos-release missing"
+  # house style: no em dash in anything we print (owner directive, 2026-09-06)
+  LC_ALL=C grep -rql $'\xe2\x80\x94' "$r/etc/astroos-release" "$r/etc/motd" "$r/etc/issue" "$r/usr/share/astroos/branding" 2>/dev/null | grep -q . \
+    && bad "em dash in the shipped identity text" || ok "no em dash in the shipped identity text"
   # our own prose, read on the installed system; code under usr/share/astroos is
   # exempt because apply.sh carries the string as a sed pattern
   if [[ -d "$r/usr/share/doc/astroos" ]]; then
