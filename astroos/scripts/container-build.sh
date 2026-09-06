@@ -354,6 +354,25 @@ if [[ "${ASTROOS_WITH_AUR_REPO:-0}" == "1" ]]; then
     exit 1
   fi
   echo ">> [astroos] repo check OK: ${#db_names[@]} packages match aur.list (${#aur_scope[@]}) + pkgs/ (${#local_scope[@]} names, splits included)"
+  # The pacman cache volume outlives containers and is shared with the lane.
+  # A cached file that shares name and version with a package in [astroos]
+  # but not its bytes fails pacstrap on checksum or signature, and pacman
+  # installs nothing (2026-09-06: the lane had rebuilt ckbcomp, the fish
+  # packages and mkinitcpio-openswap under the versions an earlier build had
+  # cached from another repository). Drop the cached copy of every [astroos]
+  # entry before pacstrap, the way build-aur-repo.sh does per container;
+  # pacman re-downloads what it needs. A foreign build cached under an Arch
+  # name (that same day: xz and nvidia-utils from the CachyOS era) is outside
+  # this guard and was cured once by removing the volume.
+  mapfile -t db_entries < <(bsdtar -tf /tmp/astroos.db.tar.zst | awk -F/ '$2=="desc"{print $1}' | sort -u)
+  purged=0
+  for e in "${db_entries[@]}"; do
+    for f in /var/cache/pacman/pkg/"$e"-*.pkg.tar*; do
+      [[ -e "$f" ]] || continue
+      rm -f "$f"; purged=$((purged + 1))
+    done
+  done
+  echo ">> pacman cache: dropped $purged cached file(s) sharing a name and version with an [astroos] entry"
   # SigLevel staging per R3 D2/Q4: Required DatabaseOptional for publish
   # cycle 1 only.
   repo_section=$(printf '\n[astroos]\nSigLevel = Required DatabaseOptional\nServer = %s\n' "$repo_url")
