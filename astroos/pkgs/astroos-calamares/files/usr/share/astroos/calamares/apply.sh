@@ -50,6 +50,23 @@ linux-cachyos-lts-headers       linux-astroos-lts-headers
 # rather than emptying out (an empty packages: list is not valid here)
 linux-cachyos-deckify           linux-astroos
 linux-cachyos-deckify-headers   linux-astroos-headers
+# Names only [cachyos] served, inside groups upstream ships under other
+# names. Measured 2026-09-06 inside the live ISO: pacman -Sp over every name
+# in netinstall.yaml against core, extra, multilib, astroos and blackarch
+# left exactly these (firefox-i18n-$LOCALE aside, which the installer
+# substitutes). Two of them, char-white (KDE-Desktop) and shelly (packages
+# management), sat in the default selection and made every install fail at
+# pacstrap with "target not found"; the audit's resolver simulation only
+# covers that default selection, so the five in optional desktop groups are
+# listed from the same measurement. Dropped rather than mapped: each is one
+# optional component of a desktop AstroOS does not preconfigure.
+char-white                      -
+shelly                          -
+i3lock-color                    -
+noctalia-greeter                -
+wayfire-desktop-git             -
+wired                           -
+xcursor-neutral                 -
 # CachyOS-only apps, themes, wallpapers and shell configs: dropped
 cachy-update                    -
 cachyos-emerald-kde-theme-git   -

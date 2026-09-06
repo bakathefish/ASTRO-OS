@@ -12,10 +12,11 @@
         }
     },
 
-    // The logo is 32 columns wide (branding/assetgen.py), so an info line
-    // longer than about 60 characters wraps to column 0 and lands on top of
-    // it. Two modules produce values long enough to do that, and both are
-    // trimmed rather than dropped:
+    // The logo is 44 columns wide (branding/assetgen.py) plus 3 of padding,
+    // so on Konsole's default 110-column window an info line longer than
+    // about 62 characters wraps to column 0 and lands on top of it. Two
+    // modules produce values long enough to do that, and both are trimmed
+    // rather than dropped:
     //   host  {name} alone, without the DMI version and sku strings that a
     //         firmware writes in full (a QEMU guest reports 76 characters)
     //   disk  read-only mounts hidden, which on the live ISO is the 7 GiB

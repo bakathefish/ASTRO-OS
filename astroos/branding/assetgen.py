@@ -168,11 +168,18 @@ def watermark(logo, outdir):
     logo.resize((w, h), Image.LANCZOS).save(os.path.join(outdir, "watermark.png"))
 
 
-def ansi_logo(logo, outdir, cols=32):
+def ansi_logo(logo, outdir, cols=44):
     """Truecolor half-block terminal art for fastfetch (file-raw logo).
 
     Transparent cells stay unpainted (a plain space), so the logo sits on the
     terminal's own background instead of a black box.
+
+    44 columns (44x40 half-block pixels) rather than the 32 the first cut
+    used: at 32 the ring was three pixels thick and the planet a blob, the one
+    thing in a Konsole screenshot that read as amateur (2026-09-06). The width
+    budget is the fastfetch config's: 44 columns plus 3 of padding leaves an
+    info line up to about 62 characters on Konsole's default 110-column
+    window before it wraps under the logo.
     """
     rows = max(2, int(logo.height / logo.width * cols * 1.0))
     rows += rows % 2

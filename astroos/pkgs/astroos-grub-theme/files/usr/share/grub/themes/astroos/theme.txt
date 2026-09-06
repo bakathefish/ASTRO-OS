@@ -34,6 +34,18 @@ desktop-image: "background.png"
 # what shows before the image is decoded, and in any margin it does not cover
 desktop-color: "#0e0820"
 
+# the planet above the menu, the same mark Plymouth and the login screen
+# carry; GRUB scales the PNG to this box (gen-assets.py draws it 160 px wide
+# with the glow baked in, so the scale is 1:1 at 1080p and the alpha edge
+# stays soft on any other mode)
++ image {
+	left = 50%-80
+	top = 9%
+	width = 160
+	height = 146
+	file = "logo.png"
+}
+
 # the menu: centred, half the screen wide, no icons and no scrollbar
 + boot_menu {
 	left = 25%

@@ -260,7 +260,7 @@ echo ">> boot files point at the AstroOS kernel: ${#kfiles[@]} files rewritten"
 # BIOS boot never loads GRUB at all and keeps the syslinux splash set above.
 gt=/build/astroos/pkgs/astroos-grub-theme/files/usr/share/grub/themes/astroos
 gtd="$base/archiso/grub/themes/astroos"
-for f in theme.txt background.png; do
+for f in theme.txt background.png logo.png; do
   [[ -f "$gt/$f" ]] || { echo "!! missing GRUB theme file $gt/$f" >&2; exit 1; }
 done
 # The font travels with the theme, the same way the package ships it. On an

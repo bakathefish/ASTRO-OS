@@ -49,7 +49,7 @@ package() {
   # and pixmap_style lines inside theme.txt, container-build.sh's staging), so
   # a missing one is a menu that falls back to the plain text list and says
   # nothing about why.
-  for p in theme.txt background.png unicode.pf2; do
+  for p in theme.txt background.png logo.png unicode.pf2; do
     [[ -f "$pkgdir/$t/$p" ]] || { echo "astroos-grub-theme: missing $t/$p" >&2; missing=1; }
   done
   for slice in c n s e w ne nw se sw; do

@@ -12,6 +12,11 @@ colour scheme rather than a lookalike.
 Outputs:
   background.png      1920x1080 desktop-image: the space gradient plus the
                       seeded star scatter assetgen.py's wallpaper uses
+  logo.png            160x146, the procedural planet (branding/logo.py, the
+                      same render every other asset comes from) on
+                      transparency with a soft glow, placed above the menu
+                      by theme.txt at exactly this size; the one asset here
+                      that needs numpy, because logo.py does
   select_*.png        the nine slices GRUB composes into the selected-item
                       highlight: a lavender rounded bar
   item_*.png          the same nine sizes, fully transparent
@@ -36,11 +41,12 @@ import os
 import random
 import sys
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(HERE, "..", "..", "branding")))
 import palette as P  # noqa: E402
+from logo import render_logo  # noqa: E402
 
 OUT = os.path.join(HERE, "files", "usr", "share", "grub", "themes", "astroos")
 STAR_SEED = 20260825  # assetgen.py's seed: the same sky behind menu and desktop
@@ -104,10 +110,33 @@ def slices(prefix, fill):
     return sorted(out)
 
 
+def logo_png(box=(160, 146), planet_w=136):
+    """The planet above the menu: the procedural render at planet_w inside a
+    box that leaves room for a blurred, dimmed copy behind it (the glow the
+    wallpaper and the login screen give it, assetgen.place_logo), so the
+    edge fades into the starfield instead of stopping at a rectangle.
+    theme.txt places the box at this exact size, so GRUB scales nothing."""
+    planet = render_logo()
+    h = int(planet.height * planet_w / planet.width)
+    small = planet.resize((planet_w, h), Image.LANCZOS)
+    canvas = Image.new("RGBA", box, (0, 0, 0, 0))
+    at = ((box[0] - planet_w) // 2, (box[1] - h) // 2)
+    glow = Image.new("RGBA", box, (0, 0, 0, 0))
+    glow.paste(small, at, small)
+    glow = ImageEnhance.Brightness(glow.filter(ImageFilter.GaussianBlur(10))).enhance(
+        0.6
+    )
+    canvas.alpha_composite(glow)
+    canvas.alpha_composite(small, at)
+    canvas.save(os.path.join(OUT, "logo.png"))
+    return canvas.size
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     starfield(BG_W, BG_H).save(os.path.join(OUT, "background.png"))
     print("background.png %dx%d" % (BG_W, BG_H))
+    print("logo.png %dx%d" % logo_png())
     lavender = P.rgb("lavender") + (255,)
     print("select_*.png", slices("select", lavender))
     print("item_*.png", slices("item", (0, 0, 0, 0)))
