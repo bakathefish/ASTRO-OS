@@ -63,7 +63,8 @@ mkinitcpio-openswap  # hard depends of astroos-calamares-installer (the initcpio
 fish-autopair     # hard depends of astroos-fish-config: auto-closes brackets and quotes
                   # in fish. 1.0.4-2, arch any, depends fish, makedepends git. Served by
                   # [cachyos] until 2026-09-06 and not in Arch; the first scope-36 run
-                  # failed astroos-fish-config on it.
+                  # failed astroos-fish-config on it. Built from a signed git tag: the
+                  # author's key is vendored under aur-patches/fish-autopair/keys/pgp.
 fish-pure-prompt  # hard depends of astroos-fish-config: the pure prompt the shipped
                   # config loads (its colours come from the AstroOS palette).
                   # 4.18.0-1, arch any, depends fish, no makedepends. Same provenance.
