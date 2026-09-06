@@ -1,0 +1,20 @@
+# Colour scheme for the plasmalogin greeter, the same idea as the SDDM pair in
+# /var/lib/sddm/.config. plasmalogin has no colour-scheme key of its own: its
+# main config schema (plasma-login-manager src/common/mainconfig.kcfg) covers
+# only X11, Wayland, Autologin, General and Users, so the drop-in directory
+# /usr/lib/plasmalogin/plasmalogin.conf.d has nowhere to put one. Its KCM does
+# the same thing sddm-kcm does instead: the KAuth helper writes kdeglobals and
+# plasmarc into the greeter user's home (src/frontend/kcm/auth/
+# plasmaloginauthhelper.cpp, the createConfigFile calls), and that home is
+# /var/lib/plasmalogin (services/plasmalogin-sysuser.conf.in, STATE_DIR).
+#
+# plasmalogin is installed but disabled on AstroOS; SDDM is the greeter the
+# installer enables. This file is here so switching costs nothing.
+[General]
+ColorScheme=AstroOS
+
+[Icons]
+Theme=breeze-dark
+
+[KDE]
+LookAndFeelPackage=org.astroos.desktop

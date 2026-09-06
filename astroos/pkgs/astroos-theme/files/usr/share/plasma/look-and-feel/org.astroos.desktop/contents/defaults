@@ -1,0 +1,37 @@
+# What "Global Theme: AstroOS" sets. Structure and key names follow
+# plasma-workspace lookandfeel/org.kde.breezedark/contents/defaults; only the
+# values that carry the brand are ours.
+#
+# The widget style, window decoration and Plasma theme stay Breeze on purpose.
+# Breeze's Plasma theme in its default mode follows the active colour scheme,
+# so panel, widgets and popups take the AstroOS palette without a forked theme
+# to maintain; a second theme is a second thing that drifts.
+
+[kdeglobals][KDE]
+widgetStyle=Breeze
+
+[kdeglobals][General]
+ColorScheme=AstroOS
+
+[kdeglobals][Icons]
+Theme=breeze-dark
+
+[plasmarc][Theme]
+name=default
+
+[Wallpaper]
+Image=/usr/share/wallpapers/AstroOS/
+
+[kcminputrc][Mouse]
+cursorTheme=capitaine-cursors
+
+[kwinrc][org.kde.kdecoration2]
+library=org.kde.breeze
+theme=Breeze
+
+[kwinrc][WindowSwitcher]
+LayoutName=org.kde.breeze.desktop
+
+[ksplashrc][KSplash]
+Theme=org.astroos.desktop
+Engine=KSplashQML

@@ -1,0 +1,107 @@
+# The AstroOS terminal palette. Every value comes from a role in
+# astroos/branding/palette.py: the sixteen ANSI slots are its ANSI table, so
+# red is still the error colour and green still success, and only the hues are
+# pulled into the brand. Format follows konsole data/color-schemes/*.
+#
+# ColorNFaint is the same as ColorN on purpose. Konsole's faint variants are
+# free colours, and Breeze fills them with darkened mixes; a mix of a palette
+# colour is not a palette colour, so faint text here is the ordinary colour and
+# the palette stays closed. The intense variants are the bright_ roles, which
+# the palette already defines.
+
+[Background]
+Color=18,14,34
+
+[BackgroundFaint]
+Color=18,14,34
+
+[BackgroundIntense]
+Color=18,14,34
+
+[Color0]
+Color=27,22,48
+
+[Color0Faint]
+Color=27,22,48
+
+[Color0Intense]
+Color=107,102,136
+
+[Color1]
+Color=224,103,154
+
+[Color1Faint]
+Color=224,103,154
+
+[Color1Intense]
+Color=240,138,181
+
+[Color2]
+Color=44,184,171
+
+[Color2Faint]
+Color=44,184,171
+
+[Color2Intense]
+Color=95,214,201
+
+[Color3]
+Color=226,180,106
+
+[Color3Faint]
+Color=226,180,106
+
+[Color3Intense]
+Color=240,203,140
+
+[Color4]
+Color=124,107,208
+
+[Color4Faint]
+Color=124,107,208
+
+[Color4Intense]
+Color=156,140,230
+
+[Color5]
+Color=201,156,220
+
+[Color5Faint]
+Color=201,156,220
+
+[Color5Intense]
+Color=226,158,240
+
+[Color6]
+Color=74,192,218
+
+[Color6Faint]
+Color=74,192,218
+
+[Color6Intense]
+Color=98,226,236
+
+[Color7]
+Color=200,196,222
+
+[Color7Faint]
+Color=200,196,222
+
+[Color7Intense]
+Color=232,230,245
+
+[Foreground]
+Color=232,230,245
+
+[ForegroundFaint]
+Color=200,196,222
+
+[ForegroundIntense]
+Color=232,230,245
+
+[General]
+Blur=false
+ColorRandomization=false
+Description=AstroOS
+Opacity=1
+Wallpaper=

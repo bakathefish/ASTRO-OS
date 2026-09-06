@@ -9,7 +9,11 @@ finds against PALETTE:
   0xrrggbb         Plymouth theme files
   key=r,g,b        KDE .colors and Konsole .colorscheme files
   term_*: aa;bb;.. Limine palette lines (bare hex, ';'-separated), and the
-                   single bare-hex form term_foreground: rrggbb
+                   single bare-hex form term_foreground: rrggbb, wherever they
+                   sit on the line: inside a Python write("...") or a sed
+                   substitution. A substitution carries the colour it removes
+                   on its left side and the one it writes on its right, so on
+                   a sed line only the last term_* value counts.
 A [ColorEffects:*] section in a .colors file is exempt: those greys are the
 disabled/inactive blend colours KDE mixes in, copied from Breeze, and are not
 brand surfaces. Alpha-suffixed Limine values (rrggbbaa) are compared on their
@@ -27,12 +31,23 @@ ALLOWED = all_hex()
 HEX_HASH = re.compile(r"#([0-9a-fA-F]{6})\b")
 HEX_0X = re.compile(r"\b0x([0-9a-fA-F]{6})\b")
 KDE_TRIPLET = re.compile(r"^\s*[A-Za-z0-9_]+\s*=\s*(\d{1,3}),(\d{1,3}),(\d{1,3})\s*$")
-LIMINE = re.compile(r"^\s*term_[a-z_]+:\s*([0-9a-fA-F;]+)\s*(\\n)?\s*$")
+LIMINE = re.compile(r"term_[a-z_]+:\s*([0-9a-fA-F;]{6,})")
+SED_SUBST = re.compile(r"\bs\|")
 SECTION = re.compile(r"^\s*\[([^\]]+)\]\s*$")
+
+
+def is_binary(path):
+    """PNGs and other binaries are not themed text: a byte run inside an image
+    can spell #rrggbb by accident, so anything with a NUL in its first 8 KiB
+    is skipped rather than scanned."""
+    with open(path, "rb") as fh:
+        return b"\0" in fh.read(8192)
 
 
 def colours_in(path):
     """Yield (line_number, hex, text) for every colour spelled in the file."""
+    if is_binary(path):
+        return
     section = ""
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
         for n, line in enumerate(fh, 1):
@@ -55,12 +70,14 @@ def colours_in(path):
                 r, g, b = (int(x) for x in m.groups())
                 if max(r, g, b) <= 255:
                     yield n, "%02x%02x%02x" % (r, g, b), line.strip()
-            # Limine lines may sit inside a Python write("...\n") in apply.sh
-            # or main.py, so strip the quoting before matching
-            core = line.strip().strip("\"')( ").replace('config_file.write("', "")
-            m = LIMINE.match(core)
-            if m:
-                for tok in m.group(1).split(";"):
+            # Limine lines sit inside a Python write("...\n") in main.py and
+            # inside sed substitutions in apply.sh; on a substitution only the
+            # replacement side (the last match) is a colour we write
+            found = LIMINE.findall(line)
+            if found and SED_SUBST.search(line):
+                found = found[-1:]
+            for hexes in found:
+                for tok in hexes.split(";"):
                     if len(tok) >= 6:
                         yield n, tok[:6].lower(), line.strip()
 

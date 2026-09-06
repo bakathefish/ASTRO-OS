@@ -50,6 +50,38 @@ else
   skip "no CachyOS in the shipped AstroOS docs (astroos-zenbook-duo not installed)"
 fi
 
+echo "== theme"
+# One colour scheme on the installed system. The skeleton the installer copied
+# into this user's home has to select it, the files it names have to be there,
+# and nothing may still select BreezeDark. Every check names a file, so one
+# that never got installed fails here instead of passing quietly.
+chk "kdeglobals selects ColorScheme=AstroOS"  grep -qx 'ColorScheme=AstroOS' "$HOME/.config/kdeglobals"
+chk "kdeglobals selects the AstroOS look-and-feel" grep -qx 'LookAndFeelPackage=org.astroos.desktop' "$HOME/.config/kdeglobals"
+chk "no BreezeDark in ~/.config/kdeglobals" bash -c '[[ -f $HOME/.config/kdeglobals ]] && ! grep -q BreezeDark "$HOME/.config/kdeglobals"'
+chk "AstroOS colour scheme installed"         test -f /usr/share/color-schemes/AstroOS.colors
+chk "look-and-feel org.astroos.desktop installed" test -f /usr/share/plasma/look-and-feel/org.astroos.desktop/metadata.json
+chk "Konsole colour scheme installed"         test -f /usr/share/konsole/AstroOS.colorscheme
+chk "Konsole AstroOS profile installed"       test -f /usr/share/konsole/AstroOS.profile
+chk "konsolerc opens the AstroOS profile"     grep -qx 'DefaultProfile=AstroOS.profile' "$HOME/.config/konsolerc"
+chk "lock screen uses the AstroOS background" grep -q 'login-background.png' "$HOME/.config/kscreenlockerrc"
+# plymouth itself is optional on a minimal install; where it is installed, the
+# theme it boots must be ours, whatever set it last (the .install or calamares)
+if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+  chk "plymouth default theme is astroos"     bash -c '[[ $(plymouth-set-default-theme) == astroos ]]'
+else
+  skip "plymouth default theme is astroos (plymouth-set-default-theme not installed)"
+fi
+# /var/lib/sddm is 0700, so the greeter's own config is only readable as root
+chk "SDDM greeter uses the AstroOS colour scheme" bash -c 'sudo_ grep -qx "ColorScheme=AstroOS" /var/lib/sddm/.config/kdeglobals'
+# the GRUB theme only applies where the installer wrote GRUB; another
+# bootloader is a legitimate install, not a failure
+if [[ -d /boot/grub ]]; then
+  chk "GRUB_THEME names the AstroOS theme"    grep -qE '^GRUB_THEME="?/usr/share/grub/themes/astroos/theme.txt"?$' /etc/default/grub
+  chk "GRUB theme installed"                  test -f /usr/share/grub/themes/astroos/theme.txt
+else
+  skip "GRUB theme configured (no /boot/grub: this install uses another bootloader)"
+fi
+
 echo "== repositories and trust"
 chk "[astroos] in pacman.conf"        grep -q '^\[astroos\]' /etc/pacman.conf
 chk "[astroos] after [extra]"         bash -c 'a=$(grep -n "^\[extra\]" /etc/pacman.conf | cut -d: -f1); b=$(grep -n "^\[astroos\]" /etc/pacman.conf | cut -d: -f1); [[ -n $a && -n $b && $b -gt $a ]]'
@@ -122,10 +154,13 @@ echo "== hooks"
 # the reboot and plymouth machinery (hooks under /usr/share/libalpm/hooks).
 # The /dev/null masks that once silenced cachyos-hooks are gone with that
 # package: there is nothing left to silence, and a leftover mask named
-# os-release.hook would suppress a hook of our own.
-for h in zz-astroos-identity.hook 85-astroos-plymouth-watermark.hook 86-astroos-skel.hook; do
+# os-release.hook would suppress a hook of our own. The watermark hook went
+# with them: astroos-theme owns Plymouth now, so a surviving copy would keep
+# writing the watermark into plymouth's stock spinner theme.
+for h in zz-astroos-identity.hook 86-astroos-skel.hook; do
   chk "hook present: $h" test -f "/etc/pacman.d/hooks/$h"
 done
+chk "retired watermark hook is gone" bash -c '[[ ! -e /etc/pacman.d/hooks/85-astroos-plymouth-watermark.hook ]]'
 for h in astroos-reboot-required.hook astroos-plymouth-initramfs.hook; do
   chk "hook present: $h" test -f "/usr/share/libalpm/hooks/$h"
 done

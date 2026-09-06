@@ -1,0 +1,7 @@
+# Plasma desktop theme for the panel, popups and widgets. "default" is Breeze,
+# which ships no colors file and therefore paints from the active colour
+# scheme; the separate breeze-dark theme pins its own grey palette (libplasma
+# src/desktoptheme/breeze-dark/colors) and would leave the panel outside the
+# AstroOS scheme.
+[Theme]
+name=default

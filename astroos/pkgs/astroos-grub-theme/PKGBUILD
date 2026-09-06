@@ -1,0 +1,62 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Local lane package (see astroos-keyring/PKGBUILD for the version scheme).
+#
+# The GRUB menu on an INSTALLED AstroOS. The installer pulls this package in
+# beside grub (astroos-calamares's apply.sh rewrites the pacstrap module's
+# base_packages list, where upstream names cachyos-grub-theme) and points
+# GRUB_THEME at the theme.txt below, so the first screen after firmware is the
+# same palette as the boot splash, the login screen and the desktop. The live
+# medium's own GRUB menu is a separate path: it is not a pacman target at all,
+# so astroos/scripts/container-build.sh stages these same files into the ISO
+# profile. One set of files, two ways in.
+#
+# Why makedepends=(grub): grub-mkconfig's 00_header emits a loadfont for every
+# .pf2 sitting in the theme directory, and for nothing outside it, so a theme
+# that names a font has to carry that font next to theme.txt. The one we name
+# is GRUB's own /usr/share/grub/unicode.pf2, copied at package time rather
+# than vendored: a font blob committed to the tree would be a second copy of a
+# file the bootloader already ships, free to drift from it.
+#
+# The images under files/ are committed binaries, drawn once by gen-assets.py
+# from astroos/branding/palette.py. Nothing is generated or fetched at build
+# time; the lane builds this in a fresh container with no Python and no
+# network.
+pkgname=astroos-grub-theme
+pkgver=0
+pkgrel=1
+pkgdesc="AstroOS GRUB menu theme"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(GPL-3.0-or-later)
+makedepends=(grub)
+optdepends=('grub: the bootloader this theme is for')
+
+pkgver() { cat "$startdir/VERSION"; }
+
+package() {
+  local f="$startdir/files" t="usr/share/grub/themes/astroos" p slice missing=0
+
+  # explicit 0644 rather than cp -a: this tree can be checked out on Windows,
+  # where no mode survives, and nothing here is a program
+  ( cd "$f" && find . -type f -exec install -Dm644 {} "$pkgdir/{}" \; )
+  find "$pkgdir" -type d -exec chmod 755 {} +
+
+  # the font beside theme.txt (see the header for why it lives here)
+  install -Dm644 /usr/share/grub/unicode.pf2 "$pkgdir/$t/unicode.pf2"
+
+  # Assertions rather than comments: every name below is referenced from
+  # outside this package (GRUB_THEME in /etc/default/grub, the desktop-image
+  # and pixmap_style lines inside theme.txt, container-build.sh's staging), so
+  # a missing one is a menu that falls back to the plain text list and says
+  # nothing about why.
+  for p in theme.txt background.png unicode.pf2; do
+    [[ -f "$pkgdir/$t/$p" ]] || { echo "astroos-grub-theme: missing $t/$p" >&2; missing=1; }
+  done
+  for slice in c n s e w ne nw se sw; do
+    [[ -f "$pkgdir/$t/select_$slice.png" ]] \
+      || { echo "astroos-grub-theme: missing $t/select_$slice.png" >&2; missing=1; }
+    [[ -f "$pkgdir/$t/item_$slice.png" ]] \
+      || { echo "astroos-grub-theme: missing $t/item_$slice.png" >&2; missing=1; }
+  done
+  (( missing == 0 )) || return 1
+}

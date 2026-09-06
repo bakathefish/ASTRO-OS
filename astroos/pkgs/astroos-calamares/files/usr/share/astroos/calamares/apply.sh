@@ -133,11 +133,20 @@ if [[ -f $m/bootloader.conf ]]; then
     "$m/bootloader.conf"
 fi
 if [[ -f $m/grubcfg.conf ]]; then
-  # no CachyOS GRUB theme; the AstroOS splash behind GRUB's own menu instead.
-  # GRUB_TOP_LEVEL names the kernel image GRUB should list first, so it has to
-  # follow linux-cachyos -> linux-astroos.
-  sed -i '/^\s*GRUB_THEME:/d' "$m/grubcfg.conf"
+  # The AstroOS GRUB theme (astroos-grub-theme, added to the pacstrap package
+  # list in section 5) where upstream names the CachyOS one. Set, not deleted:
+  # this is the menu the installed system boots into, and it is the same
+  # theme.txt container-build.sh stages onto the live medium, so the two menus
+  # cannot drift. GRUB_TOP_LEVEL names the kernel image GRUB should list first,
+  # so it has to follow linux-cachyos -> linux-astroos.
+  sed -i 's|^\(\s*GRUB_THEME:\).*|\1 "/usr/share/grub/themes/astroos/theme.txt"|' "$m/grubcfg.conf"
+  grep -q '^\s*GRUB_THEME:' "$m/grubcfg.conf" \
+    || sed -i 's|^\(\s*\)GRUB_TOP_LEVEL:.*|&\n\1GRUB_THEME: "/usr/share/grub/themes/astroos/theme.txt"|' "$m/grubcfg.conf"
+  grep -q '^\s*GRUB_THEME: "/usr/share/grub/themes/astroos/theme.txt"$' "$m/grubcfg.conf" \
+    || warn "grubcfg.conf does not select the AstroOS GRUB theme"
   sed -i 's|/boot/vmlinuz-linux-cachyos|/boot/vmlinuz-linux-astroos|' "$m/grubcfg.conf"
+  # kept beside the theme: a theme's desktop-image wins over GRUB_BACKGROUND,
+  # and the background line still covers a system whose theme fails to load
   grep -q '^\s*GRUB_BACKGROUND:' "$m/grubcfg.conf" \
     || sed -i 's|^\(\s*\)GRUB_TOP_LEVEL:.*|&\n\1GRUB_BACKGROUND: "/usr/share/astroos/branding/limine-splash.png"|' "$m/grubcfg.conf"
 fi
@@ -174,9 +183,12 @@ fi
 p=$m/pacstrap.conf
 if [[ -f $p ]]; then
   _map_pkgs "$p"
-  # astroos-keyring already arrives from cachyos-keyring in the map above
+  # astroos-keyring already arrives from cachyos-keyring in the map above.
+  # astroos-theme goes in beside them because it owns the plymouth theme
+  # plymouthcfg.conf names: a target without it boots to a theme that is not
+  # installed, and plymouth is left configured for a missing directory.
   grep -q '^\s*- astroos-branding\s*$' "$p" \
-    || sed -i 's/^\(\s*\)- plymouth\s*$/&\n\1- astroos-branding\n\1- astroos-tools/' "$p"
+    || sed -i 's/^\(\s*\)- plymouth\s*$/&\n\1- astroos-branding\n\1- astroos-theme\n\1- astroos-tools/' "$p"
 fi
 # the target's first in-chroot pacman run needs every Include'd mirrorlist.
 # Upstream copies the three CachyOS mirrorlists, which do not exist on an
@@ -215,16 +227,56 @@ fi
   -e 's/cachyos-keyring/astroos-keyring/g' \
   -e 's|^# Update astroos-keyring first since archlinux-keyring is taken from cachyos$|# Update astroos-keyring first so the live system trusts the [astroos]|' \
   "$s/create-pacman-keyring"
-[[ -f $py/bootloader/main.py ]] && sed -i -e 's|# CachyOS Limine theme|# AstroOS Limine theme|' -e 's|/+CachyOS|/+AstroOS|' "$py/bootloader/main.py"
+# Limine has no theme file: the module writes the menu's colours straight into
+# the target's limine.conf, so the AstroOS palette has to replace the
+# Catppuccin one there, value by value. The eight-colour lines are exactly what
+# `python3 astroos/branding/palette.py` prints, and both foregrounds become
+# text, matching upstream's choice of one foreground for both.
+#
+# The two background lines keep upstream's ffffffff. Limine documents
+# term_background as TTRRGGBB, transparency FIRST (CONFIG.md at v12.8.0, the
+# version in Arch's limine package: "TT stands for transparency", default
+# 00000000, or 80000000 when a wallpaper is displayed), and its parser reads
+# term_background_bright the same unmasked way (common/lib/gterm.c). ffffffff
+# is therefore fully transparent, which is what lets the AstroOS splash this
+# module sets as the wallpaper show through; a palette colour there would be an
+# opaque block over it. There is no sed for those two lines, so no colour
+# outside the palette is written into this file either.
+#
+# The author line goes with the colours: after the seds below, none of that
+# theme's values remain, and a credit for colours we replaced would be wrong.
+if [[ -f $py/bootloader/main.py ]]; then
+  sed -i \
+    -e 's|# CachyOS Limine theme|# AstroOS Limine theme|' \
+    -e 's|# Author: diegons490 (https://github.com/diegons490/cachyos-limine-theme)|# Author: AstroOS palette (astroos/branding/palette.py)|' \
+    -e 's|/+CachyOS|/+AstroOS|' \
+    -e 's|term_palette: 1e1e2e;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4|term_palette: 1b1630;e0679a;2cb8ab;e2b46a;7c6bd0;c99cdc;4ac0da;c8c4de|' \
+    -e 's|term_palette_bright: 585b70;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4|term_palette_bright: 6b6688;f08ab5;5fd6c9;f0cb8c;9c8ce6;e29ef0;62e2ec;e8e6f5|' \
+    -e 's|term_foreground: cdd6f4|term_foreground: e8e6f5|' \
+    -e 's|term_foreground_bright: cdd6f4|term_foreground_bright: e8e6f5|' \
+    "$py/bootloader/main.py"
+  grep -q 'term_palette: 1b1630;' "$py/bootloader/main.py" \
+    || warn "the Limine menu palette is not the AstroOS one"
+  grep -q 'term_palette_bright: 6b6688;' "$py/bootloader/main.py" \
+    || warn "the bright Limine menu palette is not the AstroOS one"
+  grep -q 'term_foreground: e8e6f5' "$py/bootloader/main.py" \
+    || warn "the Limine menu foreground is not the AstroOS text colour"
+  grep -q 'term_foreground_bright: e8e6f5' "$py/bootloader/main.py" \
+    || warn "the bright Limine menu foreground is not the AstroOS text colour"
+  grep -q 'diegons490' "$py/bootloader/main.py" \
+    && warn "the replaced Limine theme is still credited in bootloader/main.py"
+fi
 # chwd: only the progress string is CachyOS. The module shells out to the
 # `chwd` binary, which astroos-chwd still installs as /usr/bin/chwd, so the
 # command lines stay as they are.
 [[ -f $py/chwd/main.py ]]       && sed -i 's/Installing needed drivers for CachyOS\.\.\./Installing needed drivers for AstroOS.../' "$py/chwd/main.py"
 # pacstrap: the kernels and the GRUB theme are appended in code, not in
-# pacstrap.conf, so _pkgmap never sees them
+# pacstrap.conf, so _pkgmap never sees them. The theme is swapped rather than
+# dropped: astroos-grub-theme owns the theme.txt grubcfg.conf points GRUB_THEME
+# at, and it only reaches the target if it is in this list beside grub.
 if [[ -f $py/pacstrap/main.py ]]; then
   sed -i \
-    -e 's/"grub", "grub-hook", "cachyos-grub-theme", "os-prober"/"grub", "grub-hook", "os-prober"/' \
+    -e 's/"grub", "grub-hook", "cachyos-grub-theme", "os-prober"/"grub", "grub-hook", "astroos-grub-theme", "os-prober"/' \
     -e 's/"linux-cachyos-deckify-headers"/"linux-astroos-headers"/g' \
     -e 's/"linux-cachyos-deckify-zfs"/"linux-astroos-zfs"/g' \
     -e 's/"linux-cachyos-deckify"/"linux-astroos"/g' \
@@ -236,6 +288,8 @@ if [[ -f $py/pacstrap/main.py ]]; then
     -e 's/"linux-cachyos"/"linux-astroos"/g' \
     "$py/pacstrap/main.py"
   grep -q 'cachyos' "$py/pacstrap/main.py" && warn "a cachyos package name survives in pacstrap/main.py"
+  grep -q '"astroos-grub-theme"' "$py/pacstrap/main.py" \
+    || warn "astroos-grub-theme is not in the GRUB package set in pacstrap/main.py"
 fi
 
 # 6. report what survived (the forge audit turns these into hard failures)
@@ -243,6 +297,7 @@ fi
 [[ -f $y ]] && ! grep -q '^- name: "AstroOS (hidden)"' "$y" && warn "AstroOS groups missing from netinstall.yaml"
 [[ -f $p ]] && ! grep -q '^\s*- astroos-branding\s*$' "$p" && warn "astroos-branding not in pacstrap basePackages"
 [[ -f $p ]] && ! grep -q '^\s*- astroos-keyring\s*$' "$p" && warn "astroos-keyring not in pacstrap basePackages"
+[[ -f $p ]] && ! grep -q '^\s*- astroos-theme\s*$' "$p" && warn "astroos-theme not in pacstrap basePackages (the plymouth theme would be missing)"
 [[ -f $p ]] && grep -qi cachy "$p" && warn "a cachyos package name survives in pacstrap.conf"
 grep -q '^branding: astroos' /usr/share/calamares/settings_online.conf 2>/dev/null || warn "settings_online.conf does not select the astroos branding"
 [[ -f $m/packagechooser_bootloader.conf ]] && ! grep -q "$img/bootloaders/limine.png" "$m/packagechooser_bootloader.conf" && warn "bootloader previews still upstream"

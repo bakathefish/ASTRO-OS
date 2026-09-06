@@ -45,7 +45,9 @@ consistency does.
 
 Contrast on the darkest surfaces: `text` on `view` is about 15:1, `text_dim` on
 `window` about 5.8:1, `cyan` on `view` about 8.7:1, `selection_text` on
-`lavender` about 5.2:1.
+`lavender` about 4.2:1 (WCAG AA for large or bold text is 3:1; that pair only
+ever carries a selected sidebar step, a pressed button or a shell selection,
+all bold or transient, never running text).
 
 ## Surfaces and their owners
 

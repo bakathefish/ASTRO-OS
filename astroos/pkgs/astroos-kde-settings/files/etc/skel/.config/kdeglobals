@@ -1,9 +1,10 @@
 [General]
-ColorScheme=BreezeDark
+ColorScheme=AstroOS
 
 [Icons]
 Theme=breeze-dark
 
 [KDE]
 AnimationDurationFactor=0.25
+LookAndFeelPackage=org.astroos.desktop
 widgetStyle=Breeze

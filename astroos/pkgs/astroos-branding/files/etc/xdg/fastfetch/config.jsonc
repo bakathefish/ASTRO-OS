@@ -1,4 +1,17 @@
 {
+    // Palette roles, not raw taste: fastfetch takes "#rrggbb" as a 24-bit
+    // truecolor value and turns it into the SGR sequence itself
+    // (src/common/impl/option.c, ffOptionParseColorNoClear). Module output is
+    // left alone so the values print in the terminal's own foreground, which
+    // the AstroOS Konsole scheme already sets to text.
+    "display": {
+        "color": {
+            "keys": "#a679c9",      // lavender_hi
+            "title": "#62e2ec",     // cyan_hi
+            "separator": "#9692b2"  // text_dim
+        }
+    },
+
     // The logo is 32 columns wide (branding/assetgen.py), so an info line
     // longer than about 60 characters wraps to column 0 and lands on top of
     // it. Two modules produce values long enough to do that, and both are

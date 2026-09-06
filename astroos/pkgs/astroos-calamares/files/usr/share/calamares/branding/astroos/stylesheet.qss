@@ -1,7 +1,74 @@
 /*
  * AstroOS Calamares stylesheet.
  * SPDX-License-Identifier: CC0-1.0
- * Same two rules as the CachyOS component; everything else is Qt defaults.
+ *
+ * Every colour here is a palette role (astroos/branding/PALETTE.md) and
+ * nothing here changes a widget's geometry: no padding, no margins, no fixed
+ * sizes. On the live ISO Calamares already inherits the AstroOS scheme from
+ * the Plasma session's Qt palette; this sheet is what keeps the installer in
+ * the palette when it does not.
+ *
+ * Backgrounds are set on object names rather than on QWidget, because a
+ * blanket background on QWidget also repaints combo box popups and scroll
+ * area viewports, which is how a stylesheet turns into a bug report. The
+ * names come from the C++: src/calamares/CalamaresWindow.cpp and
+ * src/libcalamaresui/ViewManager.cpp, and the branding component's own
+ * documentation says to read them off the debug dialog's widget tree.
  */
+
+/* Upstream's two rules, unchanged. */
 QWidget { font: 13px; }
 QDialogButtonBox { dialogbuttonbox-buttons-have-icons: 0; }
+
+/* Foreground only, so composite widgets keep their own backgrounds. */
+QWidget { color: #e8e6f5; }                        /* text */
+
+/* The window and the page area behind every module. */
+#mainApp,
+#viewManager,
+#viewManagerStack { background-color: #1b1630; }   /* window */
+
+/* The widget sidebar. This component sets "sidebar: qml,bottom", so the bar
+   on screen is calamares-sidebar.qml and this rule matches nothing today; it
+   is here so switching back to "sidebar: widget" stays in the palette. */
+#sidebarApp { background-color: #161129; }         /* header */
+
+/* Inputs sit a step darker than the window, the way view does on the desktop. */
+QLineEdit,
+QComboBox,
+QSpinBox {
+    background-color: #120e22;                     /* view */
+    color: #e8e6f5;                                /* text */
+    border: 1px solid #332b4f;                     /* line */
+    border-radius: 4px;
+}
+
+/* A styled background makes Qt drop the native button frame, so the border is
+   what keeps a button looking like a button rather than decoration. On hover
+   the fill goes light, so the label has to go dark with it: text on orchid is
+   unreadable, window on orchid is not. */
+QPushButton {
+    background-color: #28223f;                     /* button */
+    color: #e8e6f5;                                /* text */
+    border: 1px solid #332b4f;                     /* line */
+    border-radius: 4px;
+}
+QPushButton:hover {
+    background-color: #c99cdc;                     /* orchid */
+    color: #1b1630;                                /* window */
+}
+QPushButton:pressed {
+    background-color: #8658b4;                     /* lavender */
+    color: #f8e2f6;                                /* selection_text */
+}
+QPushButton:disabled { color: #6b6688; }           /* text_disabled */
+
+/* Progress: the same lavender that carries selection and focus everywhere.
+   The bar keeps a border because its trough is the page colour and would
+   otherwise be invisible until the chunk moved. */
+QProgressBar {
+    background-color: #1b1630;                     /* window */
+    border: 1px solid #332b4f;                     /* line */
+    border-radius: 4px;
+}
+QProgressBar::chunk { background-color: #8658b4; } /* lavender */

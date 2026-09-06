@@ -1,0 +1,18 @@
+# Colour scheme for the SDDM greeter. The greeter runs as the sddm user with
+# HOME=/var/lib/sddm, so the Breeze SDDM theme resolves this as its kdeglobals
+# and draws its panel, fields and buttons from the AstroOS scheme.
+#
+# This is the file the System Settings "Login Screen" page writes when someone
+# presses Apply Plasma Settings: sddm-kcm's KAuth helper copies the current
+# user's ~/.config/kdeglobals to ~sddm/.config/kdeglobals and ~/.config/plasmarc
+# to ~sddm/.config/plasmarc (sddm-kcm sddmauthhelper.cpp, the "copy kdeglobals
+# (color scheme)" and "copy plasmarc (icons, UI style)" blocks). Shipping the
+# pair here means a fresh install already looks right without that round trip.
+[General]
+ColorScheme=AstroOS
+
+[Icons]
+Theme=breeze-dark
+
+[KDE]
+LookAndFeelPackage=org.astroos.desktop

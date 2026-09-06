@@ -1,0 +1,49 @@
+#!/bin/sh
+# The Plymouth default theme is not a packaged file: it is the Theme= line in
+# /etc/plymouth/plymouthd.conf, which plymouth itself owns. So it is set from
+# here rather than shipped, and cleared from here on removal.
+#
+# Without -R on purpose. plymouth-set-default-theme -R rebuilds the initramfs,
+# which is minutes of work this scriptlet has no business doing twice: the
+# installer's plymouthcfg module already runs the rebuild in the target after
+# pacstrap, and on a running system mkinitcpio's own alpm hooks rebuild after
+# any plymouth or kernel change (astroos-hooks points plymouth's initrd updater
+# at update-initramfs for the same reason). The consequence is worth naming: on
+# a plain pacman install of this package into a running system, the boot splash
+# keeps showing whatever the current initramfs holds until the next rebuild.
+#
+# plymouth is a dependency, so the tool is present whenever this runs after an
+# install; the guard is for removal order, where plymouth may already be gone.
+# Failure is reported, never fatal: this scriptlet runs inside pacstrap during
+# an install, and a theme that did not get set is not a reason to fail an
+# installation the user is halfway through.
+
+_astroos_set_theme() {
+  command -v plymouth-set-default-theme >/dev/null 2>&1 || return 0
+  plymouth-set-default-theme astroos >/dev/null \
+    || echo "astroos-theme: could not set the Plymouth default theme" >&2
+}
+
+post_install() {
+  _astroos_set_theme
+}
+
+# An upgrade never overrides a theme somebody chose after the install. It only
+# repairs a default whose theme directory no longer exists, which is the one
+# state plymouth cannot boot from.
+post_upgrade() {
+  command -v plymouth-set-default-theme >/dev/null 2>&1 || return 0
+  cur=$(plymouth-set-default-theme 2>/dev/null)
+  if [ -n "$cur" ] && [ -f "/usr/share/plymouth/themes/$cur/$cur.plymouth" ]; then
+    return 0
+  fi
+  _astroos_set_theme
+}
+
+post_remove() {
+  command -v plymouth-set-default-theme >/dev/null 2>&1 || return 0
+  # -r drops the Theme= line, so plymouth falls back to its own default rather
+  # than pointing at a theme directory this package has just taken away
+  plymouth-set-default-theme -r >/dev/null \
+    || echo "astroos-theme: could not reset the Plymouth default theme" >&2
+}

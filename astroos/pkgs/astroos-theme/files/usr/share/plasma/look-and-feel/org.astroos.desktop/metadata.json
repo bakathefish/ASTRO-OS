@@ -1,0 +1,17 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "AstroOS"
+            }
+        ],
+        "Category": "",
+        "Description": "One dark, indigo-cast palette across the desktop, from the login splash to the terminal.",
+        "Id": "org.astroos.desktop",
+        "License": "GPL-3.0-or-later",
+        "Name": "AstroOS",
+        "Version": "1.0",
+        "Website": "https://github.com/bakathefish/ASTRO-OS"
+    }
+}

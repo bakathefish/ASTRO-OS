@@ -1,0 +1,5 @@
+# Terminal. astroos-theme ships the AstroOS Konsole profile and the colour
+# scheme it names. Konsole reads DefaultProfile from this group of konsolerc
+# (konsole src/profile/ProfileManager.cpp).
+[Desktop Entry]
+DefaultProfile=AstroOS.profile

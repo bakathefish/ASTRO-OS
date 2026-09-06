@@ -1,0 +1,86 @@
+# The AstroOS GRUB menu: the first screen of the OS, and the same colours as
+# the rest of it. Every value is a role from astroos/branding/palette.py
+# (palette-check.py proves it) and the background is that palette's space
+# gradient, so the menu, the Plymouth splash, the login screen and the desktop
+# read as one machine.
+#
+# Fonts: unicode.pf2 is the font GRUB ships and the package copies beside this
+# file, because 00_header emits a loadfont for every .pf2 it finds in the theme
+# directory. "Unifont Regular 16" is the name recorded inside that file (its
+# NAME section; grub-mkfont writes "<family> <style> <size>"), not the
+# "Unicode Regular 16" older theme guides quote. A name GRUB cannot resolve is
+# not an error, it silently falls back to the built-in font, so the spelling is
+# worth keeping exact.
+#
+# Geometry note: the highlight is drawn as item_height plus the pads of its
+# pixmap box, which are the slice sizes. item_height 36 with 6 px top and
+# bottom slices makes the bar end exactly where the next line's text starts at
+# item_spacing 6. item_*.png is a fully transparent box of the same size, and
+# it is here so unselected lines carry the same 6 px top pad as the selected
+# one: GRUB positions each line's text inside its own box, so without it the
+# text would hop 6 px as the cursor moved. See gen-assets.py.
+
+# general
+title-text: ""
+title-font: "Unifont Regular 16"
+title-color: "#e8e6f5"
+# the black-on-white default for GRUB's own messages is the one flash of
+# another palette a user would ever see here
+message-font: "Unifont Regular 16"
+message-color: "#e8e6f5"
+message-bg-color: "#1b1630"
+terminal-font: "Unifont Regular 16"
+desktop-image: "background.png"
+# what shows before the image is decoded, and in any margin it does not cover
+desktop-color: "#0e0820"
+
+# the menu: centred, half the screen wide, no icons and no scrollbar
++ boot_menu {
+	left = 25%
+	width = 50%
+	top = 30%
+	height = 50%
+	item_font = "Unifont Regular 16"
+	selected_item_font = "Unifont Regular 16"
+	item_color = "#9692b2"
+	selected_item_color = "#f8e2f6"
+	# item_pixmap_style first: GRUB copies it to the selected pattern while
+	# that one is still inheriting, so setting it second would undo the line
+	# below (grub-core/gfxmenu/gui_list.c, list_set_property)
+	item_pixmap_style = "item_*.png"
+	selected_item_pixmap_style = "select_*.png"
+	item_height = 36
+	item_padding = 8
+	item_spacing = 6
+	icon_width = 0
+	icon_height = 0
+	item_icon_space = 0
+	scrollbar = false
+}
+
+# the countdown, on the accent
++ progress_bar {
+	id = "__timeout__"
+	left = 25%
+	width = 50%
+	top = 84%
+	height = 18
+	font = "Unifont Regular 16"
+	fg_color = "#8658b4"
+	bg_color = "#1b1630"
+	border_color = "#332b4f"
+	text_color = "#c8c4de"
+	text = "@TIMEOUT_NOTIFICATION_SHORT@"
+}
+
+# the wordmark, quiet enough to read as a signature rather than a banner
++ label {
+	left = 0
+	width = 100%
+	top = 100%-40
+	height = 20
+	align = "center"
+	font = "Unifont Regular 16"
+	color = "#6b6688"
+	text = "AstroOS"
+}

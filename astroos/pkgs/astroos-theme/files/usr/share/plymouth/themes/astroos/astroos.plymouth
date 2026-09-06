@@ -1,0 +1,91 @@
+# AstroOS boot splash. Structure is the spinner theme plymouth ships
+# (themes/spinner/spinner.plymouth.desktop upstream), with the template value
+# and the Arch font substitution already applied the way the installed
+# /usr/share/plymouth/themes/spinner/spinner.plymouth has them:
+# @PLYMOUTH_THEME_PATH@ -> /usr/share/plymouth/themes, Cantarell -> Adwaita
+# Sans, plus the MonospaceFont line Arch's PKGBUILD inserts. Only ImageDir,
+# the six colours and the watermark position differ from that file.
+#
+# Colours are astroos/branding/palette.py in its plymouth 0x spelling, so the
+# splash is the same space gradient the wallpaper, the login screen and the
+# GRUB menu draw. palette-check.py proves nothing else got in.
+#
+# Every image name the two-step module looks for resolves inside ImageDir
+# because astroos-theme's package() copies /usr/share/plymouth/themes/spinner/
+# *.png here (36 animation-, 30 throbber-, bullet, entry, lock, capslock,
+# keyboard, keymap-render) and then drops the AstroOS watermark on top of the
+# Arch one. No background.png is among them, which is what makes the module
+# paint the gradient below instead of an image, and no bgrt-fallback.png
+# either, which is why UseFirmwareBackground stays unset in every mode.
+
+[Plymouth Theme]
+Name=AstroOS
+Description=AstroOS boot splash: the deep-space gradient, a lavender progress bar and the AstroOS watermark.
+ModuleName=two-step
+
+[two-step]
+Font=Adwaita Sans 12
+TitleFont=Adwaita Sans Light 30
+MonospaceFont=Adwaita Mono 12
+ImageDir=/usr/share/plymouth/themes/astroos
+DialogHorizontalAlignment=.5
+DialogVerticalAlignment=.382
+TitleHorizontalAlignment=.5
+TitleVerticalAlignment=.382
+HorizontalAlignment=.5
+VerticalAlignment=.7
+# the watermark defaults to the right edge (1.0, .5); centred near the bottom
+# is where the wordmark sits on the wallpaper and the installer slides
+WatermarkHorizontalAlignment=.5
+WatermarkVerticalAlignment=.96
+Transition=none
+TransitionDuration=0.0
+# the gradient: space_top at the top of the screen, space_bottom at the foot
+BackgroundStartColor=0x03020a
+BackgroundEndColor=0x0e0820
+# progress: the accent on the window surface, as everywhere else in the OS
+ProgressBarBackgroundColor=0x1b1630
+ProgressBarForegroundColor=0x8658b4
+# the boot log the user sees after pressing escape: terminal colours, so it
+# reads as the same machine as the Konsole scheme
+ConsoleLogTextColor=0xe8e6f5
+ConsoleLogBackgroundColor=0x120e22
+DialogClearsFirmwareBackground=true
+MessageBelowAnimation=true
+
+[boot-up]
+UseEndAnimation=false
+
+[shutdown]
+UseEndAnimation=false
+
+[reboot]
+UseEndAnimation=false
+
+[updates]
+SuppressMessages=true
+ProgressBarShowPercentComplete=true
+UseProgressBar=true
+Title=Installing Updates...
+SubTitle=Do not turn off your computer
+
+[system-upgrade]
+SuppressMessages=true
+ProgressBarShowPercentComplete=true
+UseProgressBar=true
+Title=Upgrading System...
+SubTitle=Do not turn off your computer
+
+[firmware-upgrade]
+SuppressMessages=true
+ProgressBarShowPercentComplete=true
+UseProgressBar=true
+Title=Upgrading Firmware...
+SubTitle=Do not turn off your computer
+
+[system-reset]
+SuppressMessages=true
+ProgressBarShowPercentComplete=true
+UseProgressBar=true
+Title=Resetting System...
+SubTitle=Do not turn off your computer

@@ -33,12 +33,18 @@ images:
     productIcon:         "icon.png"
     productWelcome:      "welcome.png"
 
-# deep-space sidebar; the highlight is the logo tint (os-release ANSI_COLOR)
+# Sidebar, in AstroOS palette roles (astroos/branding/PALETTE.md): header for
+# the bar, text_sub for the steps still to come, and the current step drawn as
+# a selection, selection_text on lavender, the same pair the desktop uses.
+# The key names are the StyleEntry enum spelled exactly as C++ declares it:
+# Branding::styleString() looks each one up with QMetaEnum::valueToKey, and
+# validateStyleEntries() rejects anything else with "Unknown branding *style*
+# entry" (Calamares 3.4.1, src/libcalamaresui/Branding.cpp and Branding.h).
 style:
-   SidebarBackground:        "#0b0a1a"
-   SidebarText:              "#e8e6f5"
-   SidebarTextCurrent:       "#0b0a1a"
-   SidebarBackgroundCurrent: "#d8a0df"
+   SidebarBackground:        "#161129"
+   SidebarText:              "#c8c4de"
+   SidebarTextCurrent:       "#f8e2f6"
+   SidebarBackgroundCurrent: "#8658b4"
 
 slideshow:               "show.qml"
 slideshowAPI: 2

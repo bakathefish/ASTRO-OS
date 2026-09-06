@@ -234,6 +234,68 @@ grep -qx "ALL_kver='/boot/vmlinuz-linux-astroos-lts'" "$prof/airootfs/etc/mkinit
   || { echo "!! linux.preset ALL_kver is not the AstroOS LTS kernel (it builds the live initramfs)" >&2; exit 1; }
 echo ">> boot files point at the AstroOS kernel: ${#kfiles[@]} files rewritten"
 
+# --- AstroOS delta 2b-theme: the live medium's GRUB menu -------------------
+# An installed AstroOS gets its menu from the astroos-grub-theme package and
+# the GRUB_THEME line the installer writes (astroos-calamares apply.sh). The
+# medium is not a pacman target, so the same files are staged into the profile
+# here: one theme.txt, two ways onto a screen, and no chance of the live menu
+# and the installed menu drifting apart.
+#
+# This is a supported archiso path, not a patched mkarchiso. The uefi.grub
+# bootmode templates ${profile}/grub/*.cfg into the image and then copies
+# everything else in that directory across verbatim and recursively:
+#   files_to_copy+=("${profile}/grub/"!(*.cfg))
+#   cp -r --remove-destination -- "${files_to_copy[@]}" "${isofs_dir}/boot/grub/"
+# (archiso/mkarchiso, _make_bootmode_uefi.grub; the extglob that makes !(...)
+# work is set at the top of that script). So grub/themes/astroos in the profile
+# arrives as /boot/grub/themes/astroos on the ISO 9660 filesystem, which is
+# where the menu can reach it: the standalone EFI binary is built with
+# --themes="" but WITH the gfxmenu and png modules, and its embedded config
+# sets root to the ISO volume before it configfiles /boot/grub/grub.cfg, so an
+# absolute theme path resolves against the medium. CachyOS's util-iso.sh copies
+# the profile wholesale (cp -r archiso ${work_dir}/archiso) and stages nothing
+# of its own under grub/, so it needs no change either.
+#
+# UEFI only, and deliberately: bootmodes=('bios.syslinux' 'uefi.grub'), so a
+# BIOS boot never loads GRUB at all and keeps the syslinux splash set above.
+gt=/build/astroos/pkgs/astroos-grub-theme/files/usr/share/grub/themes/astroos
+gtd="$base/archiso/grub/themes/astroos"
+for f in theme.txt background.png; do
+  [[ -f "$gt/$f" ]] || { echo "!! missing GRUB theme file $gt/$f" >&2; exit 1; }
+done
+# The font travels with the theme, the same way the package ships it. On an
+# installed system grub-mkconfig's 00_header emits a loadfont for every .pf2
+# beside theme.txt; nothing scans the directory on a live medium, so the cfg
+# edit below loads this copy by name. The builder already installs grub (deps,
+# top of this file), so no font blob has to be committed anywhere.
+[[ -f /usr/share/grub/unicode.pf2 ]] \
+  || { echo "!! /usr/share/grub/unicode.pf2 missing: the builder has no grub package" >&2; exit 1; }
+install -d -m755 "$gtd"
+install -m644 "$gt"/* "$gtd/"
+install -m644 /usr/share/grub/unicode.pf2 "$gtd/unicode.pf2"
+for s in c n s e w ne nw se sw; do
+  [[ -f "$gtd/select_$s.png" && -f "$gtd/item_$s.png" ]] \
+    || { echo "!! GRUB theme slice select_$s.png or item_$s.png missing from $gtd" >&2; exit 1; }
+done
+# gfxmenu and png are already in the standalone binary; the insmod lines cost
+# nothing there and are what make the theme work in the loopback case, where
+# the host's own GRUB reads loopback.cfg with its modules unloaded. The theme
+# is set only if its font loads, the same guard the base file puts around
+# gfxterm: nothing here is missing on a medium we built, so a failure means the
+# theme directory did not make it, and a theme whose images are absent is worse
+# than the plain list. loadfont before set theme also means the menu uses OUR
+# copy of the font rather than depending on the host's.
+for f in "$base/archiso/grub/grub.cfg" "$base/archiso/grub/loopback.cfg"; do
+  grep -qx '# Set default menu entry' "$f" \
+    || { echo "!! no '# Set default menu entry' anchor in $f (base moved?)" >&2; exit 1; }
+  grep -q 'set theme=' "$f" \
+    || sed -i 's|^# Set default menu entry$|# AstroOS GRUB theme (staged above from astroos-grub-theme)\ninsmod gfxmenu\ninsmod png\nif loadfont /boot/grub/themes/astroos/unicode.pf2 ; then\n    set theme=/boot/grub/themes/astroos/theme.txt\nfi\n\n&|' "$f"
+  n=$(grep -cE '^[[:space:]]*set theme=/boot/grub/themes/astroos/theme\.txt$' "$f" || true)
+  [[ "$n" == 1 ]] \
+    || { echo "!! $f sets the AstroOS GRUB theme $n times, expected exactly 1" >&2; exit 1; }
+done
+echo ">> live GRUB menu themed: $(find "$gtd" -maxdepth 1 -type f | wc -l) files staged in archiso/grub/themes/astroos, set theme= in grub.cfg and loopback.cfg"
+
 # --- AstroOS delta 2c: [astroos] prebuilt repo (council R3, ratified; R4.1) --
 # Adds the signed Azure-hosted repo to the build, the live system AND the
 # installed system (pacman-more.conf), trusts the key, and installs every
@@ -350,7 +412,10 @@ for u in systemd-networkd-wait-online.service systemd-time-wait-sync.service; do
   [[ -L "$p" && "$(readlink "$p")" == "/dev/null" ]] \
     || { echo "!! overlay preflight: $u is not a /dev/null mask symlink" >&2; preflight_fail=1; }
 done
-for f in etc/hostname etc/os-release etc/issue etc/plymouth/plymouthd.conf \
+# etc/plymouth/plymouthd.conf is no longer an overlay file: astroos-theme's
+# scriptlet writes Theme=astroos into plymouth's own copy during pacstrap, and
+# an overlay copy landing afterwards would be a second writer of the same line
+for f in etc/hostname etc/os-release etc/issue \
          etc/skel/.config/plasma-welcomerc \
          usr/share/applications/astroos-install.desktop \
          usr/local/bin/calamares-online.sh usr/local/bin/astroos-smoke-report \

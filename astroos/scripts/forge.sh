@@ -64,8 +64,7 @@ local_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/PKGBUILD" ]] && 
 # kernels: base, headers, zfs, nvidia-open from a single build). They are real
 # db entries, so the hosted-db comparison must expect them; they are not build
 # units, so the "every scope package is installed" audit does not demand them.
-split_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/splits" ]] && tr -d '
-' < "$d/splits" | grep -vE '^\s*(#|$)' | awk '{print $1}'; done; return 0; }
+split_names() { local d; for d in "$here"/pkgs/*/; do [[ -f "$d/splits" ]] && tr -d '\r' < "$d/splits" | grep -vE '^\s*(#|$)' | awk '{print $1}'; done; return 0; }
 scope_names() { { aur_names; local_names; } | sort -u; }
 repo_names()  { { aur_names; local_names; split_names; } | sort -u; }
 db_names()    { bsdtar -tf "$1" | awk -F/ '$2=="desc"{print $1}' | sed 's/-[^-]*-[^-]*$//' | sort -u; }
@@ -202,7 +201,7 @@ stage_audit() {
     etc/pacman.d/cachyos-mirrorlist etc/pacman.d/cachyos-v3-mirrorlist etc/pacman.d/cachyos-v4-mirrorlist \
     etc/pacman.d/astroos-mirrorlist \
     etc/fastfetch usr/share/astroos usr/share/pacman/keyrings \
-    usr/share/plymouth/themes/spinner/watermark.png usr/bin/astroos-doctor \
+    usr/share/plymouth/themes/astroos etc/plymouth/plymouthd.conf usr/bin/astroos-doctor \
     usr/share/calamares/settings_online.conf usr/share/calamares/branding/astroos \
     etc/calamares/modules etc/calamares/scripts \
     etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc etc/skel/.config/alacritty/alacritty.toml \
@@ -214,6 +213,11 @@ stage_audit() {
     usr/share/refind/icons/os_astroos.png \
     usr/share/sddm/themes/breeze/theme.conf.user \
     usr/lib/plasmalogin/plasmalogin.conf.d usr/share/doc/astroos \
+    usr/share/color-schemes/AstroOS.colors usr/share/plasma/look-and-feel/org.astroos.desktop \
+    usr/share/konsole/AstroOS.colorscheme usr/share/konsole/AstroOS.profile \
+    usr/share/grub/themes/astroos var/lib/sddm/.config \
+    etc/skel/.config/kdeglobals etc/skel/.config/kdedefaults \
+    etc/skel/.config/konsolerc etc/skel/.config/kscreenlockerrc \
     usr/share/libalpm/hooks usr/lib/calamares/modules/pacstrap \
     usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override \
     >/dev/null 2>"$a/unsquash.err" || true
@@ -228,7 +232,9 @@ stage_audit() {
   grep -q AstroOS "$r/etc/issue" 2>/dev/null && ok "/etc/issue branded" || bad "/etc/issue not branded"
   [[ "$(tr -d '\r\n' < "$r/etc/hostname" 2>/dev/null)" == "astroos" ]] && ok "hostname is astroos" || bad "hostname is not astroos"
   if grep -q 'Welcome to AstroOS' "$r/etc/motd" 2>/dev/null && ! grep -qi 'welcome to your.*cachyos' "$r/etc/motd"; then ok "motd is the AstroOS one"; else bad "motd missing or still CachyOS"; fi
-  [[ "$(sha256sum "$r/usr/share/plymouth/themes/spinner/watermark.png" 2>/dev/null | cut -d' ' -f1)" == "$(sha256sum "$here/branding/out/watermark.png" | cut -d' ' -f1)" ]] \
+  # the watermark now lives in our own Plymouth theme (astroos-theme), not in
+  # plymouth's stock spinner theme: same asset, new owner
+  [[ "$(sha256sum "$r/usr/share/plymouth/themes/astroos/watermark.png" 2>/dev/null | cut -d' ' -f1)" == "$(sha256sum "$here/branding/out/watermark.png" | cut -d' ' -f1)" ]] \
     && ok "plymouth watermark is the AstroOS asset" || bad "plymouth watermark is not ours"
   [[ -s "$r/etc/fastfetch/astroos-logo.ansi" ]] && ok "fastfetch ANSI logo shipped" || bad "fastfetch logo missing"
   [[ -x "$r/usr/bin/astroos-doctor" ]] && ok "astroos-doctor executable (packaged, /usr/bin)" || bad "astroos-doctor missing or not executable"
@@ -339,8 +345,20 @@ stage_audit() {
   grep -q 'cachyos-plymouth' "$cm/pacstrap.conf" 2>/dev/null && bad "CachyOS plymouth themes still pacstrapped" || ok "CachyOS plymouth themes out of pacstrap"
   grep -q '^\s*template:\s*"astroos"' "$cm/users.conf" 2>/dev/null && ok "installed hostname template is astroos" || bad "hostname template not astroos"
   grep -q '^efiBootloaderId: "astroos"' "$cm/bootloader.conf" 2>/dev/null && ok "EFI boot entry id is astroos" || bad "EFI boot entry id not astroos"
-  grep -q 'GRUB_THEME' "$cm/grubcfg.conf" 2>/dev/null && bad "CachyOS GRUB theme still configured" || ok "no CachyOS GRUB theme"
-  grep -q '^plymouth_theme: spinner' "$cm/plymouthcfg.conf" 2>/dev/null && ok "installed plymouth theme is spinner (+ AstroOS watermark)" || bad "installed plymouth theme not spinner"
+  # the installer writes GRUB_THEME into the target's /etc/default/grub, so it
+  # has to name the AstroOS theme (astroos-grub-theme): not the CachyOS one it
+  # replaced, and not nothing, or an installed GRUB menu is GRUB's own blue
+  grep -q '^\s*GRUB_THEME: "/usr/share/grub/themes/astroos/theme.txt"$' "$cm/grubcfg.conf" 2>/dev/null \
+    && ok "installer selects the AstroOS GRUB theme" || bad "grubcfg.conf does not select /usr/share/grub/themes/astroos/theme.txt"
+  grep -q 'themes/cachyos' "$cm/grubcfg.conf" 2>/dev/null && bad "CachyOS GRUB theme still configured" || ok "no CachyOS GRUB theme"
+  # the plymouthcfg module writes the installed system's theme after pacstrap,
+  # so it has the last word over astroos-theme's .install: it must name our own
+  # theme on both GPU paths, or the installed splash drops back to plymouth's
+  # stock spinner and the boot leaves the colour scheme
+  if grep -q '^plymouth_theme: astroos$' "$cm/plymouthcfg.conf" 2>/dev/null \
+     && grep -q '^plymouth_theme_amdgpu: astroos$' "$cm/plymouthcfg.conf" 2>/dev/null; then
+    ok "installer sets the installed plymouth theme to astroos (both GPU paths)"
+  else bad "plymouthcfg.conf does not select the astroos plymouth theme on both GPU paths"; fi
   grep -q 'CachyOS' "$r/etc/calamares/scripts/bootloader-post-setup" "$r/etc/calamares/scripts/btrfs-installation-snapshot" 2>/dev/null \
     && bad "CachyOS survives in the installer scripts (Limine name / snapshot description)" || ok "installer scripts say AstroOS"
   # installer previews and the last CachyOS surfaces (2026-09-06)
@@ -384,6 +402,93 @@ stage_audit() {
     grep -rqi cachyos "$r/usr/share/doc/astroos" && bad "CachyOS survives in the shipped AstroOS docs" || ok "no CachyOS string in the shipped AstroOS docs"
   else
     bad "shipped AstroOS docs missing"
+  fi
+
+  # one colour scheme, every surface: astroos-theme (KDE scheme, look-and-feel,
+  # Konsole, Plymouth), astroos-grub-theme, and the skeleton that selects them.
+  # Same discipline as the independence block above: every path here is in the
+  # unsquashfs list, and each absence check sits behind a positive control, so
+  # a "no BreezeDark" verdict can never pass because the tree was never
+  # extracted (R4.3). The recursive BreezeDark search sees the skeleton files
+  # in that list (kdeglobals, kdedefaults, konsolerc, kscreenlockerrc,
+  # appletsrc, plasma-welcomerc), which is where a stale scheme name would sit.
+  local cs="$r/usr/share/color-schemes/AstroOS.colors"
+  if [[ -s "$cs" ]]; then
+    ok "AstroOS.colors extracted (positive control for the colour scheme checks)"
+    sed -n '/^\[General\]/,/^\[/p' "$cs" | grep -q '^Name=AstroOS$' \
+      && ok "AstroOS.colors is named AstroOS ([General] Name)" || bad "AstroOS.colors carries no [General] Name=AstroOS (nothing would select it by name)"
+  else
+    bad "usr/share/color-schemes/AstroOS.colors missing from the image (astroos-theme not installed?)"
+  fi
+  local sk="$r/etc/skel/.config"
+  if [[ -s "$sk/kdeglobals" ]]; then
+    ok "skel kdeglobals extracted (positive control for the skeleton colour checks)"
+    grep -q '^ColorScheme=AstroOS$' "$sk/kdeglobals" && ok "skel kdeglobals selects ColorScheme=AstroOS" || bad "skel kdeglobals does not select ColorScheme=AstroOS"
+    grep -q '^LookAndFeelPackage=org.astroos.desktop$' "$sk/kdeglobals" && ok "skel kdeglobals selects LookAndFeelPackage=org.astroos.desktop" || bad "skel kdeglobals does not select the AstroOS look-and-feel"
+    local breeze
+    breeze=$({ grep -rl '^ColorScheme=BreezeDark' "$sk" || true; } | sed "s|^$sk/||" | tr '\n' ' ')
+    [[ -z "$breeze" ]] && ok "no ColorScheme=BreezeDark under etc/skel/.config" || bad "BreezeDark still selected in the skeleton: $breeze"
+  else
+    bad "etc/skel/.config/kdeglobals missing from the image (the skeleton colour checks could not run)"
+  fi
+  local kd="$sk/kdedefaults"
+  grep -q '^ColorScheme=AstroOS$' "$kd/kdeglobals" 2>/dev/null \
+    && ok "skel kdedefaults/kdeglobals selects AstroOS (the defaults layer Plasma reads first)" || bad "kdedefaults/kdeglobals does not select AstroOS"
+  sed -n '/^\[Theme\]/,/^\[/p' "$kd/plasmarc" 2>/dev/null | grep -q '^name=default$' \
+    && ok "skel kdedefaults/plasmarc keeps [Theme] name=default (Breeze follows the colour scheme)" || bad "kdedefaults/plasmarc does not keep [Theme] name=default"
+  local lnf="$r/usr/share/plasma/look-and-feel/org.astroos.desktop"
+  [[ -s "$lnf/metadata.json" ]] && ok "look-and-feel org.astroos.desktop shipped (metadata.json)" || bad "look-and-feel org.astroos.desktop metadata.json missing"
+  grep -q '^ColorScheme=AstroOS$' "$lnf/contents/defaults" 2>/dev/null \
+    && ok "look-and-feel defaults name ColorScheme=AstroOS" || bad "look-and-feel contents/defaults does not name ColorScheme=AstroOS"
+  [[ -s "$lnf/contents/splash/Splash.qml" ]] && ok "look-and-feel login splash shipped (Splash.qml)" || bad "look-and-feel contents/splash/Splash.qml missing"
+  [[ -s "$r/usr/share/konsole/AstroOS.colorscheme" ]] && ok "Konsole colour scheme shipped" || bad "usr/share/konsole/AstroOS.colorscheme missing"
+  [[ -s "$r/usr/share/konsole/AstroOS.profile" ]] && ok "Konsole AstroOS profile shipped" || bad "usr/share/konsole/AstroOS.profile missing"
+  grep -q '^DefaultProfile=AstroOS.profile$' "$sk/konsolerc" 2>/dev/null \
+    && ok "skel konsolerc opens the AstroOS profile" || bad "skel konsolerc does not set DefaultProfile=AstroOS.profile"
+  local pt="$r/usr/share/plymouth/themes/astroos"
+  [[ -s "$pt/astroos.plymouth" ]] && ok "Plymouth theme astroos.plymouth shipped" || bad "astroos.plymouth missing from the image"
+  [[ -s "$pt/watermark.png" ]] && ok "Plymouth theme carries the watermark" || bad "watermark.png missing from the astroos Plymouth theme"
+  local throb
+  throb=$(find "$pt" -maxdepth 1 -name 'throbber-*.png' -printf '%f ' 2>/dev/null || true)
+  [[ -n "$throb" ]] && ok "Plymouth throbber frames shipped ($(printf '%s' "$throb" | wc -w))" || bad "no throbber-*.png in the astroos Plymouth theme (the splash would not animate)"
+  grep -q '^Theme=astroos$' "$r/etc/plymouth/plymouthd.conf" 2>/dev/null \
+    && ok "plymouthd.conf selects Theme=astroos" || bad "etc/plymouth/plymouthd.conf does not select the astroos theme"
+  grep -q '^ColorScheme=AstroOS$' "$r/var/lib/sddm/.config/kdeglobals" 2>/dev/null \
+    && ok "SDDM greeter kdeglobals selects AstroOS" || bad "var/lib/sddm/.config/kdeglobals does not select AstroOS"
+  [[ -s "$r/usr/share/grub/themes/astroos/theme.txt" ]] && ok "GRUB theme shipped (astroos-grub-theme)" || bad "usr/share/grub/themes/astroos/theme.txt missing"
+  # astroos-theme owns Plymouth now: a leftover 85-astroos-plymouth-watermark
+  # hook would keep copying the watermark into plymouth's stock spinner theme
+  if [[ -d "$r/etc/pacman.d/hooks" ]]; then
+    ok "etc/pacman.d/hooks extracted (positive control for the check below)"
+    local wmhook
+    wmhook=$(find "$r/etc/pacman.d/hooks" -maxdepth 1 -name '85-astroos-plymouth-watermark.hook' -printf '%f ' 2>/dev/null)
+    [[ -z "$wmhook" ]] && ok "the retired watermark hook is gone" || bad "the retired watermark hook survives and fights the theme: $wmhook"
+  else
+    bad "etc/pacman.d/hooks missing from the image (the retired watermark hook could not be checked)"
+  fi
+  # every themed file that reached the image uses palette colours only: the
+  # checker CI runs over the sources, pointed here at what the ISO carries.
+  # A missing python3 is a finding, not a skip: unchecked is unproven.
+  local pcheck="$here/branding/palette-check.py"
+  local pf pmiss="" pfiles=()
+  for pf in usr/share/color-schemes/AstroOS.colors \
+            usr/share/konsole/AstroOS.colorscheme \
+            usr/share/plasma/look-and-feel/org.astroos.desktop/contents/defaults \
+            usr/share/plasma/look-and-feel/org.astroos.desktop/contents/splash/Splash.qml \
+            usr/share/plymouth/themes/astroos/astroos.plymouth \
+            usr/share/grub/themes/astroos/theme.txt \
+            usr/share/calamares/branding/astroos/branding.desc \
+            usr/share/calamares/branding/astroos/stylesheet.qss; do
+    if [[ -f "$r/$pf" ]]; then pfiles+=("$r/$pf"); else pmiss="$pmiss $pf"; fi
+  done
+  if ! command -v python3 >/dev/null 2>&1; then
+    bad "python3 missing on the build host: the ISO palette check could not run"
+  elif [[ -n "$pmiss" ]]; then
+    bad "themed files missing from the image, palette unchecked:$pmiss"
+  elif python3 "$pcheck" "${pfiles[@]}" > "$a/palette.txt" 2>&1; then
+    ok "every themed file on the ISO uses palette colours only ($(tail -1 "$a/palette.txt"))"
+  else
+    bad "a themed file on the ISO uses a colour outside the palette: $({ grep -m1 'is not in palette' "$a/palette.txt" || head -1 "$a/palette.txt"; } | sed "s|^$r/||")"
   fi
 
   # laptop profile

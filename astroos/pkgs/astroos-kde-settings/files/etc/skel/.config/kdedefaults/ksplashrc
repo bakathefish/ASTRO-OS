@@ -1,0 +1,6 @@
+# Login splash. plasma-workspace libklookandfeel/klookandfeelmanager.cpp
+# writes exactly these two keys when a global theme is applied, so a global
+# theme the user picks later replaces this file's values cleanly.
+[KSplash]
+Engine=KSplashQML
+Theme=org.astroos.desktop

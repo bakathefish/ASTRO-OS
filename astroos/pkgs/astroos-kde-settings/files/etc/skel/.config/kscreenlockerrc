@@ -1,0 +1,18 @@
+# Lock screen background: the greeter image, not the desktop wallpaper. Both
+# stack the clock, the avatar and the password field down the middle, and the
+# desktop wallpaper puts the planet exactly there.
+#
+# Key path, read off the greeter: kscreenlocker greeter/greeterapp.cpp builds
+# the group Greeter / Wallpaper / <wallpaper plugin id> from kscreenlockerrc
+# and hands it to the wallpaper package's config/main.xml, whose General group
+# declares Image (plasma-workspace wallpapers/image/imagepackage/contents/
+# config/main.xml). The plugin key is WallpaperPlugin, not the
+# WallpaperPluginId that plasmalogin uses; kscreenlocker's own kcfg names the
+# entry wallpaperPluginId but writes it as key="WallpaperPlugin"
+# (settings/kscreenlockersettings.kcfg). A bare path is enough: ImageBackend
+# ::setImage runs the value through QUrl::fromUserInput.
+[Greeter]
+WallpaperPlugin=org.kde.image
+
+[Greeter][Wallpaper][org.kde.image][General]
+Image=/usr/share/astroos/branding/login-background.png

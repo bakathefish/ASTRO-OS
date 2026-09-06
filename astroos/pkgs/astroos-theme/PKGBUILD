@@ -1,0 +1,89 @@
+# Maintainer: AstroOS <https://github.com/bakathefish/ASTRO-OS>
+# Local lane package (see astroos-keyring/PKGBUILD for the version scheme).
+#
+# One colour scheme for the whole OS. astroos/branding/palette.py is the source
+# of every value this package ships and astroos/branding/palette-check.py
+# proves it: the surfaces owned here (the Plasma colour scheme, the global
+# theme and its login splash, the Konsole scheme and profile, the Plymouth boot
+# theme) all read the same table, so no screen carries a colour someone picked
+# once and forgot. astroos/branding/PALETTE.md maps every surface in the OS to
+# the package that owns it.
+#
+# Why astroos-branding is a hard dependency: three absolute paths named here
+# belong to that package, and each is a broken reference without it.
+#   /usr/share/wallpapers/AstroOS/                           contents/defaults
+#     (astroos-branding/PKGBUILD lines 66-67)
+#   /usr/share/icons/hicolor/scalable/apps/astroos-logo.svg  contents/splash/Splash.qml
+#     (astroos-branding/PKGBUILD line 63)
+#   /usr/share/astroos/branding/watermark.png                 copied into the
+#     Plymouth theme by package() below (astroos-branding/PKGBUILD line 69)
+#
+# The third is also why astroos-branding appears in makedepends: package()
+# reads that file out of the installed package, so the build needs it whether
+# or not the runtime does. The two entries are separate statements about
+# separate needs, and collapsing them would break the build the day the
+# runtime reference goes away. The lane builds pkgs/* in glob order, so
+# astroos-branding is in the local repo before this package starts.
+#
+# makedepends=(plymouth) for the same kind of reason: a two-step Plymouth theme
+# draws with the image files sitting in its own ImageDir, and rather than
+# redraw them we copy the frames out of the spinner theme plymouth ships. One
+# set of artwork on the system, not a second copy that ages differently.
+#
+# plymouth itself is a hard dependency, not an optdepend, for two reasons. The
+# boot half of this package is nothing without it. And pacman installs a
+# package's dependencies before the package: astroos-theme.install selects the
+# splash with plymouth-set-default-theme, and in a transaction that carries
+# both (the ISO build, the installer's pacstrap) an optdepend would sort
+# alphabetically after us, the tool would be absent when the scriptlet ran,
+# and the live medium's plymouthd.conf would never name our theme.
+pkgname=astroos-theme
+pkgver=0
+pkgrel=1
+pkgdesc="AstroOS colour scheme: Plasma colour scheme and global theme, Konsole scheme and profile, login splash, boot splash"
+arch=(any)
+url="https://github.com/bakathefish/ASTRO-OS"
+license=(GPL-3.0-or-later)
+depends=(astroos-branding plymouth)
+makedepends=(plymouth astroos-branding)
+optdepends=('konsole: the terminal that reads the AstroOS scheme and profile'
+            'plasma-workspace: reads the colour scheme, the global theme and its login splash')
+install=astroos-theme.install
+
+pkgver() { cat "$startdir/VERSION"; }
+
+package() {
+  local f="$startdir/files" spinner="/usr/share/plymouth/themes/spinner" p t missing=0
+
+  # Every payload path under files/ mirrors its install path, the shape
+  # astroos-branding uses. Modes are set here rather than carried across: this
+  # tree can be checked out on Windows, where the exec bit does not survive,
+  # and nothing this package ships is a program.
+  ( cd "$f" && find . -type f -exec install -Dm644 {} "$pkgdir/{}" \; )
+  find "$pkgdir" -type d -exec chmod 755 {} +
+
+  # The frames the two-step theme animates with, from the theme plymouth ships.
+  [[ -d "$spinner" ]] || { echo "astroos-theme: $spinner is missing; is plymouth installed?" >&2; return 1; }
+  for t in "$spinner"/*.png; do
+    install -Dm644 "$t" "$pkgdir/usr/share/plymouth/themes/astroos/${t##*/}"
+  done
+  # Ours, and it goes in after the loop so it replaces the spinner watermark
+  # the loop just copied.
+  install -Dm644 /usr/share/astroos/branding/watermark.png \
+    "$pkgdir/usr/share/plymouth/themes/astroos/watermark.png"
+
+  # Assertions rather than comments: every path below is named from outside
+  # this package (kdeglobals, konsolerc, plymouthd.conf, the look-and-feel
+  # loader), so a missing one is a theme that half applies and reports nothing.
+  for p in usr/share/color-schemes/AstroOS.colors \
+           usr/share/plasma/look-and-feel/org.astroos.desktop/metadata.json \
+           usr/share/konsole/AstroOS.colorscheme \
+           usr/share/konsole/AstroOS.profile \
+           usr/share/plymouth/themes/astroos/astroos.plymouth \
+           usr/share/plymouth/themes/astroos/watermark.png; do
+    [[ -f "$pkgdir/$p" ]] || { echo "astroos-theme: missing $p" >&2; missing=1; }
+  done
+  compgen -G "$pkgdir/usr/share/plymouth/themes/astroos/throbber-*.png" >/dev/null \
+    || { echo "astroos-theme: no throbber-*.png copied from $spinner" >&2; missing=1; }
+  (( missing == 0 )) || return 1
+}

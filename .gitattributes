@@ -8,6 +8,8 @@
 # and leave them exactly as they are; eol=lf pins the working copy for the
 # rest, on Windows as well as on the build host.
 astroos/** text=auto eol=lf
+# a CRLF workflow body breaks its run steps on the runner
+.github/** text=auto eol=lf
 *.patch    text=auto eol=lf
 *.PKGBUILD text=auto eol=lf
 PKGBUILD   text=auto eol=lf

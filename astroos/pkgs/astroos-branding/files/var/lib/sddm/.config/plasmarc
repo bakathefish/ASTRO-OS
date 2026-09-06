@@ -1,0 +1,5 @@
+# Plasma desktop theme for the SDDM greeter, the other half of the pair
+# sddm-kcm syncs. "default" is Breeze, which ships no colors file and so takes
+# the colour scheme above; breeze-dark would pin its own grey.
+[Theme]
+name=default

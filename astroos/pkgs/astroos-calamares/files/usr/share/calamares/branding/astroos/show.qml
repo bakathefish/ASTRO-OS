@@ -11,9 +11,12 @@
  *   The slides are 16:9 and the slideshow area is wider than that, so
  *   PreserveAspectFit leaves a bar down each side. Calamares paints those
  *   bars white. Each slide therefore carries a Rectangle behind the image
- *   whose gradient is the one the artwork itself uses, top #04030b to
- *   bottom #0e0820, so the bars read as part of the picture at any window
- *   size (R4.4, seen during the 2026-09-06 install run).
+ *   whose gradient is the one the artwork itself uses, space_top #03020a to
+ *   space_bottom #0e0820, so the bars read as part of the picture at any
+ *   window size (R4.4, seen during the 2026-09-06 install run). The top stop
+ *   used to be a shade lighter than the palette and than what the generator
+ *   actually draws: assetgen.py starfield() ramps SPACE_TOP (3, 2, 10) to
+ *   SPACE_BOTTOM (14, 8, 32), so the bars did not quite match the artwork.
  */
 
 import QtQuick 2.15;
@@ -42,7 +45,7 @@ Presentation
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: "#04030b" }
+                GradientStop { position: 0.0; color: "#03020a" }
                 GradientStop { position: 1.0; color: "#0e0820" }
             }
         }
@@ -61,7 +64,7 @@ Presentation
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: "#04030b" }
+                GradientStop { position: 0.0; color: "#03020a" }
                 GradientStop { position: 1.0; color: "#0e0820" }
             }
         }
@@ -80,7 +83,7 @@ Presentation
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: "#04030b" }
+                GradientStop { position: 0.0; color: "#03020a" }
                 GradientStop { position: 1.0; color: "#0e0820" }
             }
         }

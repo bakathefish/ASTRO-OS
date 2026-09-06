@@ -8,10 +8,20 @@
 # here; the installer config (astroos-calamares) lists this package in
 # pacstrap basePackages. The live ISO gets it from the [astroos] repo too.
 #
-# Package-owned upstream files (os-release/lsb-release/issue/motd, plymouth's
-# watermark, the bash skeleton) are never shipped twice: another package owns
-# each of those paths, so alpm PostTransaction hooks re-assert AstroOS content
-# after every install/upgrade of the owning package instead.
+# Package-owned upstream files (os-release/lsb-release/issue/motd, the bash
+# skeleton) are never shipped twice: another package owns each of those paths,
+# so alpm PostTransaction hooks re-assert AstroOS content after every
+# install/upgrade of the owning package instead.
+#
+# The boot splash left this package. It used to ship
+# etc/pacman.d/hooks/85-astroos-plymouth-watermark.hook, which copied the
+# AstroOS watermark over plymouth's own after every plymouth install or
+# upgrade so the stock spinner theme wore our mark. astroos-theme now ships a
+# Plymouth theme of its own, named astroos, that carries the watermark inside
+# its own directory and is what plymouthd selects, so the hook would have gone
+# on patching a theme nothing uses and would have fought the package that owns
+# the splash. The generated watermark.png stays installed under
+# /usr/share/astroos/branding: astroos-theme's package() copies it from there.
 #
 # Split of responsibility with astroos-hooks, which lands on the same system:
 # this package owns identity, that one owns machinery. Identity means
@@ -30,18 +40,44 @@
 # disabled). Both greeters get the AstroOS wallpaper, each verified in the KVM
 # guest: SDDM through the breeze theme's override file, plasmalogin through a
 # vendor drop-in that /etc/plasmalogin.conf (System Settings) overrides.
+#
+# Greeter colours are a different mechanism from the greeter wallpaper, and
+# neither greeter has a colour-scheme key in a vendor drop-in directory. The
+# wallpaper is a plasmalogin main-config key; the colour scheme is plain KDE
+# config that the greeter reads out of its own $HOME, and plasmalogin's config
+# schema has no entry for it (plasma-login-manager src/common/mainconfig.kcfg
+# covers X11, Wayland, Autologin, General and Users only). Both login KCMs
+# therefore copy the admin's kdeglobals and plasmarc into the greeter user's
+# home instead of writing a drop-in (sddm-kcm sddmauthhelper.cpp; plasma-login-
+# manager src/frontend/kcm/auth/plasmaloginauthhelper.cpp). This package ships
+# that pair for both greeter accounts, /var/lib/sddm and /var/lib/plasmalogin,
+# so a fresh install is in the palette before anyone opens System Settings.
+# Arch's sddm and plasma-login-manager packages own no path under /var at all;
+# both homes are created by systemd-tmpfiles at 0750 owned by the greeter user
+# (sddm services/sddm-tmpfiles.conf.in, plasmalogin
+# services/plasmalogin-tmpfiles.conf.in), so package() sets 0750 on the two
+# home directories to match and leaves the owner to tmpfiles.
 pkgname=astroos-branding
 pkgver=0
 pkgrel=1
-pkgdesc="AstroOS distro identity: os-release, lsb-release, issue, motd, pacman hooks, icons, wallpaper (desktop and login screen), terminal greeting"
+pkgdesc="AstroOS distro identity: os-release, lsb-release, issue, motd, pacman hooks, icons, wallpaper and colours for the desktop and both login screens, terminal greeting"
 arch=(any)
 url="https://github.com/bakathefish/ASTRO-OS"
 license=(GPL-3.0-or-later CC-BY-SA-4.0)
-# sddm-kcm writes the same override file when the user picks another login
-# background; a backup entry keeps that choice across upgrades (.pacnew)
-backup=(usr/share/sddm/themes/breeze/theme.conf.user)
-optdepends=('fastfetch: terminal greeting with the AstroOS logo'
-            'plymouth: branded boot splash (spinner theme + AstroOS watermark)')
+# Every entry here is a file a System Settings page overwrites in place, so a
+# backup entry keeps the user's choice across upgrades (.pacnew).
+#   theme.conf.user            sddm-kcm writes it when the user picks another
+#                              login background
+#   var/lib/*/.config/*        the Login Screen page's "Apply Plasma Settings"
+#                              copies the current user's kdeglobals and
+#                              plasmarc over these; pacman would then report
+#                              them modified on every upgrade
+backup=(usr/share/sddm/themes/breeze/theme.conf.user
+        var/lib/sddm/.config/kdeglobals
+        var/lib/sddm/.config/plasmarc
+        var/lib/plasmalogin/.config/kdeglobals
+        var/lib/plasmalogin/.config/plasmarc)
+optdepends=('fastfetch: terminal greeting with the AstroOS logo')
 
 pkgver() { cat "$startdir/VERSION"; }
 
@@ -53,6 +89,11 @@ package() {
   find "$pkgdir" -type d -exec chmod 755 {} +
   find "$pkgdir" -type f -exec chmod 644 {} +
   chmod 755 "$pkgdir"/usr/share/astroos/bin/*
+  # Greeter homes: 0750 to match the tmpfiles drop-ins that own them, so
+  # pacman does not report the mode as changed. The .config directories below
+  # stay 0755 root:root, which is what the login KCM helpers leave when they
+  # create them, and the files 0644: only the greeter reads them.
+  chmod 750 "$pkgdir/var/lib/sddm" "$pkgdir/var/lib/plasmalogin"
 
   # generated assets (astroos/branding/assetgen.py, committed in branding/out)
   for s in 512 256 128 64 48 32 16; do

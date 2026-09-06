@@ -1,8 +1,9 @@
 name: checks
 
 # Three jobs (the first two cheap and always-on, the third on schedule):
-#   lint       shellcheck + bash -n on every script; the generated additions
-#              list must match its meta sources (council R1: generated, never
+#   lint       shellcheck + bash -n on every script; every themed file uses
+#              only palette.py colours; the generated additions list must
+#              match its meta sources (council R1: generated, never
 #              hand-edited)
 #   aur-scope  scope count == expected, every aur.list name still resolves in
 #              the AUR (liveness), none has migrated to the official repos.
@@ -36,6 +37,27 @@ jobs:
           done
           shellcheck -S warning "${files[@]}"
           for f in "${files[@]}"; do bash -n "$f"; done
+      - name: palette
+        run: |
+          # palette.py is the source of truth every themed file is measured
+          # against, so it has to import and print before anything is checked
+          python3 astroos/branding/palette.py >/dev/null
+          # a themed path that vanished must fail this step, never pass by
+          # being absent: each target is asserted present before the check
+          targets=(
+            astroos/pkgs/astroos-theme/files
+            astroos/pkgs/astroos-grub-theme/files
+            astroos/pkgs/astroos-branding/files
+            astroos/pkgs/astroos-kde-settings/files
+            astroos/pkgs/astroos-calamares/files/usr/share/calamares/branding/astroos
+            astroos/pkgs/astroos-calamares/files/usr/share/astroos/calamares/apply.sh
+            astroos/pkgs/astroos-fish-config/files
+          )
+          for t in "${targets[@]}"; do
+            [[ -e "$t" ]] || { echo "themed path missing: $t"; exit 1; }
+          done
+          python3 astroos/branding/palette-check.py "${targets[@]}"
+
       - name: generated additions list is current
         run: |
           bash astroos/scripts/gen-packages.sh

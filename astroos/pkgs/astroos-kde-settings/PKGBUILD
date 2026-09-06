@@ -15,12 +15,12 @@
 #
 # Payload source: https://github.com/cachyos/cachyos-kde-settings tag 4.9
 # (commit de08092e48b5e9695c400dfe9daf112cd0249516), copied byte for byte
-# except for LF line endings and the three edits below. The GVariant database
+# except for LF line endings and the edits below. The GVariant database
 # etc/skel/.config/dconf/user is the upstream file unchanged (sha256
 # 5f93493be785b832c10b5f8e9e45e97cadef01cbf805554f47288ab0db5f296b); it carries
 # GTK defaults only, no distro identity.
 #
-# AstroOS edits, all three in etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc:
+# AstroOS edits, three in etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc:
 #   1. Kickoff button icon: icon=org.cachyos.hello becomes icon=astroos-logo.
 #      cachyos-hello is dropped from AstroOS, so the upstream name dangles and
 #      Kickoff falls back to a generic icon (R4 branding survey row 6).
@@ -40,6 +40,44 @@
 #      row 7). The group is corrected to [Containments][22] and both paths name
 #      the AstroOS wallpaper that astroos-branding installs.
 #
+# The colour scheme is the fourth edit, and it is why pkgrel is 2. This package
+# is where a new user's session picks its look, so it points at what
+# astroos-theme ships. Two upstream files change and four are new. Upstream
+# files stay comment-free, the way the payload has them, and the reasons are
+# here; the four AstroOS-authored files carry their own short comments.
+#   etc/skel/.config/kdeglobals and .config/kdedefaults/kdeglobals
+#         ColorScheme=BreezeDark becomes ColorScheme=AstroOS, and [KDE] gains
+#         LookAndFeelPackage=org.astroos.desktop. widgetStyle stays Breeze:
+#         the widget style is a shape, not a palette, and Breeze draws it in
+#         whatever scheme is active.
+#   etc/skel/.config/kdedefaults/ksplashrc
+#         the login splash from the same look-and-feel package. Keys as
+#         plasma-workspace writes them when a global theme is applied
+#         (libklookandfeel/klookandfeelmanager.cpp: KSplash/Engine and
+#         KSplash/Theme).
+#   etc/skel/.config/kdedefaults/plasmarc
+#         Theme/name=default, the Breeze desktop theme. It ships no colors
+#         file, so the panel, popups and widgets follow the colour scheme;
+#         the breeze-dark desktop theme pins its own grey palette
+#         (libplasma src/desktoptheme/breeze-dark/colors) and would have left
+#         the panel outside the scheme.
+#   etc/skel/.config/konsolerc
+#         DefaultProfile=AstroOS.profile, the Konsole profile astroos-theme
+#         ships, which names the AstroOS Konsole colour scheme.
+#   etc/skel/.config/kscreenlockerrc
+#         the lock screen draws the greeter background astroos-branding
+#         installs. The key path is derived in the file itself.
+# The three files under kdedefaults/ are defaults rather than settings:
+# startplasma prepends ~/.config/kdedefaults to XDG_CONFIG_DIRS
+# (plasma-workspace startkde/startplasma.cpp), so a value the user changes
+# lands in ~/.config/ and wins, and applying another global theme rewrites
+# these files instead of fighting them.
+#
+# Trolltech.conf is dropped from the skeleton. It is a Qt 4 settings file
+# (Qt 5 and 6 read neither it nor its [Qt] palette groups), so nothing on a
+# current system reads it, and it carried the Breeze Dark palette as 76 raw
+# hex values: the one file under skel that would have failed palette-check.
+#
 # The upstream .install scriptlet is deliberately not carried over. Its font
 # cache rebuild is already done by the fontconfig and xorg-mkfontscale alpm
 # hooks; its glib-compile-schemas and gtk-update-icon-cache calls use relative
@@ -51,12 +89,16 @@
 # nothing in this payload references it.
 pkgname=astroos-kde-settings
 pkgver=4.9
-pkgrel=1
+pkgrel=2
 pkgdesc="AstroOS KDE Plasma defaults: desktop, panel, KWin, GTK, cursor and font skeleton configs plus the SDDM drop-ins"
 arch=(any)
 url="https://github.com/bakathefish/ASTRO-OS"
 license=(GPL-1.0-only)
-depends=('ttf-fantasque-nerd'
+# astroos-theme is a hard dependency, not an optdepend: the skeleton names its
+# colour scheme, its look-and-feel package and its Konsole profile by id, and
+# without them a first login falls back to Breeze grey with no visible error.
+depends=('astroos-theme'
+         'ttf-fantasque-nerd'
          'noto-fonts'
          'ttf-fira-sans'
          'capitaine-cursors')
