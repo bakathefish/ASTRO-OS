@@ -56,6 +56,8 @@ package() {
   install -Dm644 "$a/wallpaper-preview.png" "$pkgdir/usr/share/wallpapers/AstroOS/contents/screenshot.png"
   install -Dm644 "$a/astroos-logo.ansi"     "$pkgdir/etc/fastfetch/astroos-logo.ansi"
   install -Dm644 "$a/watermark.png"         "$pkgdir/usr/share/astroos/branding/watermark.png"
+  # greeter background: the planet clear of the clock, avatar and password field
+  install -Dm644 "$a/login-background.png"  "$pkgdir/usr/share/astroos/branding/login-background.png"
   install -Dm644 "$a/splash-1920.png"       "$pkgdir/usr/share/astroos/branding/limine-splash.png"
 
   # masks for the cachyos-hooks identity/notification hooks (R4 survey rows 18-20)

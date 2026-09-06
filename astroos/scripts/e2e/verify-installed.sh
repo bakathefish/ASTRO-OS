@@ -33,10 +33,11 @@ chk "fastfetch reports AstroOS"       bash -c 'fastfetch --logo none 2>/dev/null
 chk "bash greeting in ~/.bashrc"      grep -q 'AstroOS terminal greeting' "$HOME/.bashrc"
 chk "fish greeting drop-in present"   test -f "$HOME/.config/fish/conf.d/astroos-greeting.fish"
 chk "plymouth watermark present"      test -f /usr/share/astroos/branding/watermark.png
+chk "greeter background installed"    test -f /usr/share/astroos/branding/login-background.png
 chk "AstroOS wallpaper installed"     test -f /usr/share/wallpapers/AstroOS/contents/images/3840x2160.png
 chk "Kickoff icon is astroos-logo"    grep -q '^icon=astroos-logo' "$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
-chk "SDDM greeter background is AstroOS" grep -q '^background=/usr/share/wallpapers/AstroOS/' /usr/share/sddm/themes/breeze/theme.conf.user
-chk "plasmalogin greeter wallpaper drop-in" grep -q '^Image=/usr/share/wallpapers/AstroOS/' /usr/lib/plasmalogin/plasmalogin.conf.d/10-astroos-wallpaper.conf
+chk "SDDM greeter background is AstroOS" grep -q '^background=/usr/share/astroos/branding/login-background.png' /usr/share/sddm/themes/breeze/theme.conf.user
+chk "plasmalogin greeter wallpaper drop-in" grep -q '^Image=/usr/share/astroos/branding/login-background.png' /usr/lib/plasmalogin/plasmalogin.conf.d/10-astroos-wallpaper.conf
 chk "no /etc/cachyos-release"          bash -c '[[ ! -e /etc/cachyos-release ]]'
 chk "no CachyOS icon file"             bash -c '[[ ! -e /usr/share/icons/cachyos.svg ]]'
 chk "scalable astroos-logo.svg"        test -f /usr/share/icons/hicolor/scalable/apps/astroos-logo.svg

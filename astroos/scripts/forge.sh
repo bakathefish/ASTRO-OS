@@ -306,12 +306,13 @@ stage_audit() {
   [[ -e "$r/etc/cachyos-release" ]] && bad "/etc/cachyos-release survives on the live ISO" || ok "no /etc/cachyos-release"
   [[ -e "$r/usr/share/icons/cachyos.svg" ]] && bad "CachyOS icon file survives" || ok "no CachyOS icon file"
   [[ -f "$r/usr/share/refind/icons/os_astroos.png" ]] && ok "rEFInd OS icon shipped" || bad "rEFInd OS icon missing"
-  grep -q '^background=/usr/share/wallpapers/AstroOS/' "$r/usr/share/sddm/themes/breeze/theme.conf.user" 2>/dev/null \
+  grep -q '^background=/usr/share/astroos/branding/login-background.png' "$r/usr/share/sddm/themes/breeze/theme.conf.user" 2>/dev/null \
     && ok "SDDM greeter background is the AstroOS wallpaper" || bad "SDDM greeter background not branded"
-  grep -rq 'AstroOS' "$r/usr/lib/plasmalogin/plasmalogin.conf.d" 2>/dev/null \
+  grep -rq 'login-background.png' "$r/usr/lib/plasmalogin/plasmalogin.conf.d" 2>/dev/null \
     && ok "plasmalogin greeter wallpaper drop-in shipped" || bad "plasmalogin wallpaper drop-in missing"
   grep -q 'astroos-logo' "$r/usr/share/glib-2.0/schemas/zz_astroos.org.gnome.login-screen.gschema.override" 2>/dev/null \
     && ok "GNOME login logo override shipped" || bad "GNOME login logo override missing"
+  [[ -f "$r/usr/share/astroos/branding/login-background.png" ]] && ok "greeter background shipped" || bad "greeter background missing"
   grep -q '^AstroOS rolling' "$r/etc/astroos-release" 2>/dev/null && ok "/etc/astroos-release shipped" || bad "/etc/astroos-release missing"
   # house style: no em dash in anything we print (owner directive, 2026-09-06)
   LC_ALL=C grep -rl $'\xe2\x80\x94' "$r/etc/astroos-release" "$r/etc/motd" "$r/etc/issue" "$r/usr/share/astroos/branding" 2>/dev/null | grep -q . \

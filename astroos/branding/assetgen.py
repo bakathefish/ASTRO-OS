@@ -203,7 +203,14 @@ def ansi_logo(logo, outdir, cols=32):
 
 
 def wallpaper(
-    logo, outdir, w=3840, h=2160, name="astroos-wallpaper.png", logo_frac=0.30
+    logo,
+    outdir,
+    w=3840,
+    h=2160,
+    name="astroos-wallpaper.png",
+    logo_frac=0.30,
+    cx_frac=0.50,
+    cy_frac=0.46,
 ):
     im = starfield(w, h).convert("RGBA")
     nebula(
@@ -213,9 +220,24 @@ def wallpaper(
             (0.78, 0.72, 0.50, 0.40, NEBULA_TEAL, 0.10),
         ],
     )
-    place_logo(im, logo, w / 2, h * 0.46, w * logo_frac, glow=0.75)
+    place_logo(im, logo, w * cx_frac, h * cy_frac, w * logo_frac, glow=0.75)
     im.convert("RGB").save(os.path.join(outdir, name))
     return im
+
+
+def login_background(logo, outdir):
+    """Greeter background. Both greeters centre the clock, the avatar and the
+    password field on the upper middle of the screen, so the planet sits low
+    and right of that column instead of directly behind the avatar, where it
+    showed only as a coloured smudge (seen in the 2026-09-06 install run)."""
+    return wallpaper(
+        logo,
+        outdir,
+        name="login-background.png",
+        logo_frac=0.22,
+        cx_frac=0.73,
+        cy_frac=0.63,
+    )
 
 
 def wallpaper_preview(outdir):
@@ -621,6 +643,7 @@ def main():
     ansi_logo(logo, outdir)
     wallpaper(logo, outdir)
     wallpaper_preview(outdir)
+    login_background(logo, outdir)
     splashes(logo, outdir)
     calamares(logo, outdir)
     previews(logo, outdir)
