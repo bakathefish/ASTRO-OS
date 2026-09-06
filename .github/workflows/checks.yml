@@ -23,11 +23,19 @@ jobs:
       - name: shellcheck (warning level)
         run: |
           sudo apt-get install -y -qq shellcheck >/dev/null
-          shellcheck -S warning astroos/scripts/*.sh astroos/aur-patches/*/*.sh astroos/overlay/airootfs/usr/local/bin/* astroos/pkgs/*/files/usr/bin/* astroos/pkgs/*/files/usr/share/astroos/bin/* astroos/pkgs/astroos-calamares/files/usr/share/astroos/calamares/apply.sh astroos/pkgs/astroos-zenbook-duo/files/usr/lib/zenbook-duo/*
+          # the pkgs/*/files/usr/bin globs also match helpers that are not
+          # shell at all (astroos-settings ships a Lua one), so a file is
+          # linted when it ends in .sh or its shebang names a shell
+          files=()
           for f in astroos/scripts/*.sh astroos/aur-patches/*/*.sh astroos/overlay/airootfs/usr/local/bin/* astroos/pkgs/*/files/usr/bin/* astroos/pkgs/*/files/usr/share/astroos/bin/* astroos/pkgs/astroos-calamares/files/usr/share/astroos/calamares/apply.sh astroos/pkgs/astroos-zenbook-duo/files/usr/lib/zenbook-duo/*; do
             [[ -f "$f" ]] || continue
-            bash -n "$f"
+            if [[ "$f" != *.sh ]] && ! head -n1 "$f" | grep -qE '^#!.*(bash|/sh|env sh)'; then
+              echo "skip (not a shell script): $f"; continue
+            fi
+            files+=("$f")
           done
+          shellcheck -S warning "${files[@]}"
+          for f in "${files[@]}"; do bash -n "$f"; done
       - name: generated additions list is current
         run: |
           bash astroos/scripts/gen-packages.sh

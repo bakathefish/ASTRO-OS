@@ -22,10 +22,12 @@
 #     Cargo.toml carries no `description`) and i18n/en/chwd.ftl is neutral, so
 #     `chwd --help` and every runtime message are already distro-free.
 #   - every path it installs or reads is /var/lib/chwd/**, never a cachyos one.
-#   - the `^linux-cachyos` matches in profiles/pci/graphic_drivers/profiles.toml
-#     and scripts/chwd-kernel are FUNCTIONAL, not branding: AstroOS ships
-#     linux-cachyos and linux-cachyos-lts (astroos/meta/astroos-core.list), so
-#     renaming them would break nvidia kernel-module selection.
+#   - the `linux-cachyos` prefix matches in profiles/pci/graphic_drivers/
+#     profiles.toml and scripts/chwd-kernel are FUNCTIONAL, not branding: they
+#     decide which kernel gets a prebuilt nvidia module. AstroOS ships
+#     linux-astroos and linux-astroos-lts (astroos/meta/astroos-core.list), so
+#     prepare() retargets them at our prefix; left alone, the nvidia profile
+#     would fall through to nvidia-open-dkms on every AstroOS kernel.
 # The one CachyOS string this package did own was the pkgdesc, renamed below.
 # The Calamares progress line "Installing needed drivers for CachyOS..." is not
 # ours; astroos-calamares rewrites it (apply.sh).
@@ -57,6 +59,23 @@ b2sums=('2a19da62dd23ee96cbdc0f0e7a77ff1904e858b94170b7d026a4904f1892c34f3e00997
 
 prepare() {
   cd "$srcdir/$_src"
+
+  # The kernel-name prefix that selects a prebuilt module package: the nvidia
+  # profile turns each /usr/lib/modules/*/pkgbase into "<kernel>-nvidia-open"
+  # only when the kernel matches, and chwd-kernel attaches -zfs/-nvidia-open
+  # names the same way. Our kernels are linux-astroos*, and their module
+  # packages follow (linux-astroos-nvidia-open, linux-astroos-zfs). The
+  # handheld profiles are left alone: they symlink into
+  # /usr/share/cachyos-handheld, a package outside the AstroOS scope, and a
+  # symlink into a package the user could still install beats one into a
+  # path nothing owns.
+  sed -i 's/linux-cachyos/linux-astroos/g' \
+    profiles/pci/graphic_drivers/profiles.toml \
+    scripts/chwd-kernel/src/kernel.rs
+  grep -q 'grep -q "^linux-astroos"' profiles/pci/graphic_drivers/profiles.toml \
+    || { echo "!! the nvidia profile no longer matches the kernel by prefix (chwd moved?)" >&2; return 1; }
+  grep -q 'starts_with("linux-astroos")' scripts/chwd-kernel/src/kernel.rs \
+    || { echo "!! chwd-kernel no longer matches the kernel by prefix (chwd moved?)" >&2; return 1; }
 
   cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 

@@ -37,7 +37,7 @@ veusz
 quarto-cli
 
 # Left the CachyOS repos with them 2026-09-06: [cachyos] is deleted from every
-# pacman.conf, and these three are not in Arch core/extra/multilib and are not
+# pacman.conf, and these four are not in Arch core/extra/multilib and are not
 # CachyOS-branded, so they keep their upstream names and build here instead.
 # None of them pulls an AUR-only dependency: the transitive block below is unchanged.
 paru              # AUR helper. makedepends cargo (extra/rust provides it); depends git,
@@ -55,6 +55,11 @@ zfs-utils         # ZFS userspace ONLY (configure --with-config=user): no kernel
                   # built from the same PKGBUILD as their kernels, so they are always matched,
                   # and no DKMS is involved. This package is the userspace half of that pair,
                   # so its version must track what those modules were built against.
+mkinitcpio-openswap  # hard depends of astroos-calamares-installer (the initcpiocfg module adds
+                  # the openswap hook for encrypted swap and luksopenswaphookcfg writes
+                  # /etc/openswap.conf). It never appeared in a package list: it reached the
+                  # ISO only as a transitive dependency of cachyos-calamares-next, served by
+                  # [cachyos]. 0.1.1-1, arch any, depends mkinitcpio only, no makedepends.
 
 # Transitive AUR dependencies of the packages above (council R3.1 P2 —
 # explicit allowlist, measured closure 2026-08-25; consumer in parens)

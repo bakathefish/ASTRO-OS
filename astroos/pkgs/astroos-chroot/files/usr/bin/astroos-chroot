@@ -273,13 +273,14 @@ declare -A BTRFS_CACHE_IDS=() BTRFS_CACHE_NAMES=()
 # The subvolume the kernel mounts when no subvolid is given is always 5, and
 # `btrfs subvolume list` never reports it, so it is prepended by hand.
 list_subvolumes() { # device uuid
-  local dev="$1" uuid="$2" tmp id gen top path
+  local dev="$1" uuid="$2" tmp id path
   tmp=$(mktemp -d "${TMPDIR:-/tmp}/astroos-chroot-temp-mount-$uuid-XXXXXXXX") ||
     die "Failed to create temporary directory"
   mount_device "$dev" "$tmp" 0
   SUBVOL_ID=(5)
   SUBVOL_NAME=("/")
-  while read -r id gen top path; do
+  # table rows are "<id> <gen> <top level> <path>"; only id and path matter
+  while read -r id _ _ path; do
     [[ $id =~ ^[0-9]+$ ]] || continue # the -t header and its rule line
     [[ -n $path ]] || continue
     [[ $path == .snapshots* && $show_dot_snapshots -eq 0 ]] && continue

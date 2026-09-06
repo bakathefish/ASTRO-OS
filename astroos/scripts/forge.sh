@@ -237,13 +237,12 @@ stage_audit() {
   # package. What must hold now: branding's identity hooks live under
   # /etc/pacman.d/hooks, astroos-hooks' machinery under /usr/share/libalpm/hooks,
   # and no hook anywhere carries a CachyOS name, masked or real.
-  local h
+  local h cachy_hooks
   for h in astroos-reboot-required.hook astroos-plymouth-initramfs.hook; do
     [[ -f "$r/usr/share/libalpm/hooks/$h" ]] && ok "$h shipped by astroos-hooks" || bad "$h missing from usr/share/libalpm/hooks"
   done
-  { ls "$r/etc/pacman.d/hooks/" "$r/usr/share/libalpm/hooks/" 2>/dev/null | grep -qi cachy; } \
-    && bad "a CachyOS-named hook survives: $(ls "$r/etc/pacman.d/hooks/" "$r/usr/share/libalpm/hooks/" 2>/dev/null | grep -i cachy | tr '\n' ' ')" \
-    || ok "no CachyOS-named hook in either hook directory"
+  cachy_hooks=$(find "$r/etc/pacman.d/hooks" "$r/usr/share/libalpm/hooks" -maxdepth 1 -iname '*cachy*' -printf '%f ' 2>/dev/null)
+  [[ -n "$cachy_hooks" ]] && bad "a CachyOS-named hook survives: $cachy_hooks" || ok "no CachyOS-named hook in either hook directory"
   [[ -f "$r/usr/share/applications/cachyos-hello.desktop" ]] && bad "cachyos-hello still on the ISO" || ok "cachyos-hello gone"
   [[ -f "$r/usr/share/applications/astroos-install.desktop" ]] && ok "Install AstroOS launcher shipped" || bad "astroos-install.desktop missing"
   # Installer configuration AFTER apply.sh has run at pacstrap time. The old
@@ -263,13 +262,19 @@ stage_audit() {
   # (2026-09-05 E2E), so the check pins the exact value and the file it names.
   li=$(sed -n 's/^LiveInstaller=//p' "$r/etc/skel/.config/plasma-welcomerc" 2>/dev/null | tr -d '\r')
   if [[ "$li" == "astroos-install" && -f "$r/usr/share/applications/${li}.desktop" ]]; then ok "plasma-welcome Install button wired (LiveInstaller=$li, desktop file present)"; else bad "plasma-welcomerc LiveInstaller is '${li:-unset}' (must be astroos-install, no .desktop suffix, file present)"; fi
-  # skeleton configs re-branded by the 86 hook at pacstrap time
+  # skeleton configs: astroos-kde-settings ships the Plasma appletsrc already
+  # branded, so nothing at pacstrap time has to sed it any more
   local ap="$r/etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc"
   if [[ -f "$ap" ]]; then
     grep -q '^icon=astroos-logo' "$ap" && ok "Kickoff icon is astroos-logo" || bad "Kickoff icon not rebranded"
     grep -q 'cachyos-wallpapers' "$ap" && bad "cachyos-wallpapers path survives in appletsrc" || ok "default wallpaper points at AstroOS"
-  else bad "appletsrc missing (cachyos-kde-settings not installed?)"; fi
-  grep -q 'title = "Alacritty@AstroOS"' "$r/etc/skel/.config/alacritty/alacritty.toml" 2>/dev/null && ok "Alacritty title rebranded" || bad "Alacritty title not rebranded"
+  else bad "appletsrc missing (astroos-kde-settings not installed?)"; fi
+  # cachyos-alacritty-config left with [cachyos] and no AstroOS package ships an
+  # Alacritty config, so the file is normally absent; should one return, it
+  # must not carry the CachyOS title
+  local al="$r/etc/skel/.config/alacritty/alacritty.toml"
+  if [[ -f "$al" ]]; then grep -qi cachyos "$al" && bad "alacritty.toml still names CachyOS" || ok "alacritty.toml carries no CachyOS"
+  else ok "no CachyOS Alacritty config shipped"; fi
 
   # repo wiring (live + installed-system pacman.conf)
   if [[ "$ASTROOS_WITH_AUR_REPO" == "1" ]]; then

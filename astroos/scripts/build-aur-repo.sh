@@ -44,10 +44,12 @@ IMG="${ASTROOS_BUILDER_IMAGE:-docker.io/archlinux:base-devel}"
 # 33 the same day: python-parfive's docs-only makedepends (sphinx-automodapi,
 # sphinx_contributors) left with the docs build (aur-patches/python-parfive);
 # 32: python-pytest-runner left with opendrop's check() (aur-patches/opendrop).
-# 35 on 2026-09-06: [cachyos] was deleted from every pacman.conf, and paru,
-# ckbcomp and zfs-utils are neither in Arch nor CachyOS-branded, so they keep
-# their own names and build here instead of coming from upstream's repo.
-SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-35}"
+# 36 on 2026-09-06: [cachyos] was deleted from every pacman.conf, and paru,
+# ckbcomp, zfs-utils and mkinitcpio-openswap are neither in Arch nor
+# CachyOS-branded, so they keep their own names and build here instead of
+# coming from upstream's repo (openswap is the installer's hard dependency;
+# it only ever reached the ISO transitively, so the base-list sweep missed it).
+SCOPE_EXPECT="${ASTROOS_AUR_SCOPE:-36}"
 cmd="${1:-build}"
 arg="${2:-}"
 
